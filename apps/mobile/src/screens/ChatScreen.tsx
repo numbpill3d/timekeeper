@@ -1,0 +1,169 @@
+/**
+ * Signature feature: natural language query interface.
+ * User types or speaks a question; receives a structured answer
+ * with optional video clip thumbnails.
+ */
+
+import { useState, useRef } from "react";
+import {
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { askQuestion, QueryResponse } from "../api/client";
+
+interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  confidence?: number;
+  clips?: string[];
+}
+
+export function ChatScreen() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const listRef = useRef<FlatList>(null);
+
+  const history = messages.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
+
+  async function send() {
+    const question = input.trim();
+    if (!question || loading) return;
+    setInput("");
+
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: question,
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setLoading(true);
+
+    try {
+      const { data } = await askQuestion(question, history);
+      const reply: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: data.answer,
+        confidence: data.confidence,
+        clips: data.clips,
+      };
+      setMessages((prev) => [...prev, reply]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: "sorry, couldn't reach the server right now.",
+        },
+      ]);
+    } finally {
+      setLoading(false);
+      listRef.current?.scrollToEnd({ animated: true });
+    }
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={90}
+    >
+      <FlatList
+        ref={listRef}
+        data={messages}
+        keyExtractor={(m) => m.id}
+        contentContainerStyle={styles.list}
+        renderItem={({ item }) => (
+          <View
+            style={[
+              styles.bubble,
+              item.role === "user" ? styles.userBubble : styles.aiBubble,
+            ]}
+          >
+            <Text style={styles.bubbleText}>{item.content}</Text>
+            {item.confidence !== undefined && item.confidence < 0.8 && (
+              <Text style={styles.confidence}>
+                {Math.round(item.confidence * 100)}% confidence
+              </Text>
+            )}
+          </View>
+        )}
+      />
+
+      <View style={styles.inputRow}>
+        <TextInput
+          style={styles.input}
+          value={input}
+          onChangeText={setInput}
+          placeholder="ask about your home..."
+          placeholderTextColor="#555"
+          onSubmitEditing={send}
+          returnKeyType="send"
+          editable={!loading}
+        />
+        <Pressable
+          style={[styles.sendBtn, loading && styles.sendBtnDisabled]}
+          onPress={send}
+          disabled={loading}
+        >
+          <Text style={styles.sendText}>{loading ? "..." : "ask"}</Text>
+        </Pressable>
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#000" },
+  list: { padding: 16, gap: 12 },
+  bubble: {
+    maxWidth: "80%",
+    borderRadius: 4,
+    padding: 12,
+  },
+  userBubble: { alignSelf: "flex-end", backgroundColor: "#1a1a1a" },
+  aiBubble: {
+    alignSelf: "flex-start",
+    backgroundColor: "#111",
+    borderLeftWidth: 2,
+    borderLeftColor: "#e00",
+  },
+  bubbleText: { color: "#fff", fontSize: 14, lineHeight: 20 },
+  confidence: { color: "#888", fontSize: 11, marginTop: 4 },
+  inputRow: {
+    flexDirection: "row",
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#1a1a1a",
+    gap: 8,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: "#111",
+    color: "#fff",
+    borderRadius: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  sendBtn: {
+    backgroundColor: "#c00",
+    borderRadius: 4,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+  },
+  sendBtnDisabled: { backgroundColor: "#600" },
+  sendText: { color: "#fff", fontWeight: "600" },
+});

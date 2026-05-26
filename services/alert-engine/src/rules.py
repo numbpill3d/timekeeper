@@ -1,0 +1,127 @@
+"""
+Alert rule evaluation.
+
+Rules are stored as natural language in alert_rules.rule_text and
+compiled to a predicate dict on first use (cached in compiled_rule column).
+
+Compiled rule schema:
+  {
+    "event_types": ["person_entered", ...],   # match any
+    "person_labels": ["unknown", ...],         # match any; "unknown" = is_known=False
+    "object_categories": ["keys", ...],
+    "location_labels": ["backyard", ...],
+    "time_after": "HH:MM",                    # 24h, local time
+    "time_before": "HH:MM",
+    "min_confidence": 0.0
+  }
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+
+from omniscient_shared.models.event import Event, EventType
+
+log = logging.getLogger(__name__)
+
+_OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+_OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "mistral")
+
+_TEMPLATES: dict[str, dict] = {
+    "unknown person enters": {
+        "event_types": [EventType.person_entered.value],
+        "person_labels": ["unknown"],
+    },
+    "intrusion": {
+        "event_types": [EventType.intrusion_detected.value],
+    },
+    "package delivered": {
+        "event_types": [EventType.package_delivered.value],
+    },
+    "after midnight": {
+        "time_after": "00:00",
+        "time_before": "06:00",
+    },
+}
+
+_COMPILE_SYSTEM = """
+You are an alert rule compiler for a home surveillance system.
+Convert a natural language rule into a JSON predicate object.
+
+Predicate schema (only include relevant fields):
+{
+  "event_types": ["person_entered","person_exited","object_placed",
+                  "object_picked_up","object_moved","package_delivered",
+                  "intrusion_detected"],
+  "person_labels": ["unknown"],
+  "object_categories": ["keys","wallet","phone","bag","package"],
+  "location_labels": ["front door","backyard","kitchen"],
+  "time_after": "HH:MM",
+  "time_before": "HH:MM",
+  "min_confidence": 0.0
+}
+
+Return ONLY valid JSON, no explanation.
+""".strip()
+
+
+def compile_rule(rule_text: str) -> dict:
+    """Template matching fallback — fast, no LLM required."""
+    lower = rule_text.lower()
+    for keyword, predicate in _TEMPLATES.items():
+        if keyword in lower:
+            return predicate
+    return {}
+
+
+async def compile_rule_llm(rule_text: str) -> dict:
+    """LLM-based rule compilation. Returns {} on failure."""
+    try:
+        import ollama
+
+        client = ollama.AsyncClient(host=_OLLAMA_URL)
+        resp = await client.chat(
+            model=_OLLAMA_MODEL,
+            messages=[
+                {"role": "system", "content": _COMPILE_SYSTEM},
+                {"role": "user", "content": rule_text},
+            ],
+        )
+        raw = resp["message"]["content"].strip()
+        # strip markdown fences if present
+        if "```" in raw:
+            parts = raw.split("```")
+            raw = parts[1].lstrip("json").strip() if len(parts) > 1 else raw
+        return json.loads(raw)
+    except Exception as exc:
+        log.warning("llm rule compilation failed: %s", exc)
+        return {}
+
+
+def event_matches(event: Event, rule: dict, person_label: str | None) -> bool:
+    """Return True if event satisfies the compiled rule predicate."""
+    if not rule:
+        return True
+
+    types = rule.get("event_types")
+    if types and event.event_type.value not in types:
+        return False
+
+    p_labels = rule.get("person_labels")
+    if p_labels:
+        if "unknown" in p_labels and person_label is not None:
+            return False
+        if person_label and person_label not in p_labels:
+            return False
+
+    locs = rule.get("location_labels")
+    if locs and event.location_label not in locs:
+        return False
+
+    min_conf = rule.get("min_confidence", 0.0)
+    if event.confidence < min_conf:
+        return False
+
+    return True

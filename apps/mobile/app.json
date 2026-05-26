@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Omniscient Home",
+    "slug": "omniscient-home",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "omniscient",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#000000"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.omniscienthome.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Voice queries",
+        "NSCameraUsageDescription": "Camera preview"
+      }
+    },
+    "android": {
+      "package": "com.omniscienthome.app",
+      "permissions": ["RECORD_AUDIO", "CAMERA", "RECEIVE_BOOT_COMPLETED"]
+    },
+    "plugins": ["expo-router", "expo-notifications"]
+  }
+}

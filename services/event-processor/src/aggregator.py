@@ -1,0 +1,145 @@
+"""
+Converts raw per-frame detections into semantic activity events.
+
+Rules (Phase 1):
+  - person_entered:  person track_id first seen this session on this camera
+  - person_exited:   track_id disappeared for > EXIT_TIMEOUT seconds
+  - object_moved:    tracked object's camera_id changed between detections
+  - object_placed:   object track that was moving is now stationary > STILL_TIMEOUT
+  - object_picked_up: stationary object track disappeared
+  - package_delivered: 'package' class detected near entrance camera for first time
+
+Cross-camera correlation lives in correlator.py; this file handles
+single-camera temporal aggregation only.
+"""
+
+from __future__ import annotations
+
+import logging
+from datetime import datetime, timedelta
+
+from omniscient_shared.models.entity import Detection, DetectionMessage
+from omniscient_shared.models.event import Event, EventType
+
+log = logging.getLogger(__name__)
+
+EXIT_TIMEOUT = timedelta(seconds=5)
+STILL_TIMEOUT = timedelta(seconds=3)
+
+_ENTRANCE_KEYWORDS = frozenset({"front", "entrance", "door", "entry", "porch", "foyer"})
+
+
+class CameraAggregator:
+    """Stateful aggregator for one camera stream."""
+
+    def __init__(self, camera_id: str, location_label: str | None) -> None:
+        self.camera_id = camera_id
+        self.location_label = location_label
+        # track_id -> last Detection
+        self._active: dict[int, Detection] = {}
+        # track_id -> first seen time
+        self._first_seen: dict[int, datetime] = {}
+        # track_id -> last seen time
+        self._last_seen: dict[int, datetime] = {}
+
+    def process(self, msg: DetectionMessage) -> list[Event]:
+        events: list[Event] = []
+        now = msg.timestamp
+        seen_ids: set[int] = set()
+
+        for det in msg.detections:
+            tid = det.track_id
+            seen_ids.add(tid)
+
+            if tid not in self._active:
+                evt = self._on_first_seen(det, now)
+                if evt:
+                    events.append(evt)
+                self._first_seen[tid] = now
+
+            self._active[tid] = det
+            self._last_seen[tid] = now
+
+        # Check for exits
+        stale = [
+            tid for tid, last in self._last_seen.items()
+            if tid not in seen_ids and now - last > EXIT_TIMEOUT
+        ]
+        for tid in stale:
+            evt = self._on_exit(self._active[tid], now)
+            if evt:
+                events.append(evt)
+            del self._active[tid]
+            del self._last_seen[tid]
+            self._first_seen.pop(tid, None)
+
+        return events
+
+    def _is_entrance(self) -> bool:
+        if not self.location_label:
+            return False
+        loc = self.location_label.lower()
+        return any(kw in loc for kw in _ENTRANCE_KEYWORDS)
+
+    def _on_first_seen(
+        self, det: Detection, now: datetime
+    ) -> Event | None:
+        if det.class_name == "person":
+            loc_suffix = f" {self.location_label}" if self.location_label else ""
+            label = f"Person entered{loc_suffix}"
+            return Event(
+                camera_id=det.camera_id,
+                event_type=EventType.person_entered,
+                timestamp=now,
+                person_id=det.person_id,
+                location_label=self.location_label,
+                action_label=label,
+                confidence=det.confidence,
+            )
+        if det.class_name == "package" and self._is_entrance():
+            return Event(
+                camera_id=det.camera_id,
+                event_type=EventType.package_delivered,
+                timestamp=now,
+                object_id=det.object_id,
+                location_label=self.location_label,
+                action_label="Package delivered"
+                + (f" at {self.location_label}" if self.location_label else ""),
+                confidence=det.confidence,
+            )
+        return Event(
+            camera_id=det.camera_id,
+            event_type=EventType.object_placed,
+            timestamp=now,
+            object_id=det.object_id,
+            location_label=self.location_label,
+            action_label=(
+                f"{det.class_name.capitalize()} detected"
+                + (f" at {self.location_label}" if self.location_label else "")
+            ),
+            confidence=det.confidence,
+        )
+
+    def _on_exit(self, det: Detection, now: datetime) -> Event | None:
+        if det.class_name == "person":
+            return Event(
+                camera_id=det.camera_id,
+                event_type=EventType.person_exited,
+                timestamp=now,
+                person_id=det.person_id,
+                location_label=self.location_label,
+                action_label=(
+                    "Person left"
+                    + (f" {self.location_label}" if self.location_label else "")
+                ),
+                confidence=det.confidence,
+            )
+        return Event(
+            camera_id=det.camera_id,
+            event_type=EventType.object_picked_up,
+            timestamp=now,
+            object_id=det.object_id,
+            location_label=self.location_label,
+            action_label=f"{det.class_name.capitalize()} removed",
+            confidence=det.confidence,
+        )
