@@ -133,8 +133,15 @@ CREATE INDEX ON events (event_type, timestamp DESC);
 CREATE INDEX ON detections (camera_id, timestamp DESC);
 CREATE INDEX ON detections (track_id, camera_id, timestamp DESC);
 
--- vector similarity index for RAG queries
+-- vector similarity indexes for RAG and ReID queries
 CREATE INDEX ON events USING ivfflat (embedding vector_cosine_ops)
     WITH (lists = 100);
 CREATE INDEX ON persons USING ivfflat (face_embedding vector_cosine_ops)
     WITH (lists = 50);
+CREATE INDEX ON persons USING ivfflat (reid_embedding vector_cosine_ops)
+    WITH (lists = 50);
+
+-- lookup / range indexes
+CREATE INDEX ON alert_deliveries (rule_id, triggered_at DESC);
+CREATE INDEX ON alert_rules (owner_id, is_active);
+CREATE INDEX ON tracked_objects (owner_id, last_seen_at DESC);

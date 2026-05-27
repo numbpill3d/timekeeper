@@ -10,16 +10,34 @@ Endpoints:
 from __future__ import annotations
 
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+from .db import close_pool, init_pool
 from .rag import embed_text
 from .router import answer
 
 log = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
 
-app = FastAPI(title="Omniscient Query Engine", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_pool()
+    yield
+    await close_pool()
+
+
+app = FastAPI(
+    title="Omniscient Query Engine",
+    version="0.1.0",
+    lifespan=lifespan,
+)
 
 
 class QueryRequest(BaseModel):

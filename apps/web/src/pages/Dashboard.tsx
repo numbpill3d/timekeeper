@@ -7,6 +7,7 @@ import {
   listEvents,
   listCameras,
   OmniscientEvent,
+  EventStream,
   openEventStream,
 } from "../api/client";
 
@@ -62,7 +63,8 @@ const EVENT_COLORS: Record<string, string> = {
 export function Dashboard() {
   const [live, setLive] = useState<OmniscientEvent[]>([]);
   const [selected, setSelected] = useState<OmniscientEvent | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  const [wsConnected, setWsConnected] = useState(false);
+  const wsRef = useRef<EventStream | null>(null);
 
   const { data: recent = [] } = useQuery({
     queryKey: ["events", "dashboard"],
@@ -77,12 +79,12 @@ export function Dashboard() {
   });
 
   useEffect(() => {
-    const ws = openEventStream((e) =>
-      setLive((p) => [e, ...p].slice(0, 20))
+    const stream = openEventStream(
+      (e) => setLive((p) => [e, ...p].slice(0, 20)),
+      (connected) => setWsConnected(connected),
     );
-    ws.onerror = () => {};
-    wsRef.current = ws;
-    return () => ws.close();
+    wsRef.current = stream;
+    return () => stream.close();
   }, []);
 
   const events = [...live, ...recent].slice(0, 14);
@@ -139,7 +141,7 @@ export function Dashboard() {
               style={{
                 width: 6,
                 height: 6,
-                background: "var(--green)",
+                background: wsConnected ? "var(--green)" : "var(--accent)",
                 display: "inline-block",
                 flexShrink: 0,
               }}
@@ -147,12 +149,12 @@ export function Dashboard() {
             <span
               style={{
                 fontSize: 11,
-                color: "var(--green)",
+                color: wsConnected ? "var(--green)" : "var(--accent)",
                 textTransform: "uppercase",
                 letterSpacing: "0.1em",
               }}
             >
-              streaming
+              {wsConnected ? "streaming" : "reconnecting"}
             </span>
           </div>
         </div>

@@ -16,6 +16,7 @@ import re
 
 import asyncpg
 
+from .db import get_pool
 from .llm import nl_to_sql, synthesize_response
 from .rag import retrieve_context
 
@@ -104,12 +105,11 @@ def _inject_owner_scope(sql: str) -> str:
 
 
 async def _execute(sql: str, owner_id: str) -> list[dict]:
-    conn: asyncpg.Connection = await asyncpg.connect(_DB_URL)
-    try:
-        rows = await conn.fetch(sql, owner_id)
-        return [dict(r) for r in rows]
-    except asyncpg.PostgresError as exc:
-        log.error("query failed: %s | sql: %s", exc, sql)
-        return []
-    finally:
-        await conn.close()
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        try:
+            rows = await conn.fetch(sql, owner_id)
+            return [dict(r) for r in rows]
+        except asyncpg.PostgresError as exc:
+            log.error("query failed: %s | sql: %s", exc, sql)
+            return []

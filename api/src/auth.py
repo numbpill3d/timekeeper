@@ -2,19 +2,19 @@
 JWT auth + password hashing.
 
 Zero-trust model: every request carries a short-lived JWT.
-Refresh tokens are stored in Redis with rotation on each use.
 """
 
 from __future__ import annotations
 
+import hashlib
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
+import bcrypt as _bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 _SECRET = os.getenv("JWT_SECRET")
 if not _SECRET:
@@ -25,18 +25,22 @@ if not _SECRET:
 _ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 _EXPIRE_MIN = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
 
-_pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
 _bearer = HTTPBearer()
 
 
 # ── Password utils ────────────────────────────────────────────────
 
+def _prepare(plain: str) -> bytes:
+    # SHA-256 pre-hash keeps input well under bcrypt's 72-byte limit.
+    return hashlib.sha256(plain.encode()).digest()
+
+
 def hash_password(plain: str) -> str:
-    return _pwd.hash(plain)
+    return _bcrypt.hashpw(_prepare(plain), _bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return _pwd.verify(plain, hashed)
+    return _bcrypt.checkpw(_prepare(plain), hashed.encode())
 
 
 # ── Token utils ───────────────────────────────────────────────────

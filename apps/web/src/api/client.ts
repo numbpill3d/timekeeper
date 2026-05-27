@@ -157,12 +157,38 @@ export const deleteAlert = (id: string) => api.delete(`/alerts/${id}`);
 
 // ── WebSocket live stream ─────────────────────────────────────────
 
+export interface EventStream {
+  close: () => void;
+}
+
 export const openEventStream = (
-  onEvent: (e: OmniscientEvent) => void
-): WebSocket => {
+  onEvent: (e: OmniscientEvent) => void,
+  onStatus?: (connected: boolean) => void,
+): EventStream => {
   const token = localStorage.getItem("access_token");
   const wsBase = BASE_URL.replace(/^http/, "ws");
-  const ws = new WebSocket(`${wsBase}/ws/events?token=${token}`);
-  ws.onmessage = (msg) => onEvent(JSON.parse(msg.data));
-  return ws;
+  let ws: WebSocket | null = null;
+  let closed = false;
+  let retryMs = 1_000;
+
+  const connect = () => {
+    if (closed) return;
+    ws = new WebSocket(`${wsBase}/ws/events?token=${token}`);
+    ws.onopen = () => {
+      retryMs = 1_000;
+      onStatus?.(true);
+    };
+    ws.onmessage = (msg) => onEvent(JSON.parse(msg.data) as OmniscientEvent);
+    ws.onerror = () => {};
+    ws.onclose = () => {
+      onStatus?.(false);
+      if (!closed) {
+        setTimeout(connect, retryMs);
+        retryMs = Math.min(retryMs * 2, 30_000);
+      }
+    };
+  };
+
+  connect();
+  return { close: () => { closed = true; ws?.close(); } };
 };

@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import os
 
-import asyncpg
+from .db import get_pool
 
 log = logging.getLogger(__name__)
 
@@ -68,9 +68,9 @@ async def retrieve_context(question: str, owner_id: str) -> str:
     """
 
     try:
-        conn = await asyncpg.connect(_DB_URL)
-        rows = await conn.fetch(sql, owner_id, vec_literal, _TOP_K)
-        await conn.close()
+        pool = get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(sql, owner_id, vec_literal, _TOP_K)
     except Exception as exc:
         log.warning("rag retrieval failed: %s", exc)
         return ""

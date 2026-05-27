@@ -185,6 +185,14 @@ class VisionPipeline:
             value=out.model_dump(mode="json"),
         )
 
+        # Remove the frame file now that it has been processed.
+        # Frames accumulate at 10 fps per camera; cleanup is critical for
+        # disk health.  Missing files are benign — log at debug only.
+        try:
+            Path(frame_msg.frame_path).unlink(missing_ok=True)
+        except OSError as exc:
+            log.debug("frame cleanup failed for %s: %s", frame_msg.frame_path, exc)
+
     async def _load_frame(self, path: str) -> np.ndarray | None:
         p = Path(path)
         if not p.exists():

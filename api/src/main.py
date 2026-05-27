@@ -2,15 +2,20 @@
 Omniscient Home API — port 8000.
 
 REST + WebSocket. All endpoints require JWT bearer auth except /auth/*.
-Rate limiting and RBAC enforced per subscription tier (§8.3, §9).
+Rate limiting and RBAC enforced per subscription tier.
 """
 
 from __future__ import annotations
 
+import logging
+import os
+import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+import redis.asyncio as aioredis
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from .db import create_pool
 from .routes.alerts import router as alerts_router
@@ -21,12 +26,23 @@ from .routes.query import router as query_router
 from .routes.users import router as users_router
 from .ws.stream import router as ws_router
 
+log = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+
+_REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+_ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.db = await create_pool()
+    app.state.redis = aioredis.from_url(_REDIS_URL, decode_responses=True)
     yield
     await app.state.db.close()
+    await app.state.redis.aclose()
 
 
 app = FastAPI(
@@ -37,11 +53,29 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten in prod
+    allow_origins=_ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    t = time.perf_counter()
+    response = await call_next(request)
+    ms = (time.perf_counter() - t) * 1000
+    log.info(
+        "%s %s %s %.0fms",
+        request.method, request.url.path, response.status_code, ms,
+    )
+    return response
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    log.exception("unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "internal server error"})
 
 app.include_router(users_router, prefix="/auth", tags=["auth"])
 app.include_router(cameras_router, prefix="/cameras", tags=["cameras"])

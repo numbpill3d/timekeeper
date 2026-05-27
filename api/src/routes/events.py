@@ -7,7 +7,7 @@ from typing import Annotated
 from uuid import UUID
 
 import asyncpg
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from ..auth import CurrentUser
@@ -103,6 +103,5 @@ async def get_event(
         user["sub"],
     )
     if not row:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="event not found")
     return EventOut(**dict(row))
