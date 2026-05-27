@@ -16,7 +16,12 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-_SECRET = os.getenv("JWT_SECRET", "change-me")
+_SECRET = os.getenv("JWT_SECRET")
+if not _SECRET:
+    raise RuntimeError(
+        "JWT_SECRET environment variable is not set. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+    )
 _ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 _EXPIRE_MIN = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
 

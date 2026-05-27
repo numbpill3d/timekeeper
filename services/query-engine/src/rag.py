@@ -49,10 +49,9 @@ async def retrieve_context(question: str, owner_id: str) -> str:
         log.warning("embedding failed: %s", exc)
         return ""
 
-    safe_id = owner_id.replace("'", "")
     vec_literal = "[" + ",".join(f"{v:.6f}" for v in vec) + "]"
 
-    sql = f"""
+    sql = """
         SELECT e.action_label, e.timestamp, e.location_label,
                e.confidence, e.event_type,
                p.label AS person_label,
@@ -61,16 +60,16 @@ async def retrieve_context(question: str, owner_id: str) -> str:
         LEFT JOIN persons p ON e.person_id = p.id
         LEFT JOIN tracked_objects o ON e.object_id = o.id
         WHERE e.camera_id IN (
-            SELECT id FROM cameras WHERE owner_id = '{safe_id}'
+            SELECT id FROM cameras WHERE owner_id = $1::uuid
         )
           AND e.embedding IS NOT NULL
-        ORDER BY e.embedding <=> '{vec_literal}'::vector
-        LIMIT {_TOP_K};
+        ORDER BY e.embedding <=> $2::vector
+        LIMIT $3
     """
 
     try:
         conn = await asyncpg.connect(_DB_URL)
-        rows = await conn.fetch(sql)
+        rows = await conn.fetch(sql, owner_id, vec_literal, _TOP_K)
         await conn.close()
     except Exception as exc:
         log.warning("rag retrieval failed: %s", exc)

@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
+import { Platform } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import * as SecureStore from "expo-secure-store";
+import * as Notifications from "expo-notifications";
 
-import { setUnauthorizedCallback } from "./src/api/client";
+import { setUnauthorizedCallback, updateProfile } from "./src/api/client";
 import { CamerasScreen } from "./src/screens/CamerasScreen";
 import { ChatScreen } from "./src/screens/ChatScreen";
 import { HomeScreen } from "./src/screens/HomeScreen";
@@ -14,6 +16,18 @@ import { TimelineScreen } from "./src/screens/TimelineScreen";
 
 const Tab = createBottomTabNavigator();
 const queryClient = new QueryClient();
+
+async function registerPushToken(): Promise<void> {
+  if (Platform.OS === "ios") return; // FCM token registration requires APNs config for iOS
+  const { status } = await Notifications.requestPermissionsAsync();
+  if (status !== "granted") return;
+  try {
+    const { data: token } = await Notifications.getDevicePushTokenAsync();
+    if (token) await updateProfile({ fcm_token: token });
+  } catch {
+    // Firebase not configured in this build — skip silently
+  }
+}
 
 export default function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -25,6 +39,10 @@ export default function App() {
       setAuthed(false);
     });
   }, []);
+
+  useEffect(() => {
+    if (authed) registerPushToken();
+  }, [authed]);
 
   if (authed === null) return null;
 

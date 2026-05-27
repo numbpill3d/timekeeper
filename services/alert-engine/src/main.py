@@ -57,28 +57,43 @@ async def _evaluate(event: Event, db: asyncpg.Connection) -> None:
     )
 
     person_label: str | None = None
+    person_is_known: bool = False
     if event.person_id:
         row = await db.fetchrow(
-            "SELECT label FROM persons WHERE id = $1", event.person_id
+            "SELECT label, is_known FROM persons WHERE id = $1", event.person_id
         )
-        person_label = row["label"] if row else None
+        if row:
+            person_label = row["label"]
+            person_is_known = row["is_known"]
+
+    object_category: str | None = None
+    if event.object_id:
+        row = await db.fetchrow(
+            "SELECT category FROM tracked_objects WHERE id = $1", event.object_id
+        )
+        if row:
+            object_category = row["category"]
 
     for rule_row in rules:
         compiled = rule_row["compiled_rule"]
 
         if compiled is None:
-            # try fast template match first, then LLM fallback
             compiled = compile_rule(rule_row["rule_text"])
             if not compiled:
                 compiled = await compile_rule_llm(rule_row["rule_text"])
-            # cache result regardless of whether it's empty
             await db.execute(
                 "UPDATE alert_rules SET compiled_rule = $1 WHERE id = $2",
                 json.dumps(compiled),
                 rule_row["id"],
             )
 
-        if not event_matches(event, compiled, person_label):
+        if not event_matches(
+            event,
+            compiled,
+            person_label=person_label,
+            person_is_known=person_is_known,
+            object_category=object_category,
+        ):
             continue
 
         user_row = await db.fetchrow(

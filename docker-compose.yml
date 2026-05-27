@@ -104,11 +104,14 @@ services:
     build: ./services/vision
     environment:
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+      DATABASE_URL: ${DATABASE_URL}
     volumes:
       - ./shared:/shared:ro
       - framesdata:/tmp/frames
     depends_on:
       kafka:
+        condition: service_healthy
+      timescaledb:
         condition: service_healthy
     deploy:
       resources:
@@ -162,11 +165,12 @@ services:
     environment:
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
       DATABASE_URL: ${DATABASE_URL}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
+      OLLAMA_MODEL: ${OLLAMA_MODEL}
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER}
       FCM_SERVER_KEY: ${FCM_SERVER_KEY}
-    ports:
-      - "8002:8002"
     depends_on:
       kafka:
         condition: service_healthy
@@ -181,7 +185,6 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_ALGORITHM: ${JWT_ALGORITHM}
       QUERY_ENGINE_URL: ${QUERY_ENGINE_URL}
-      ALERT_ENGINE_URL: ${ALERT_ENGINE_URL}
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
       REDIS_URL: redis://redis:6379
     ports:

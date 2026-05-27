@@ -17,8 +17,6 @@ import os
 
 from aiokafka import AIOKafkaConsumer
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from jose import JWTError
-
 from ..auth import decode_token
 
 log = logging.getLogger(__name__)
@@ -37,7 +35,7 @@ async def events_stream(websocket: WebSocket) -> None:
 
     try:
         user = decode_token(token)
-    except (JWTError, Exception):
+    except Exception:
         await websocket.close(code=4001)
         return
 

@@ -90,7 +90,6 @@ async def compile_rule_llm(rule_text: str) -> dict:
             ],
         )
         raw = resp["message"]["content"].strip()
-        # strip markdown fences if present
         if "```" in raw:
             parts = raw.split("```")
             raw = parts[1].lstrip("json").strip() if len(parts) > 1 else raw
@@ -100,7 +99,13 @@ async def compile_rule_llm(rule_text: str) -> dict:
         return {}
 
 
-def event_matches(event: Event, rule: dict, person_label: str | None) -> bool:
+def event_matches(
+    event: Event,
+    rule: dict,
+    person_label: str | None,
+    person_is_known: bool = True,
+    object_category: str | None = None,
+) -> bool:
     """Return True if event satisfies the compiled rule predicate."""
     if not rule:
         return True
@@ -111,14 +116,38 @@ def event_matches(event: Event, rule: dict, person_label: str | None) -> bool:
 
     p_labels = rule.get("person_labels")
     if p_labels:
-        if "unknown" in p_labels and person_label is not None:
-            return False
-        if person_label and person_label not in p_labels:
-            return False
+        if "unknown" in p_labels:
+            # "unknown" means is_known=False; skip if person is identified
+            if person_is_known:
+                return False
+        else:
+            # specific label(s) required
+            if person_label not in p_labels:
+                return False
+
+    obj_cats = rule.get("object_categories")
+    if obj_cats and object_category not in obj_cats:
+        return False
 
     locs = rule.get("location_labels")
     if locs and event.location_label not in locs:
         return False
+
+    time_after = rule.get("time_after")
+    time_before = rule.get("time_before")
+    if time_after or time_before:
+        t = event.timestamp
+        hhmm = t.hour * 60 + t.minute
+        if time_after:
+            ah, am = map(int, time_after.split(":"))
+            after_mins = ah * 60 + am
+            if hhmm < after_mins:
+                return False
+        if time_before:
+            bh, bm = map(int, time_before.split(":"))
+            before_mins = bh * 60 + bm
+            if hhmm > before_mins:
+                return False
 
     min_conf = rule.get("min_confidence", 0.0)
     if event.confidence < min_conf:

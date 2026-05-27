@@ -100,6 +100,7 @@ class ProfileUpdate(BaseModel):
 async def update_profile(
     req: ProfileUpdate, user: CurrentUser, db: DB
 ) -> dict:
+    _ALLOWED = {"fcm_token", "phone"}
     updates: dict = {}
     if req.fcm_token is not None:
         updates["fcm_token"] = req.fcm_token
@@ -107,6 +108,7 @@ async def update_profile(
         updates["phone"] = req.phone
     if not updates:
         return {"user_id": user["sub"]}
+    assert set(updates) <= _ALLOWED
     sets = ", ".join(
         f"{col} = ${i + 2}" for i, col in enumerate(updates)
     )

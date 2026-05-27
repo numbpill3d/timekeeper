@@ -21,6 +21,6 @@
       "package": "com.omniscienthome.app",
       "permissions": ["RECORD_AUDIO", "CAMERA", "RECEIVE_BOOT_COMPLETED"]
     },
-    "plugins": ["expo-router", "expo-notifications"]
+    "plugins": ["expo-notifications"]
   }
 }

@@ -35,6 +35,9 @@ export const login = (email: string, password: string) =>
 export const register = (email: string, password: string) =>
   api.post<{ access_token: string }>("/auth/register", { email, password });
 
+export const updateProfile = (data: { fcm_token?: string; phone?: string }) =>
+  api.patch("/auth/me", data);
+
 // ── Query ─────────────────────────────────────────────────────────
 
 export interface QueryResponse {

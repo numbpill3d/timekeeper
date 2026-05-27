@@ -1,8 +1,9 @@
 """
 Multi-channel notification delivery.
 
-Channels: push (FCM), sms (Twilio), email (placeholder).
-Critical alerts use all three; important uses push; informational is push-only.
+Supported channels: push (FCM via legacy HTTP API), sms (Twilio).
+Channels are selected per alert rule; delivery silently no-ops if the
+required credentials are not configured in the environment.
 """
 
 from __future__ import annotations

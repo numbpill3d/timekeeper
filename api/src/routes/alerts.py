@@ -47,9 +47,11 @@ class AlertRuleOut(BaseModel):
 async def update_rule(
     rule_id: UUID, req: AlertRuleUpdate, user: CurrentUser, db: DB
 ) -> AlertRuleOut:
+    _ALLOWED = {"is_active", "name", "rule_text", "priority", "channels"}
     updates: dict = {
         k: v
         for k, v in req.model_dump(exclude_none=True).items()
+        if k in _ALLOWED
     }
     if not updates:
         raise HTTPException(status_code=422, detail="no fields to update")

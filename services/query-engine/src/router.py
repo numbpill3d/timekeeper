@@ -65,10 +65,11 @@ async def answer(
     raw_sql = await nl_to_sql(question, llm_context)
     sql = _safe_sql(_extract_sql(raw_sql))
 
-    # Scope all queries to the requesting owner's cameras
-    sql = _inject_owner_scope(sql, owner_id)
+    # Scope all queries to the requesting owner's cameras; owner_id passed
+    # as a parameter to avoid SQL injection.
+    sql = _inject_owner_scope(sql)
 
-    rows = await _execute(sql)
+    rows = await _execute(sql, owner_id)
     answer_text = await synthesize_response(question, rows, llm_context)
 
     clips = [r["clip_path"] for r in rows if r.get("clip_path")]
@@ -94,24 +95,18 @@ def _format_history(history: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _inject_owner_scope(sql: str, owner_id: str) -> str:
-    """Append a camera ownership filter to prevent cross-user data leakage."""
-    safe_id = re.sub(r"[^a-f0-9\-]", "", owner_id)
-    if "WHERE" in sql.upper():
-        return sql.rstrip(";") + (
-            f" AND events.camera_id IN "
-            f"(SELECT id FROM cameras WHERE owner_id = '{safe_id}');"
-        )
-    return sql.rstrip(";") + (
-        f" WHERE events.camera_id IN "
-        f"(SELECT id FROM cameras WHERE owner_id = '{safe_id}');"
-    )
+def _inject_owner_scope(sql: str) -> str:
+    """Append a camera ownership filter using a $1 parameter placeholder."""
+    scope = "events.camera_id IN (SELECT id FROM cameras WHERE owner_id = $1::uuid)"
+    if re.search(r"\bWHERE\b", sql, re.IGNORECASE):
+        return sql.rstrip(";") + f" AND {scope}"
+    return sql.rstrip(";") + f" WHERE {scope}"
 
 
-async def _execute(sql: str) -> list[dict]:
+async def _execute(sql: str, owner_id: str) -> list[dict]:
     conn: asyncpg.Connection = await asyncpg.connect(_DB_URL)
     try:
-        rows = await conn.fetch(sql)
+        rows = await conn.fetch(sql, owner_id)
         return [dict(r) for r in rows]
     except asyncpg.PostgresError as exc:
         log.error("query failed: %s | sql: %s", exc, sql)

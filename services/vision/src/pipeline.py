@@ -6,6 +6,13 @@ Perception stages (from §5.2):
   2. Assign persistent track IDs (ByteTrack)
   3. Match persons across cameras (OSNet ReID)
   4. Publish DetectionMessage to Kafka 'detections' topic
+
+Person identity:
+  - At startup, the pipeline loads all known person embeddings from the
+    database into an in-memory gallery.
+  - On each detection, new persons (no gallery match) get a DB record
+    created immediately with is_known=False.
+  - Matched persons get their last_seen_at updated.
 """
 
 from __future__ import annotations
@@ -15,9 +22,10 @@ import json
 import logging
 import os
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import aiofiles
+import asyncpg
 import cv2
 import numpy as np
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
@@ -39,6 +47,8 @@ from .tracker import Tracker
 
 log = logging.getLogger(__name__)
 
+_DB_URL = os.getenv("DATABASE_URL", "")
+
 
 class VisionPipeline:
     def __init__(self) -> None:
@@ -52,8 +62,17 @@ class VisionPipeline:
         # Per-camera tracker instances (ByteTrack is stateful per stream)
         self._trackers: dict[str, Tracker] = {}
 
-        # ReID gallery: camera_id -> list of (person_id_str, embedding)
+        # ReID gallery: list of (person_id_str, embedding)
         self._reid_gallery: list[tuple[str, np.ndarray]] = []
+
+        # camera_id -> owner_id, populated from DB at startup
+        self._cam_owners: dict[str, str] = {}
+
+        # "{camera_id}:{track_id}:{class_name}" -> tracked_object UUID
+        # Session-scoped; resets on restart (objects get new IDs per session)
+        self._obj_map: dict[str, UUID] = {}
+
+        self._db: asyncpg.Connection | None = None
 
         brokers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
         self._consumer = AIOKafkaConsumer(
@@ -68,6 +87,12 @@ class VisionPipeline:
         )
 
     async def start(self) -> None:
+        if _DB_URL:
+            self._db = await asyncpg.connect(_DB_URL)
+            await self._load_gallery()
+        else:
+            log.warning("DATABASE_URL not set; person identity disabled")
+
         await self._consumer.start()
         await self._producer.start()
         log.info("vision pipeline started")
@@ -77,6 +102,31 @@ class VisionPipeline:
         finally:
             await self._consumer.stop()
             await self._producer.stop()
+            if self._db:
+                await self._db.close()
+
+    async def _load_gallery(self) -> None:
+        """Populate in-memory ReID gallery and camera-owner map from DB."""
+        assert self._db is not None
+        cam_rows = await self._db.fetch("SELECT id, owner_id FROM cameras")
+        self._cam_owners = {str(r["id"]): str(r["owner_id"]) for r in cam_rows}
+
+        person_rows = await self._db.fetch(
+            "SELECT id, reid_embedding FROM persons WHERE reid_embedding IS NOT NULL"
+        )
+        for row in person_rows:
+            raw = row["reid_embedding"]
+            if raw is None:
+                continue
+            vals = [float(x) for x in raw.strip("[]").split(",")]
+            emb_arr = np.array(vals, dtype=np.float32)
+            self._reid_gallery.append((str(row["id"]), emb_arr))
+
+        log.info(
+            "gallery loaded: %d persons, %d cameras",
+            len(self._reid_gallery),
+            len(self._cam_owners),
+        )
 
     async def _process(self, payload: dict) -> None:
         try:
@@ -99,9 +149,14 @@ class VisionPipeline:
         for rd in tracked:
             person_id: UUID | None = None
 
+            object_id: UUID | None = None
             if rd.class_name == "person":
                 person_id = await self._reid_person(
                     frame, rd.bbox, frame_msg.camera_id
+                )
+            else:
+                object_id = await self._get_or_create_object(
+                    frame_msg.camera_id, rd.track_id, rd.class_name
                 )
 
             detections.append(
@@ -114,6 +169,7 @@ class VisionPipeline:
                     confidence=rd.confidence,
                     bbox=rd.bbox,
                     person_id=person_id,
+                    object_id=object_id,
                 )
             )
 
@@ -164,9 +220,78 @@ class VisionPipeline:
         match = self.reid.match(emb, self._reid_gallery)
         if match:
             pid_str, _ = match
-            return UUID(pid_str)
+            person_id = UUID(pid_str)
+            if self._db:
+                await self._db.execute(
+                    "UPDATE persons SET last_seen_at = NOW() WHERE id = $1",
+                    person_id,
+                )
+            return person_id
 
-        return None
+        # New person — create a DB record and add to gallery
+        if self._db is None:
+            return None
+
+        owner_id_str = self._cam_owners.get(str(camera_id))
+        if not owner_id_str:
+            return None
+
+        emb_literal = "[" + ",".join(f"{v:.6f}" for v in emb) + "]"
+        short = uuid4().hex[:6].upper()
+        row = await self._db.fetchrow(
+            """
+            INSERT INTO persons
+                (owner_id, label, is_known, reid_embedding, last_seen_at)
+            VALUES ($1, $2, FALSE, $3::vector, NOW())
+            RETURNING id
+            """,
+            UUID(owner_id_str),
+            f"Unknown {short}",
+            emb_literal,
+        )
+        if row is None:
+            return None
+
+        person_id = row["id"]
+        self._reid_gallery.append((str(person_id), emb))
+        log.info("new person created: %s (camera %s)", person_id, camera_id)
+        return person_id
+
+    async def _get_or_create_object(
+        self,
+        camera_id: UUID,
+        track_id: int,
+        class_name: str,
+    ) -> UUID | None:
+        """Return stable UUID for this tracked object within the session."""
+        key = f"{camera_id}:{track_id}:{class_name}"
+        if key in self._obj_map:
+            return self._obj_map[key]
+
+        if self._db is None:
+            return None
+
+        owner_id_str = self._cam_owners.get(str(camera_id))
+        if not owner_id_str:
+            return None
+
+        row = await self._db.fetchrow(
+            """
+            INSERT INTO tracked_objects
+                (owner_id, category, last_camera_id, last_seen_at)
+            VALUES ($1, $2, $3, NOW())
+            RETURNING id
+            """,
+            UUID(owner_id_str),
+            class_name,
+            camera_id,
+        )
+        if row is None:
+            return None
+
+        obj_id = row["id"]
+        self._obj_map[key] = obj_id
+        return obj_id
 
     def update_reid_gallery(
         self, gallery: list[tuple[str, np.ndarray]]

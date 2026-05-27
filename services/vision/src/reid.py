@@ -11,12 +11,18 @@ from __future__ import annotations
 import numpy as np
 import torch
 
+import logging as _logging
+
 try:
     import torchreid
 
     _TORCHREID_AVAILABLE = True
 except ImportError:
     _TORCHREID_AVAILABLE = False
+    _logging.getLogger(__name__).warning(
+        "torchreid not available — ReID disabled; "
+        "persons will not be matched across cameras"
+    )
 
 REID_THRESHOLD = 0.7  # cosine similarity threshold for a positive match
 
