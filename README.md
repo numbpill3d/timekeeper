@@ -1,29 +1,42 @@
 # Omniscient Home
 
-AI-powered home surveillance intelligence platform.
+An AI-powered home surveillance intelligence platform designed for privacy and real-time monitoring.
 
-## Architecture
-- **Cameras**
-- **Ingestion**: RTSP -> Kafka
-- **Vision**: YOLOv8 + ByteTrack + ReID
-- **Event Processor**: Aggregates detections into events
-- **Query Engine**: RAG + Text-to-SQL + Ollama
-- **Alert Engine**: Twilio/FCM
-- **API**: FastAPI
-- **Web**: React + Vite
-- **Mobile**: Expo
+## Features
+- **Real-time CV Pipeline**: YOLOv8 + ByteTrack + OSNet ReID for accurate object tracking.
+- **Structured Data**: Detections are aggregated into actionable events and stored in TimescaleDB.
+- **Natural Language Querying**: Ask questions like "Where are my keys?" using a powerful RAG + text-to-SQL pipeline.
+- **Secure Alerting**: Instant notifications via Twilio/FCM.
 
-## Setup
-1. `cp .env.example .env`
-2. `docker compose up --build`
+## Getting Started
 
-## Publishing Changes
-To push your changes to GitHub:
-```bash
-git push origin main
-```
+### Prerequisites
+- Docker & Docker Compose installed.
+- Python 3.10+ installed for local development.
+
+### Installation
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/<YOUR_USERNAME>/timekeeper.git
+   cd timekeeper
+   ```
+2. Configure your environment:
+   ```bash
+   cp .env.example .env
+   # Edit .env and fill in your API keys (Ollama, OpenAI, Twilio, etc.)
+   ```
+3. Start the system:
+   ```bash
+   docker compose up --build
+   ```
 
 ## Development
-- **Dependencies**: Use unified `requirements.txt` at root.
-- **Shared Code**: `shared/omniscient_shared/`
-- **Testing**: Run `pytest` from the project root.
+- **Dependencies**: The project uses a unified `requirements.txt` at the root.
+- **Architecture**:
+    - **API**: FastAPI
+    - **Frontend**: React + Vite
+    - **Mobile**: Expo (React Native)
+- **Testing**: Run `pytest` from the project root to run the test suite.
+
+## License
+MIT
