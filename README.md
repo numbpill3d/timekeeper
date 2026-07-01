@@ -17,6 +17,12 @@ AI-powered home surveillance intelligence platform.
 1. `cp .env.example .env`
 2. `docker compose up --build`
 
+## Publishing Changes
+To push your changes to GitHub:
+```bash
+git push origin main
+```
+
 ## Development
 - **Dependencies**: Use unified `requirements.txt` at root.
 - **Shared Code**: `shared/omniscient_shared/`
