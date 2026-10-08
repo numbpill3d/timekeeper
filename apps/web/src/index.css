@@ -1,17 +1,17 @@
 :root {
-  --accent:      #cc0000;
-  --accent-dim:  #660000;
-  --accent-hi:   #ff2222;
-  --bg:          #000000;
-  --surface:     #060606;
-  --elevated:    #0f0f0f;
-  --border:      #191919;
-  --border-hi:   #2e2e2e;
-  --text:        #e2e2e2;
-  --text-dim:    #555555;
+  --accent:      #e5484d;
+  --accent-dim:  #6b252a;
+  --accent-hi:   #ff6b70;
+  --bg:          #090a0c;
+  --surface:     #101216;
+  --elevated:    #171a20;
+  --border:      #272b33;
+  --border-hi:   #414751;
+  --text:        #c6cad2;
+  --text-dim:    #7d8490;
   --text-bright: #ffffff;
-  --green:       #00cc44;
-  --amber:       #cc8800;
+  --green:       #63d69b;
+  --amber:       #e6b35a;
   --font:        "Terminus", "Courier New", "Lucida Console", monospace;
 }
 
@@ -26,8 +26,8 @@ body {
   font-size: 13px;
   line-height: 1.5;
   margin: 0;
-  -webkit-font-smoothing: none;
-  -moz-osx-font-smoothing: unset;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* subtle CRT scanline */
@@ -148,6 +148,68 @@ input::placeholder, textarea::placeholder { color: var(--text-dim); }
   border-color: var(--accent-dim);
 }
 .btn-danger:hover { background: var(--accent); color: #000; }
+
+.app-shell { display: flex; height: 100%; overflow: hidden; }
+.main-pane { flex: 1; min-width: 0; overflow: hidden; display: flex; flex-direction: column; }
+.sidebar { width: 204px; flex-shrink: 0; display: flex; flex-direction: column; border-right: 1px solid var(--border); background: var(--surface); }
+.brand-lockup { padding: 20px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.brand-mark { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--accent); color: var(--accent); font-size: 15px; font-weight: bold; }
+.brand-name { color: var(--text-bright); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+.brand-subtitle { margin-top: 3px; color: var(--text-dim); font-size: 10px; }
+.nav-list { flex: 1; margin: 0; padding: 14px 10px; list-style: none; }
+.nav-link { display: flex; align-items: center; gap: 10px; padding: 10px 11px; margin-bottom: 3px; color: var(--text-dim); text-decoration: none; font-size: 12px; letter-spacing: .04em; border-left: 2px solid transparent; transition: color .15s, background .15s, border-color .15s; }
+.nav-link:hover { color: var(--text); background: rgba(255,255,255,.025); }
+.nav-link.active { color: var(--text-bright); background: var(--elevated); border-left-color: var(--accent); }
+.nav-icon { width: 14px; color: var(--accent); font-size: 9px; }
+.sidebar-footer { border-top: 1px solid var(--border); padding: 12px; display: flex; flex-direction: column; gap: 9px; }
+.system-status { display: flex; align-items: center; gap: 7px; color: var(--green); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+.status-dot { width: 6px; height: 6px; background: currentColor; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+
+.dashboard-head { padding: 22px 26px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; }
+.dashboard-kicker { color: var(--accent); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; }
+.dashboard-title { margin: 7px 0 0; color: var(--text-bright); font-size: clamp(24px, 3vw, 38px); font-weight: 400; letter-spacing: -.04em; line-height: 1; }
+.dashboard-date { color: var(--text-dim); font-size: 11px; text-align: right; }
+.metric-strip { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--border); }
+.metric { padding: 15px 18px; border-right: 1px solid var(--border); }
+.metric:last-child { border-right: 0; }
+.metric-value { margin-top: 6px; color: var(--text-bright); font-size: 25px; line-height: 1; font-variant-numeric: tabular-nums; }
+.metric-note { margin-top: 6px; color: var(--text-dim); font-size: 10px; }
+.dashboard-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 360px; }
+.feed-panel { min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.panel-heading { padding: 11px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
+.panel-heading .section-title { color: var(--text); }
+.panel-heading .section-title::after { content: ''; display: inline-block; width: 5px; height: 5px; margin: 0 0 2px 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); }
+.activity-list { flex: 1; overflow-y: auto; }
+.activity-row { padding: 13px 20px; border-bottom: 1px solid var(--border); display: flex; gap: 12px; align-items: flex-start; cursor: default; }
+.activity-row.has-clip { cursor: pointer; }
+.activity-row.has-clip:hover { background: var(--surface); }
+.event-marker { width: 7px; height: 7px; margin-top: 5px; flex-shrink: 0; border-radius: 50%; }
+.event-copy { flex: 1; min-width: 0; }
+.event-title { color: var(--text); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.event-meta { display: flex; gap: 10px; margin-top: 4px; color: var(--text-dim); font-size: 10px; }
+.event-time { color: var(--text-dim); font-size: 10px; flex-shrink: 0; }
+.empty-state { margin: 20px; padding: 22px; border: 1px dashed var(--border-hi); color: var(--text-dim); font-size: 11px; line-height: 1.7; }
+
+@media (max-width: 800px) {
+  .sidebar { width: 58px; }
+  .brand-lockup { padding: 14px; justify-content: center; }
+  .brand-lockup > div:last-child, .nav-link > span:last-child, .system-status, .sidebar-footer .btn { display: none; }
+  .nav-list { padding: 12px 8px; }
+  .nav-link { justify-content: center; padding: 11px 0; }
+  .nav-icon { text-align: center; }
+  .sidebar-footer { padding: 12px 8px; }
+  .dashboard-head { padding: 18px; }
+  .metric-strip { grid-template-columns: repeat(2, 1fr); }
+  .metric:nth-child(2) { border-right: 0; }
+  .metric:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .dashboard-grid > div:last-child { display: none; }
+}
+
+@media (max-width: 480px) {
+  .dashboard-date { display: none; }
+  .page-header { padding-left: 16px; padding-right: 16px; }
+}
 
 .page-header {
   padding: 12px 24px;

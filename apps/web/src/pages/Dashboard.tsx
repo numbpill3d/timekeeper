@@ -11,44 +11,6 @@ import {
   openEventStream,
 } from "../api/client";
 
-function StatBox({
-  label,
-  value,
-  sub,
-  accent,
-}: {
-  label: string;
-  value: string | number;
-  sub?: string;
-  accent?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        flex: 1,
-        padding: "14px 18px",
-        borderRight: "1px solid var(--border)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 4,
-      }}
-    >
-      <div className="label">{label}</div>
-      <div
-        className="mono-stat"
-        style={{ color: accent ? "var(--accent)" : "var(--text-bright)" }}
-      >
-        {value}
-      </div>
-      {sub && (
-        <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 1 }}>
-          {sub}
-        </div>
-      )}
-    </div>
-  );
-}
-
 const EVENT_COLORS: Record<string, string> = {
   person_entered:     "var(--green)",
   person_exited:      "var(--text-dim)",
@@ -97,6 +59,10 @@ export function Dashboard() {
     ["intrusion_detected", "unknown_person"].includes(e.event_type)
   ).length;
 
+  const dateLabel = new Intl.DateTimeFormat(undefined, {
+    weekday: "long", month: "long", day: "numeric",
+  }).format(now);
+
   return (
     <div
       style={{
@@ -106,81 +72,24 @@ export function Dashboard() {
         overflow: "hidden",
       }}
     >
-      {/* Stats bar */}
-      <div
-        style={{
-          borderBottom: "1px solid var(--border)",
-          display: "flex",
-          flexShrink: 0,
-        }}
-      >
-        <StatBox label="events today" value={todayCount} />
-        <StatBox
-          label="cameras online"
-          value={`${activeCams} / ${cameras.length}`}
-          sub={activeCams < cameras.length ? "some offline" : "all nominal"}
-        />
-        <StatBox
-          label="active alerts"
-          value={alertCount}
-          accent={alertCount > 0}
-          sub={alertCount > 0 ? "requires attention" : "clear"}
-        />
-        <div
-          style={{
-            flex: 1,
-            padding: "14px 18px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-          }}
-        >
-          <div className="label">feed status</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                background: wsConnected ? "var(--green)" : "var(--accent)",
-                display: "inline-block",
-                flexShrink: 0,
-              }}
-            />
-            <span
-              style={{
-                fontSize: 11,
-                color: wsConnected ? "var(--green)" : "var(--accent)",
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-              }}
-            >
-              {wsConnected ? "streaming" : "reconnecting"}
-            </span>
-          </div>
+      <header className="dashboard-head">
+        <div>
+          <div className="dashboard-kicker">situational awareness / 01</div>
+          <h1 className="dashboard-title">Good evening.</h1>
         </div>
+        <div className="dashboard-date">{dateLabel}<br />local system time</div>
+      </header>
+
+      <div className="metric-strip">
+        <div className="metric"><div className="label">events today</div><div className="metric-value">{todayCount}</div><div className="metric-note">recent detections</div></div>
+        <div className="metric"><div className="label">cameras online</div><div className="metric-value">{activeCams}<span style={{ color: "var(--text-dim)", fontSize: 15 }}> / {cameras.length}</span></div><div className="metric-note">{activeCams < cameras.length ? "some offline" : "all nominal"}</div></div>
+        <div className="metric"><div className="label">active alerts</div><div className="metric-value" style={{ color: alertCount ? "var(--accent)" : "var(--text-bright)" }}>{alertCount}</div><div className="metric-note">{alertCount ? "requires attention" : "clear"}</div></div>
+        <div className="metric"><div className="label">event stream</div><div className="metric-value" style={{ color: wsConnected ? "var(--green)" : "var(--amber)", fontSize: 18, paddingTop: 4 }}>{wsConnected ? "LIVE" : "WAITING"}</div><div className="metric-note">{wsConnected ? "receiving now" : "reconnecting"}</div></div>
       </div>
 
-      {/* Body */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        {/* Activity feed */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              padding: "9px 20px",
-              borderBottom: "1px solid var(--border)",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexShrink: 0,
-            }}
-          >
+      <div className="dashboard-grid">
+        <div className="feed-panel">
+          <div className="panel-heading">
             <span style={{ color: "var(--accent)", fontSize: 9 }}>◆</span>
             <span className="section-title">live activity</span>
             {live.length > 0 && (
@@ -190,89 +99,26 @@ export function Dashboard() {
             )}
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto" }}>
+          <div className="activity-list">
             {events.length === 0 ? (
-              <div
-                style={{
-                  padding: "40px 20px",
-                  color: "var(--text-dim)",
-                  fontSize: 12,
-                }}
-              >
-                no events. add a camera to begin monitoring.
-              </div>
+              <div className="empty-state">No activity yet. Connect a camera to begin monitoring your home.</div>
             ) : (
               events.map((e) => (
                 <div
                   key={e.id}
                   onClick={() => e.clip_path && setSelected(e)}
-                  style={{
-                    padding: "9px 20px",
-                    borderBottom: "1px solid var(--border)",
-                    display: "flex",
-                    gap: 10,
-                    alignItems: "flex-start",
-                    cursor: e.clip_path ? "pointer" : "default",
-                    transition: "background 0.08s",
-                  }}
-                  onMouseEnter={(ev) => {
-                    if (e.clip_path)
-                      (ev.currentTarget as HTMLElement).style.background =
-                        "var(--elevated)";
-                  }}
-                  onMouseLeave={(ev) => {
-                    (ev.currentTarget as HTMLElement).style.background =
-                      "transparent";
-                  }}
+                  className={`activity-row${e.clip_path ? " has-clip" : ""}`}
                 >
-                  <span
-                    style={{
-                      width: 6,
-                      height: 6,
-                      background:
-                        EVENT_COLORS[e.event_type] ?? "var(--text-dim)",
-                      flexShrink: 0,
-                      marginTop: 5,
-                    }}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "var(--text)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {e.action_label}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 10,
-                        color: "var(--text-dim)",
-                        marginTop: 1,
-                        display: "flex",
-                        gap: 8,
-                      }}
-                    >
+                  <span className="event-marker" style={{ background: EVENT_COLORS[e.event_type] ?? "var(--text-dim)" }} />
+                  <div className="event-copy">
+                    <div className="event-title">{e.action_label}</div>
+                    <div className="event-meta">
                       {e.location_label && <span>{e.location_label}</span>}
-                      {e.person_label && (
-                        <span style={{ color: "var(--accent)" }}>
-                          {e.person_label}
-                        </span>
-                      )}
+                      {e.person_label && <span style={{ color: "var(--accent)" }}>{e.person_label}</span>}
                       {e.clip_path && <span>▸ clip</span>}
                     </div>
                   </div>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      color: "var(--text-dim)",
-                      flexShrink: 0,
-                      paddingTop: 1,
-                    }}
-                  >
+                  <span className="event-time">
                     {formatDistanceToNow(new Date(e.timestamp), {
                       addSuffix: true,
                     })}
@@ -283,8 +129,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Chat */}
-        <div style={{ width: 360, flexShrink: 0 }}>
+        <div style={{ minWidth: 0 }}>
           <ChatPanel />
         </div>
       </div>

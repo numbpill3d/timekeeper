@@ -30,103 +30,37 @@ function Sidebar() {
   }
 
   return (
-    <nav
-      style={{
-        width: 176,
-        flexShrink: 0,
-        display: "flex",
-        flexDirection: "column",
-        borderRight: "1px solid var(--border)",
-        background: "var(--surface)",
-      }}
-    >
+    <nav className="sidebar">
       {/* Logo */}
-      <div
-        style={{
-          padding: "16px 20px",
-          borderBottom: "1px solid var(--border)",
-        }}
-      >
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: "bold",
-            letterSpacing: "0.2em",
-            color: "var(--accent)",
-            textTransform: "uppercase",
-          }}
-        >
-          OMNISCIENT
-        </div>
-        <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 2 }}>
-          home intelligence
+      <div className="brand-lockup">
+        <div className="brand-mark">O</div>
+        <div>
+          <div className="brand-name">Omniscient</div>
+          <div className="brand-subtitle">home intelligence</div>
         </div>
       </div>
 
       {/* Nav links */}
-      <ul style={{ flex: 1, margin: 0, padding: "8px 8px", listStyle: "none" }}>
+      <ul className="nav-list">
         {NAV.map(({ to, label, icon }) => (
           <li key={to}>
             <NavLink
               to={to}
               end={to === "/"}
-              style={({ isActive }) => ({
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "7px 12px",
-                fontSize: 12,
-                textDecoration: "none",
-                letterSpacing: "0.06em",
-                color: isActive ? "var(--text-bright)" : "var(--text-dim)",
-                background: isActive ? "var(--elevated)" : "transparent",
-                borderLeft: isActive
-                  ? "2px solid var(--accent)"
-                  : "2px solid transparent",
-                marginBottom: 1,
-              })}
+              className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
             >
-              <span style={{ color: "var(--accent)", fontSize: 9 }}>{icon}</span>
-              {label}
+              <span className="nav-icon">{icon}</span><span>{label}</span>
             </NavLink>
           </li>
         ))}
       </ul>
 
       {/* Bottom status + logout */}
-      <div
-        style={{
-          borderTop: "1px solid var(--border)",
-          padding: "10px 12px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 10,
-            color: "var(--green)",
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-          }}
-        >
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              background: "var(--green)",
-              display: "inline-block",
-            }}
-          />
-          online
-        </div>
+      <div className="sidebar-footer">
+        <div className="system-status"><span className="status-dot" /> all systems nominal</div>
         <button
           className="btn btn-ghost"
-          style={{ padding: "4px 10px", fontSize: 10 }}
+          style={{ padding: "5px 10px", fontSize: 10 }}
           onClick={logout}
         >
           sign out
@@ -147,16 +81,9 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
+      <div className="app-shell">
         <Sidebar />
-        <main
-          style={{
-            flex: 1,
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
+        <main className="main-pane">
           <Routes>
             <Route path="/"         element={<Dashboard />} />
             <Route path="/timeline" element={<Timeline />} />
