@@ -1,9 +1,16 @@
 """Pytest configuration."""
 
-import pytest
 import sys
 from pathlib import Path
 
-# The project root is already in the path when running pytest from the root,
-# so subdirectories can be imported relative to the root.
-# No sys.path manipulation is required.
+
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE_DIRS = (
+    ROOT / "shared",
+    ROOT / "api" / "src",
+    ROOT / "services" / "event-processor" / "src",
+    ROOT / "services" / "alert-engine" / "src",
+)
+
+for source_dir in SOURCE_DIRS:
+    sys.path.insert(0, str(source_dir))
