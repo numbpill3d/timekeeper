@@ -22,6 +22,14 @@ if not _SECRET:
         "JWT_SECRET environment variable is not set. "
         "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
     )
+if len(_SECRET) < 32:
+    raise RuntimeError("JWT_SECRET must contain at least 32 characters")
+if os.getenv("ENVIRONMENT", "development").lower() == "production" and _SECRET in {
+    "changeme",
+    "secret",
+    "test-secret-for-unit-tests-only-must-be-32c",
+}:
+    raise RuntimeError("JWT_SECRET must be unique in production")
 _ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 _EXPIRE_MIN = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
 

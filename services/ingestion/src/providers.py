@@ -46,7 +46,22 @@ async def _direct_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
 
 def _token(config: dict[str, Any], default_env: str) -> str:
     env_name = str(config.get("access_token_env", default_env))
-    return os.getenv(env_name, "")
+    token = os.getenv(env_name, "").strip()
+    if token:
+        return token
+
+    # Docker/Kubernetes secret injection convention. The file path is supplied
+    # through the environment, never persisted in provider_config or logs.
+    file_path = os.getenv(f"{env_name}_FILE", "").strip()
+    if not file_path:
+        return ""
+    try:
+        with open(file_path, encoding="utf-8") as secret_file:
+            return secret_file.read().strip()
+    except OSError as exc:
+        raise ProviderError(
+            f"credential file configured by {env_name}_FILE is unavailable"
+        ) from exc
 
 
 def _device_id(camera: Camera) -> str:

@@ -8,7 +8,13 @@ import numpy as np
 from uuid import uuid4
 
 from omniscient_shared.models.camera import Camera, CameraProtocol
-from providers import ProviderError, _configured_direct_camera, _device_id, _provider_endpoint
+from providers import (
+    ProviderError,
+    _configured_direct_camera,
+    _device_id,
+    _provider_endpoint,
+    _token,
+)
 
 
 def _camera(protocol: CameraProtocol, url: str, config: dict | None = None) -> Camera:
@@ -52,6 +58,14 @@ def test_cloud_provider_requires_endpoint_configuration(monkeypatch):
     camera = _camera(CameraProtocol.arlo, "arlo://cam-1")
     with pytest.raises(ProviderError, match="provider_config.whep_url"):
         _provider_endpoint(camera)
+
+
+def test_token_can_be_loaded_from_secret_file(monkeypatch, tmp_path):
+    secret = tmp_path / "ring-token"
+    secret.write_text("file-token\n", encoding="utf-8")
+    monkeypatch.delenv("RING_ACCESS_TOKEN", raising=False)
+    monkeypatch.setenv("RING_ACCESS_TOKEN_FILE", str(secret))
+    assert _token({}, "RING_ACCESS_TOKEN") == "file-token"
 
 
 def test_webrtc_adapter_completes_offer_answer_and_yields_video(monkeypatch):
