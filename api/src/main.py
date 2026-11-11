@@ -16,6 +16,7 @@ import redis.asyncio as aioredis
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi import HTTPException
 
 from .db import create_pool
 from .routes.alerts import router as alerts_router
@@ -88,4 +89,9 @@ app.include_router(ws_router, tags=["websocket"])
 
 @app.get("/health")
 async def health() -> dict:
-    return {"status": "ok"}
+    try:
+        await app.state.db.fetchval("SELECT 1")
+        await app.state.redis.ping()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="dependency unavailable") from exc
+    return {"status": "ok", "database": "ok", "redis": "ok"}

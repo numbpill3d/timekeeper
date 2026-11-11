@@ -25,6 +25,9 @@ _S3_ENDPOINT = os.getenv("S3_ENDPOINT_URL", "http://minio:9000")
 _S3_KEY = os.getenv("S3_ACCESS_KEY", "minioadmin")
 _S3_SECRET = os.getenv("S3_SECRET_KEY", "minioadmin")
 _BUCKET = os.getenv("MEDIA_BUCKET", "omniscient-media")
+_DEFAULT_RETENTION_DAYS = max(
+    1, int(os.getenv("DEFAULT_RETENTION_DAYS", "30"))
+)
 
 _s3 = boto3.client(
     "s3",
@@ -89,6 +92,37 @@ async def persist_event(conn: asyncpg.Connection, event: Event) -> None:
         event.clip_path,
         embedding,
     )
+
+
+async def purge_expired_events(conn: asyncpg.Connection) -> int:
+    """Delete expired event rows and their private clip objects."""
+    rows = await conn.fetch(
+        """
+        DELETE FROM events e
+        USING cameras c
+        LEFT JOIN persons p ON p.id = e.person_id
+        WHERE e.camera_id = c.id
+          AND e.timestamp < NOW() - make_interval(
+              days => COALESCE(p.retention_days, $1)
+          )
+        RETURNING e.clip_path
+        """,
+        _DEFAULT_RETENTION_DAYS,
+    )
+    keys = [str(row["clip_path"]).lstrip("/") for row in rows if row["clip_path"]]
+    if keys:
+        await asyncio.get_running_loop().run_in_executor(
+            None, _delete_objects_sync, keys
+        )
+    return len(rows)
+
+
+def _delete_objects_sync(keys: list[str]) -> None:
+    for start in range(0, len(keys), 1000):
+        _s3.delete_objects(
+            Bucket=_BUCKET,
+            Delete={"Objects": [{"Key": key} for key in keys[start:start + 1000]]},
+        )
 
 
 async def _get_embedding(event: Event) -> str | None:

@@ -21,13 +21,16 @@ from omniscient_shared.models.entity import DetectionMessage
 
 from .aggregator import CameraAggregator
 from .correlator import Correlator
-from .db import persist_event, store_clip
+from .db import persist_event, purge_expired_events, store_clip
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 _BROKERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 _DB_URL = os.getenv("DATABASE_URL", "")
+_RETENTION_INTERVAL = max(
+    300, int(os.getenv("RETENTION_INTERVAL_SECONDS", "3600"))
+)
 
 
 async def main() -> None:
@@ -56,6 +59,7 @@ async def main() -> None:
     cam_owners = {str(r["id"]): str(r["owner_id"]) for r in cam_rows}
 
     log.info("event processor started")
+    retention_task = asyncio.create_task(_retention_loop(db))
     try:
         async for msg in consumer:
             det_msg = DetectionMessage(**msg.value)
@@ -87,9 +91,22 @@ async def main() -> None:
                     EVENTS, value=event.model_dump(mode="json")
                 )
     finally:
+        retention_task.cancel()
+        await asyncio.gather(retention_task, return_exceptions=True)
         await consumer.stop()
         await producer.stop()
         await db.close()
+
+
+async def _retention_loop(db: asyncpg.Connection) -> None:
+    while True:
+        try:
+            deleted = await purge_expired_events(db)
+            if deleted:
+                log.info("retention removed %d expired events", deleted)
+        except Exception:
+            log.exception("retention sweep failed")
+        await asyncio.sleep(_RETENTION_INTERVAL)
 
 
 if __name__ == "__main__":
