@@ -12,7 +12,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cpu \
     torch==2.5.1+cpu torchvision==0.20.1+cpu \
-    && pip install --no-cache-dir -r requirements.txt
+    && sed -e '/^torch>=/d' -e '/^torchvision>=/d' requirements.txt > /tmp/requirements-no-torch.txt \
+    && pip install --no-cache-dir --index-url https://pypi.org/simple \
+       -r /tmp/requirements-no-torch.txt
 
 # shared models package (mounted at /shared in compose)
 ENV PYTHONPATH="/shared:$PYTHONPATH"
