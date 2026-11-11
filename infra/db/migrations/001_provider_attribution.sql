@@ -12,7 +12,7 @@ ALTER TABLE persons
     ADD COLUMN IF NOT EXISTS face_embedding VECTOR(512);
 
 ALTER TABLE persons
-    ADD COLUMN IF NOT EXISTS reid_embedding VECTOR(2048);
+    ADD COLUMN IF NOT EXISTS reid_embedding VECTOR(512);
 
 ALTER TABLE persons
     ADD COLUMN IF NOT EXISTS appearance_tags TEXT[];

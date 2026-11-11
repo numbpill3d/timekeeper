@@ -1,7 +1,7 @@
 """
 OSNet person re-identification via torchreid.
 
-Extracts 2048-dim appearance embeddings for person crops and
+Extracts 512-dim appearance embeddings for person crops and
 matches them across camera views using cosine similarity.
 Enables cross-camera identity persistence ("same person, different camera").
 """
@@ -46,7 +46,7 @@ class ReIDModel:
             self._model.to(self.device)
 
     def extract(self, crop: np.ndarray) -> np.ndarray | None:
-        """Extract a 2048-dim L2-normalized embedding from a person crop (BGR)."""
+        """Extract a 512-dim L2-normalized embedding from a person crop (BGR)."""
         if self._model is None or crop.size == 0:
             return None
 

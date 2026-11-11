@@ -44,7 +44,7 @@ CREATE TABLE persons (
     label            TEXT NOT NULL,
     is_known         BOOLEAN NOT NULL DEFAULT FALSE,
     face_embedding   VECTOR(512),    -- ArcFace/FaceNet embedding
-    reid_embedding   VECTOR(2048),   -- OSNet appearance embedding
+    reid_embedding   VECTOR(512),    -- OSNet x1.0 appearance embedding
     appearance_tags  TEXT[],
     retention_days   INTEGER NOT NULL DEFAULT 30,
     last_seen_at     TIMESTAMPTZ,
