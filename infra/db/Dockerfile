@@ -8,7 +8,7 @@ RUN apk add --no-cache --virtual .pgvector-build-deps \
       build-base git postgresql15-dev \
     && git clone --depth 1 --branch "${PGVECTOR_VERSION}" \
       https://github.com/pgvector/pgvector.git /tmp/pgvector \
-    && make -C /tmp/pgvector WITH_LLVM=0 \
+    && make -C /tmp/pgvector with_llvm=no \
     && make -C /tmp/pgvector install \
     && rm -rf /tmp/pgvector \
     && apk del .pgvector-build-deps
