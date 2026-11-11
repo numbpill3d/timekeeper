@@ -1,8 +1,6 @@
-version: "3.9"
-
 x-python-base: &python-base
   restart: unless-stopped
-  env_file: .env
+  env_file: ${TIMEKEEPER_ENV_FILE:-.env}
   volumes:
     - ./shared:/shared:ro
 

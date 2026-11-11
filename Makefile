@@ -1,12 +1,16 @@
 .PHONY: test web-build compose-config check
 
+PYTHON ?= python
+COMPOSE ?= docker-compose
+ENV_FILE ?= .env
+
 test:
-	pytest -q
+	$(PYTHON) -m pytest -q
 
 web-build:
 	cd apps/web && npm ci && npm run build
 
 compose-config:
-	docker compose config --quiet
+	TIMEKEEPER_ENV_FILE=$(ENV_FILE) $(COMPOSE) config --quiet
 
 check: test web-build
