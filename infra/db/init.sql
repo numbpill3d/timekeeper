@@ -2,7 +2,7 @@
 -- Requires: timescaledb, pgvector extensions
 
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
-CREATE EXTENSION IF NOT EXISTS pgvector;
+CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ── Users & auth ────────────────────────────────────────────────
