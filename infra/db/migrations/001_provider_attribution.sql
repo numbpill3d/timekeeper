@@ -8,6 +8,18 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 ALTER TABLE cameras
     ADD COLUMN IF NOT EXISTS provider_config JSONB NOT NULL DEFAULT '{}';
 
+ALTER TABLE persons
+    ADD COLUMN IF NOT EXISTS face_embedding VECTOR(512);
+
+ALTER TABLE persons
+    ADD COLUMN IF NOT EXISTS reid_embedding VECTOR(2048);
+
+ALTER TABLE persons
+    ADD COLUMN IF NOT EXISTS appearance_tags TEXT[];
+
+ALTER TABLE persons
+    ADD COLUMN IF NOT EXISTS retention_days INTEGER NOT NULL DEFAULT 30;
+
 ALTER TABLE detections
     ADD COLUMN IF NOT EXISTS association_confidence FLOAT;
 
@@ -43,6 +55,14 @@ END $$;
 CREATE INDEX IF NOT EXISTS events_embedding_384_idx
     ON events USING ivfflat (embedding vector_cosine_ops)
     WITH (lists = 100);
+
+CREATE INDEX IF NOT EXISTS persons_face_embedding_idx
+    ON persons USING ivfflat (face_embedding vector_cosine_ops)
+    WITH (lists = 50);
+
+CREATE INDEX IF NOT EXISTS persons_reid_embedding_idx
+    ON persons USING ivfflat (reid_embedding vector_cosine_ops)
+    WITH (lists = 50);
 
 INSERT INTO schema_migrations (version)
 VALUES ('001_provider_attribution')
