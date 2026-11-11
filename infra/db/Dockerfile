@@ -1,6 +1,14 @@
 FROM timescale/timescaledb:latest-pg15
 
 # The Timescale image provides the time-series extension but not pgvector.
-# Alpine publishes a matching PostgreSQL 15 vector package, which keeps the
-# local image small and avoids compiling PostgreSQL extensions in the build.
-RUN apk add --no-cache postgresql-pgvector
+# Build pgvector against the PostgreSQL 15 headers in this image; Alpine's
+# generic package currently targets a newer PostgreSQL major version.
+ARG PGVECTOR_VERSION=v0.6.2
+RUN apk add --no-cache --virtual .pgvector-build-deps \
+      build-base git postgresql15-dev \
+    && git clone --depth 1 --branch "${PGVECTOR_VERSION}" \
+      https://github.com/pgvector/pgvector.git /tmp/pgvector \
+    && make -C /tmp/pgvector \
+    && make -C /tmp/pgvector install \
+    && rm -rf /tmp/pgvector \
+    && apk del .pgvector-build-deps
