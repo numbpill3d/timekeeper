@@ -8,7 +8,8 @@ services:
   # ── Infrastructure ──────────────────────────────────────────────
 
   timescaledb:
-    image: timescale/timescaledb:latest-pg15
+    build: ./infra/db
+    image: timekeeper-timescaledb:local
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -25,7 +26,8 @@ services:
       retries: 5
 
   db-migrate:
-    image: timescale/timescaledb:latest-pg15
+    build: ./infra/db
+    image: timekeeper-timescaledb:local
     environment:
       PGHOST: timescaledb
       PGUSER: ${POSTGRES_USER}
