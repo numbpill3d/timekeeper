@@ -9,6 +9,6 @@ RUN apk add --no-cache --virtual .pgvector-build-deps \
     && git clone --depth 1 --branch "${PGVECTOR_VERSION}" \
       https://github.com/pgvector/pgvector.git /tmp/pgvector \
     && make -C /tmp/pgvector with_llvm=no \
-    && make -C /tmp/pgvector install \
+    && make -C /tmp/pgvector install with_llvm=no \
     && rm -rf /tmp/pgvector \
     && apk del .pgvector-build-deps
