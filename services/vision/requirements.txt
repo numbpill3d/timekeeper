@@ -3,7 +3,10 @@ ultralytics>=8.1.0
 supervision>=0.19.0
 torch>=2.1.0
 torchvision>=0.16.0
-torchreid>=1.4.0
+# PyPI's latest published torchreid release is 0.2.5.  The upstream
+# project version is commonly reported as 1.4.x, but that version is not
+# installable from the public package index used by the container build.
+torchreid==0.2.5
 facenet-pytorch>=2.6.0
 numpy>=1.26.0
 Pillow>=10.0.0
