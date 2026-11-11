@@ -23,7 +23,7 @@ An AI-powered home surveillance intelligence platform designed for privacy and r
 2. Configure your environment:
    ```bash
    cp .env.example .env
-   # Edit .env and fill in your API keys (Ollama, OpenAI, Twilio, etc.)
+   # Edit .env and fill in your local/prod settings and provider secrets.
    ```
 3. Start the system:
    ```bash
@@ -58,12 +58,14 @@ searches recorded object and person labels directly and still returns a
 timestamped evidence answer while the local model is unavailable.
 
 ## Development
-- **Dependencies**: The project uses a unified `requirements.txt` at the root.
+- **Dependencies**: Runtime dependencies are in `requirements.txt`; install
+  `requirements-dev.txt` for the complete local test environment.
 - **Architecture**:
     - **API**: FastAPI
     - **Frontend**: React + Vite
     - **Mobile**: Expo (React Native)
-- **Testing**: Run `pytest` from the project root to run the test suite.
+- **Testing**: Run `python -m pip install -r requirements-dev.txt`, then run
+  `pytest` from the project root. Use Docker Compose for integration tests.
 
 ## License
 MIT
