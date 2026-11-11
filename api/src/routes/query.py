@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, field_validator
 
 from ..auth import CurrentUser
+from ..media import signed_clip_url
 
 router = APIRouter()
 
@@ -94,8 +95,13 @@ async def query(
         ) from exc
 
     data = resp.json()
+    clips = [
+        url
+        for clip in data["clips"]
+        if (url := signed_clip_url(clip)) is not None
+    ]
     return QueryResponse(
         answer=data["answer"],
-        clips=data["clips"],
+        clips=clips,
         confidence=data["confidence"],
     )

@@ -44,11 +44,12 @@ def _ensure_bucket() -> None:
 def _upload_sync(local_path: str, key: str) -> str:
     _ensure_bucket()
     _s3.upload_file(local_path, _BUCKET, key)
-    return f"{_S3_ENDPOINT}/{_BUCKET}/{key}"
+    # Persist only the object key. URLs are signed at read time by the API.
+    return key
 
 
 async def store_clip(frame_path: str, event_id: UUID) -> str | None:
-    """Upload frame JPEG to MinIO and return the URL, or None on failure."""
+    """Upload frame JPEG and return its private object key."""
     path = Path(frame_path)
     if not path.exists():
         return None
