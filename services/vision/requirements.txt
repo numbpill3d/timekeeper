@@ -1,5 +1,7 @@
 asyncpg>=0.29.0
-ultralytics>=8.1.0
+# Keep the detector on a release line compatible with the portable torch 2.5
+# CPU wheels used by the default local deployment.
+ultralytics==8.3.0
 supervision>=0.19.0
 torch>=2.1.0
 torchvision>=0.16.0
