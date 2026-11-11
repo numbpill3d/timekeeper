@@ -93,7 +93,8 @@ services:
     volumes:
       - ollamadata:/root/.ollama
     ports:
-      - "11434:11434"
+      # Keep the host's existing Ollama service undisturbed.
+      - "11435:11434"
   # ── Application Services ─────────────────────────────────────────
 
   ingestion:
