@@ -63,8 +63,9 @@ class VisionPipeline:
         # Per-camera tracker instances (ByteTrack is stateful per stream)
         self._trackers: dict[str, Tracker] = {}
 
-        # ReID gallery: list of (person_id_str, embedding)
-        self._reid_gallery: list[tuple[str, np.ndarray]] = []
+        # ReID gallery scoped by owner_id: list of (person_id_str, embedding).
+        # Never compare a camera against another account's identities.
+        self._reid_gallery: dict[str, list[tuple[str, np.ndarray]]] = {}
 
         # camera_id -> owner_id, populated from DB at startup
         self._cam_owners: dict[str, str] = {}
@@ -113,7 +114,8 @@ class VisionPipeline:
         self._cam_owners = {str(r["id"]): str(r["owner_id"]) for r in cam_rows}
 
         person_rows = await self._db.fetch(
-            "SELECT id, reid_embedding FROM persons WHERE reid_embedding IS NOT NULL"
+            "SELECT id, owner_id, reid_embedding FROM persons "
+            "WHERE reid_embedding IS NOT NULL"
         )
         for row in person_rows:
             raw = row["reid_embedding"]
@@ -121,11 +123,14 @@ class VisionPipeline:
                 continue
             vals = [float(x) for x in raw.strip("[]").split(",")]
             emb_arr = np.array(vals, dtype=np.float32)
-            self._reid_gallery.append((str(row["id"]), emb_arr))
+            owner_id = str(row["owner_id"])
+            self._reid_gallery.setdefault(owner_id, []).append(
+                (str(row["id"]), emb_arr)
+            )
 
         log.info(
             "gallery loaded: %d persons, %d cameras",
-            len(self._reid_gallery),
+            sum(len(gallery) for gallery in self._reid_gallery.values()),
             len(self._cam_owners),
         )
 
@@ -244,7 +249,13 @@ class VisionPipeline:
         if emb is None:
             return None
 
-        match = self.reid.match(emb, self._reid_gallery)
+        owner_id_str = self._cam_owners.get(str(camera_id))
+        if not owner_id_str:
+            return None
+
+        match = self.reid.match(
+            emb, self._reid_gallery.get(owner_id_str, [])
+        )
         if match:
             pid_str, _ = match
             person_id = UUID(pid_str)
@@ -257,10 +268,6 @@ class VisionPipeline:
 
         # New person — create a DB record and add to gallery
         if self._db is None:
-            return None
-
-        owner_id_str = self._cam_owners.get(str(camera_id))
-        if not owner_id_str:
             return None
 
         emb_literal = "[" + ",".join(f"{v:.6f}" for v in emb) + "]"
@@ -280,7 +287,9 @@ class VisionPipeline:
             return None
 
         person_id = row["id"]
-        self._reid_gallery.append((str(person_id), emb))
+        self._reid_gallery.setdefault(owner_id_str, []).append(
+            (str(person_id), emb)
+        )
         log.info("new person created: %s (camera %s)", person_id, camera_id)
         return person_id
 
@@ -321,6 +330,7 @@ class VisionPipeline:
         return obj_id
 
     def update_reid_gallery(
-        self, gallery: list[tuple[str, np.ndarray]]
+        self, gallery: list[tuple[str, np.ndarray]], owner_id: str
     ) -> None:
-        self._reid_gallery = gallery
+        """Replace one owner's gallery after a person enrollment update."""
+        self._reid_gallery[owner_id] = gallery

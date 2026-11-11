@@ -1,0 +1,49 @@
+-- Idempotent upgrade for databases created before provider attribution support.
+
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    version    TEXT PRIMARY KEY,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE cameras
+    ADD COLUMN IF NOT EXISTS provider_config JSONB NOT NULL DEFAULT '{}';
+
+ALTER TABLE detections
+    ADD COLUMN IF NOT EXISTS association_confidence FLOAT;
+
+ALTER TABLE detections
+    ADD COLUMN IF NOT EXISTS association_method TEXT;
+
+-- The original prototype declared events.embedding as VECTOR(768), while the
+-- configured all-MiniLM-L6-v2 model emits VECTOR(384). Keep old vectors for
+-- auditability and create the correctly-sized column for new events.
+DO $$
+DECLARE
+    embedding_type TEXT;
+BEGIN
+    SELECT format_type(a.atttypid, a.atttypmod)
+      INTO embedding_type
+      FROM pg_attribute a
+      JOIN pg_class c ON c.oid = a.attrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = current_schema()
+       AND c.relname = 'events'
+       AND a.attname = 'embedding'
+       AND NOT a.attisdropped;
+
+    IF embedding_type = 'vector(768)' THEN
+        DROP INDEX IF EXISTS events_embedding_idx;
+        ALTER TABLE events RENAME COLUMN embedding TO embedding_legacy_768;
+        ALTER TABLE events ADD COLUMN embedding VECTOR(384);
+    ELSIF embedding_type IS NULL THEN
+        ALTER TABLE events ADD COLUMN embedding VECTOR(384);
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS events_embedding_384_idx
+    ON events USING ivfflat (embedding vector_cosine_ops)
+    WITH (lists = 100);
+
+INSERT INTO schema_migrations (version)
+VALUES ('001_provider_attribution')
+ON CONFLICT (version) DO NOTHING;

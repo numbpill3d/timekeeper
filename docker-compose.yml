@@ -26,6 +26,26 @@ services:
       timeout: 5s
       retries: 5
 
+  db-migrate:
+    image: timescale/timescaledb-ha:pg15-latest
+    environment:
+      PGHOST: timescaledb
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+    volumes:
+      - ./infra/db/migrations:/migrations:ro
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        for migration in /migrations/*.sql; do
+          echo "applying $$migration";
+          psql -v ON_ERROR_STOP=1 -f "$$migration" || exit 1;
+        done
+
   kafka:
     image: bitnami/kafka:3.6
     environment:
@@ -96,8 +116,8 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-      timescaledb:
-        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
 
   vision:
     <<: *python-base
@@ -111,8 +131,8 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-      timescaledb:
-        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
     deploy:
       resources:
         reservations:
@@ -138,8 +158,8 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-      timescaledb:
-        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
       minio:
         condition: service_started
 
@@ -154,8 +174,8 @@ services:
     ports:
       - "8001:8001"
     depends_on:
-      timescaledb:
-        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
       ollama:
         condition: service_started
 
@@ -174,8 +194,8 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-      timescaledb:
-        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
 
   api:
     <<: *python-base
@@ -190,8 +210,8 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      timescaledb:
-        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_started
 
