@@ -8,6 +8,7 @@ import asyncio
 import logging
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 from uuid import UUID
 
 import asyncpg
@@ -109,7 +110,11 @@ async def purge_expired_events(conn: asyncpg.Connection) -> int:
         """,
         _DEFAULT_RETENTION_DAYS,
     )
-    keys = [str(row["clip_path"]).lstrip("/") for row in rows if row["clip_path"]]
+    keys = [
+        _object_key(row["clip_path"])
+        for row in rows
+        if row["clip_path"]
+    ]
     if keys:
         await asyncio.get_running_loop().run_in_executor(
             None, _delete_objects_sync, keys
@@ -123,6 +128,15 @@ def _delete_objects_sync(keys: list[str]) -> None:
             Bucket=_BUCKET,
             Delete={"Objects": [{"Key": key} for key in keys[start:start + 1000]]},
         )
+
+
+def _object_key(value: str) -> str:
+    """Handle both current keys and URLs written by older releases."""
+    parsed = urlparse(value)
+    prefix = f"/{_BUCKET}/"
+    if parsed.scheme and parsed.netloc and parsed.path.startswith(prefix):
+        return parsed.path[len(prefix):]
+    return value.lstrip("/")
 
 
 async def _get_embedding(event: Event) -> str | None:
