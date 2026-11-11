@@ -43,6 +43,7 @@ from omniscient_shared.models.entity import (
 
 from .detector import Detector
 from .association import PersonCandidate, associate_person
+from .face import FaceModel
 from .reid import ReIDModel
 from .tracker import Tracker
 
@@ -59,6 +60,7 @@ class VisionPipeline:
         self.detector = Detector(model_path=model, device=device)
         self.tracker = Tracker()
         self.reid = ReIDModel(device=device)
+        self.face = FaceModel(device=device)
 
         # Per-camera tracker instances (ByteTrack is stateful per stream)
         self._trackers: dict[str, Tracker] = {}
@@ -66,6 +68,7 @@ class VisionPipeline:
         # ReID gallery scoped by owner_id: list of (person_id_str, embedding).
         # Never compare a camera against another account's identities.
         self._reid_gallery: dict[str, list[tuple[str, np.ndarray]]] = {}
+        self._face_gallery: dict[str, list[tuple[str, np.ndarray]]] = {}
 
         # camera_id -> owner_id, populated from DB at startup
         self._cam_owners: dict[str, str] = {}
@@ -114,19 +117,23 @@ class VisionPipeline:
         self._cam_owners = {str(r["id"]): str(r["owner_id"]) for r in cam_rows}
 
         person_rows = await self._db.fetch(
-            "SELECT id, owner_id, reid_embedding FROM persons "
-            "WHERE reid_embedding IS NOT NULL"
+            "SELECT id, owner_id, face_embedding, reid_embedding FROM persons "
+            "WHERE face_embedding IS NOT NULL OR reid_embedding IS NOT NULL"
         )
         for row in person_rows:
-            raw = row["reid_embedding"]
-            if raw is None:
-                continue
-            vals = [float(x) for x in raw.strip("[]").split(",")]
-            emb_arr = np.array(vals, dtype=np.float32)
             owner_id = str(row["owner_id"])
-            self._reid_gallery.setdefault(owner_id, []).append(
-                (str(row["id"]), emb_arr)
-            )
+            person_id = str(row["id"])
+            for column, gallery in (
+                ("face_embedding", self._face_gallery),
+                ("reid_embedding", self._reid_gallery),
+            ):
+                raw = row[column]
+                if raw is None:
+                    continue
+                vals = [float(x) for x in str(raw).strip("[]").split(",")]
+                gallery.setdefault(owner_id, []).append(
+                    (person_id, np.array(vals, dtype=np.float32))
+                )
 
         log.info(
             "gallery loaded: %d persons, %d cameras",
@@ -243,19 +250,29 @@ class VisionPipeline:
         if crop.size == 0:
             return None
 
-        emb = await asyncio.get_event_loop().run_in_executor(
-            None, self.reid.extract, crop
+        loop = asyncio.get_event_loop()
+        face_emb, reid_emb = await asyncio.gather(
+            loop.run_in_executor(None, self.face.extract, crop),
+            loop.run_in_executor(None, self.reid.extract, crop),
         )
-        if emb is None:
+        if face_emb is None and reid_emb is None:
             return None
 
         owner_id_str = self._cam_owners.get(str(camera_id))
         if not owner_id_str:
             return None
 
-        match = self.reid.match(
-            emb, self._reid_gallery.get(owner_id_str, [])
+        face_match = (
+            self.face.match(face_emb, self._face_gallery.get(owner_id_str, []))
+            if face_emb is not None
+            else None
         )
+        reid_match = (
+            self.reid.match(reid_emb, self._reid_gallery.get(owner_id_str, []))
+            if reid_emb is not None
+            else None
+        )
+        match = face_match or reid_match
         if match:
             pid_str, _ = match
             person_id = UUID(pid_str)
@@ -266,32 +283,45 @@ class VisionPipeline:
                 )
             return person_id
 
-        # New person — create a DB record and add to gallery
+        # New person — create a DB record and add available embeddings.
         if self._db is None:
             return None
 
-        emb_literal = "[" + ",".join(f"{v:.6f}" for v in emb) + "]"
+        face_literal = self._vector_literal(face_emb)
+        reid_literal = self._vector_literal(reid_emb)
         short = uuid4().hex[:6].upper()
         row = await self._db.fetchrow(
             """
             INSERT INTO persons
-                (owner_id, label, is_known, reid_embedding, last_seen_at)
-            VALUES ($1, $2, FALSE, $3::vector, NOW())
+                (owner_id, label, is_known, face_embedding, reid_embedding, last_seen_at)
+            VALUES ($1, $2, FALSE, $3::vector, $4::vector, NOW())
             RETURNING id
             """,
             UUID(owner_id_str),
             f"Unknown {short}",
-            emb_literal,
+            face_literal,
+            reid_literal,
         )
         if row is None:
             return None
 
         person_id = row["id"]
-        self._reid_gallery.setdefault(owner_id_str, []).append(
-            (str(person_id), emb)
-        )
+        if face_emb is not None:
+            self._face_gallery.setdefault(owner_id_str, []).append(
+                (str(person_id), face_emb)
+            )
+        if reid_emb is not None:
+            self._reid_gallery.setdefault(owner_id_str, []).append(
+                (str(person_id), reid_emb)
+            )
         log.info("new person created: %s (camera %s)", person_id, camera_id)
         return person_id
+
+    @staticmethod
+    def _vector_literal(embedding: np.ndarray | None) -> str | None:
+        if embedding is None:
+            return None
+        return "[" + ",".join(f"{v:.6f}" for v in embedding) + "]"
 
     async def _get_or_create_object(
         self,
