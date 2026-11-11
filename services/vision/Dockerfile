@@ -12,9 +12,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir \
     --no-deps \
     --index-url https://download.pytorch.org/whl/cpu \
-    torch==2.5.1+cpu torchvision==0.20.1+cpu \
+    torch==2.2.2+cpu torchvision==0.17.2+cpu \
     && sed -e '/^torch>=/d' -e '/^torchvision>=/d' requirements.txt > /tmp/requirements-no-torch.txt \
-    && printf '%s\n' 'torch==2.5.1+cpu' 'torchvision==0.20.1+cpu' > /tmp/torch-constraints.txt \
+    && printf '%s\n' 'torch==2.2.2+cpu' 'torchvision==0.17.2+cpu' > /tmp/torch-constraints.txt \
     && pip install --no-cache-dir --index-url https://pypi.org/simple \
        --extra-index-url https://download.pytorch.org/whl/cpu \
        --constraint /tmp/torch-constraints.txt \
