@@ -96,7 +96,12 @@ async def _complete(system: str, user: str) -> str:
                 "Ollama unavailable and OPENAI_API_KEY not set"
             ) from exc
         log.warning("ollama failed (%s), falling back to openai", exc)
-        return await _openai_complete(system, user)
+        try:
+            return await _openai_complete(system, user)
+        except Exception as openai_exc:
+            raise RuntimeError(
+                "Ollama and OpenAI completions are unavailable"
+            ) from openai_exc
 
 
 async def nl_to_sql(question: str, context: str = "") -> str:
