@@ -94,14 +94,6 @@ services:
       - ollamadata:/root/.ollama
     ports:
       - "11434:11434"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-
   # ── Application Services ─────────────────────────────────────────
 
   ingestion:
@@ -142,14 +134,6 @@ services:
         condition: service_healthy
       db-migrate:
         condition: service_completed_successfully
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-
   event-processor:
     <<: *python-base
     build: ./services/event-processor
