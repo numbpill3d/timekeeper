@@ -12,8 +12,10 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
+from urllib.parse import urlparse
 
 import numpy as np
 
@@ -22,6 +24,17 @@ from omniscient_shared.models.camera import Camera, CameraProtocol
 
 class ProviderError(RuntimeError):
     """A provider could not produce a usable video stream."""
+
+
+def _control_endpoint(value: str, label: str) -> str:
+    parsed = urlparse(value)
+    if parsed.username or parsed.password or not parsed.hostname:
+        raise ProviderError(f"{label} must be a URL without embedded credentials")
+    if parsed.scheme == "https":
+        return value
+    if parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost", "::1"}:
+        return value
+    raise ProviderError(f"{label} must use HTTPS (or loopback HTTP for a local bridge)")
 
 
 async def _direct_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
@@ -64,6 +77,75 @@ def _token(config: dict[str, Any], default_env: str) -> str:
         ) from exc
 
 
+class _OAuthCredentials:
+    """Resolve a static token or refresh it in memory when configured."""
+
+    def __init__(self, config: dict[str, Any], provider: str) -> None:
+        prefix = provider.upper()
+        self.config = config
+        self.provider = provider
+        self.access_env = str(config.get("access_token_env", f"{prefix}_ACCESS_TOKEN"))
+        self.refresh_env = f"{prefix}_REFRESH_TOKEN"
+        self.token_url = str(
+            config.get("token_url") or os.getenv(f"{prefix}_TOKEN_URL", "")
+        )
+        if self.token_url:
+            self.token_url = _control_endpoint(self.token_url, "token endpoint")
+        self._access_token = ""
+        self._expires_at = 0.0
+
+    async def get(self, *, force_refresh: bool = False) -> str:
+        direct = _token(self.config, self.access_env)
+        refresh = _token({}, self.refresh_env)
+        if direct and not force_refresh:
+            return direct
+        if not self.token_url or not refresh:
+            if direct:
+                return direct
+            raise ProviderError(
+                f"{self.provider} needs {self.access_env}, or {self.refresh_env} "
+                f"with {self.refresh_env.replace('_TOKEN', '_TOKEN_URL')}"
+            )
+        if self._access_token and time.monotonic() < self._expires_at and not force_refresh:
+            return self._access_token
+
+        client_id = _token({}, f"{self.provider.upper()}_CLIENT_ID")
+        client_secret = _token({}, f"{self.provider.upper()}_CLIENT_SECRET")
+        if not client_id or not client_secret:
+            raise ProviderError(
+                f"{self.provider} refresh requires provider client credentials"
+            )
+        try:
+            from aiohttp import ClientSession
+
+            payload = {
+                "grant_type": "refresh_token",
+                "refresh_token": refresh,
+                "client_id": client_id,
+                "client_secret": client_secret,
+            }
+            async with ClientSession() as session:
+                async with session.post(self.token_url, data=payload) as response:
+                    body = await response.text()
+                    if response.status >= 400:
+                        raise ProviderError(
+                            f"{self.provider} token refresh failed ({response.status})"
+                        )
+                    result = json.loads(body)
+            token = str(result.get("access_token", "")).strip()
+            if not token:
+                raise ProviderError(f"{self.provider} refresh returned no access token")
+            self._access_token = token
+            self._expires_at = time.monotonic() + max(
+                60, int(result.get("expires_in", 3600)) - 60
+            )
+            return token
+        except ProviderError:
+            raise
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            raise ProviderError(f"{self.provider} token refresh response was invalid") from exc
+
+
 def _device_id(camera: Camera) -> str:
     value = camera.stream_url
     for prefix in ("ring://", "nest://", "arlo://", "wyze://"):
@@ -78,12 +160,14 @@ def _provider_endpoint(camera: Camera) -> tuple[str, str]:
     provider = camera.protocol.value
     explicit = config.get("whep_url")
     if explicit:
-        return provider, str(explicit)
+        return provider, _control_endpoint(str(explicit), "WHEP endpoint")
 
     device_id = _device_id(camera)
     env_template = os.getenv(f"{provider.upper()}_WHEP_URL_TEMPLATE", "")
     if env_template:
-        return provider, env_template.format(device_id=device_id)
+        return provider, _control_endpoint(
+            env_template.format(device_id=device_id), "WHEP endpoint"
+        )
 
     defaults = {
         # Ring's official developer experience exposes a WHEP live-video
@@ -92,7 +176,9 @@ def _provider_endpoint(camera: Camera) -> tuple[str, str]:
     }
     template = defaults.get(provider)
     if template:
-        return provider, template.format(device_id=device_id)
+        return provider, _control_endpoint(
+            template.format(device_id=device_id), "WHEP endpoint"
+        )
     raise ProviderError(
         f"{provider} camera {camera.name} needs provider_config.whep_url or "
         f"{provider.upper()}_WHEP_URL_TEMPLATE"
@@ -164,33 +250,36 @@ async def _webrtc_frames(
 async def _whep_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
     provider, endpoint = _provider_endpoint(camera)
     config = camera.provider_config
-    token = _token(config, f"{provider.upper()}_ACCESS_TOKEN")
-    if not token:
-        raise ProviderError(
-            f"{provider} camera {camera.name} requires an access token in "
-            f"{config.get('access_token_env', provider.upper() + '_ACCESS_TOKEN')}"
-        )
+    credentials = _OAuthCredentials(config, provider)
+    await credentials.get()
 
     async def answer_request(offer_sdp: str) -> str:
         from aiohttp import ClientSession
 
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/sdp",
-            "Accept": "application/sdp, application/json",
-        }
-        async with ClientSession() as session:
-            async with session.post(endpoint, data=offer_sdp, headers=headers) as response:
-                if response.status >= 400:
-                    body = await response.text()
-                    raise ProviderError(f"{provider} WHEP error {response.status}: {body[:300]}")
-                body = await response.text()
-                if response.content_type == "application/json":
-                    payload = json.loads(body)
-                    body = payload.get("answerSdp") or payload.get("sdp", "")
-                if not body.strip():
-                    raise ProviderError(f"{provider} returned an empty WebRTC answer")
-                return body
+        async def request(token: str) -> tuple[int, str, str]:
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/sdp",
+                "Accept": "application/sdp, application/json",
+            }
+            async with ClientSession() as session:
+                async with session.post(endpoint, data=offer_sdp, headers=headers) as response:
+                    return response.status, response.content_type, await response.text()
+
+        token = await credentials.get()
+        status, content_type, body = await request(token)
+        if status == 401:
+            status, content_type, body = await request(
+                await credentials.get(force_refresh=True)
+            )
+        if status >= 400:
+            raise ProviderError(f"{provider} WHEP error {status}")
+        if content_type == "application/json":
+            payload = json.loads(body)
+            body = payload.get("answerSdp") or payload.get("sdp", "")
+        if not body.strip():
+            raise ProviderError(f"{provider} returned an empty WebRTC answer")
+        return body
 
     async for frame in _webrtc_frames(camera, answer_request):
         yield frame
@@ -199,13 +288,14 @@ async def _whep_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
 async def _nest_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
     """Google Nest Device Access adapter using GenerateWebRtcStream."""
     config = camera.provider_config
-    token = _token(config, "NEST_ACCESS_TOKEN")
+    credentials = _OAuthCredentials(config, "nest")
     project_id = config.get("project_id") or os.getenv("NEST_PROJECT_ID", "")
     device_id = _device_id(camera)
-    if not token or not project_id:
+    if not project_id:
         raise ProviderError(
             "Nest requires NEST_ACCESS_TOKEN, NEST_PROJECT_ID, and a nest://device-id source"
         )
+    await credentials.get()
 
     api_base = str(config.get("api_base", "https://smartdevicemanagement.googleapis.com/v1"))
     command_url = config.get("command_url") or (
@@ -219,17 +309,22 @@ async def _nest_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
             "command": "sdm.devices.commands.CameraLiveStream.GenerateWebRtcStream",
             "params": {"offerSdp": offer_sdp},
         }
-        headers = {"Authorization": f"Bearer {token}"}
-        async with ClientSession() as session:
-            async with session.post(command_url, json=payload, headers=headers) as response:
-                body = await response.text()
-                if response.status >= 400:
-                    raise ProviderError(f"Nest API error {response.status}: {body[:300]}")
-                try:
-                    answer = json.loads(body)["results"]["answerSdp"]
-                except (KeyError, TypeError, json.JSONDecodeError) as exc:
-                    raise ProviderError("Nest response did not contain answerSdp") from exc
-                return answer
+        async def request(token: str) -> tuple[int, str]:
+            headers = {"Authorization": f"Bearer {token}"}
+            async with ClientSession() as session:
+                async with session.post(command_url, json=payload, headers=headers) as response:
+                    return response.status, await response.text()
+
+        status, body = await request(await credentials.get())
+        if status == 401:
+            status, body = await request(await credentials.get(force_refresh=True))
+        if status >= 400:
+            raise ProviderError(f"Nest API error {status}")
+        try:
+            answer = json.loads(body)["results"]["answerSdp"]
+        except (KeyError, TypeError, json.JSONDecodeError) as exc:
+            raise ProviderError("Nest response did not contain answerSdp") from exc
+        return answer
 
     async for frame in _webrtc_frames(
         camera, answer_request, include_audio=True, include_data=True

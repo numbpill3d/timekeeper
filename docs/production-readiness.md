@@ -24,9 +24,11 @@ RING_ACCESS_TOKEN_FILE=/run/secrets/ring_access_token
 ```
 
 The ingestion service reads `*_ACCESS_TOKEN_FILE` without persisting the
-secret in `provider_config`. Provider-specific OAuth refresh still requires
-the relevant vendor application credentials and callback flow; static access
-tokens are deliberately not silently refreshed or stored by this project.
+secret in `provider_config`. Provider-specific OAuth refresh requires the
+relevant vendor application credentials and token endpoint. Set the provider’s
+`*_REFRESH_TOKEN`, `*_TOKEN_URL`, `*_CLIENT_ID`, and `*_CLIENT_SECRET` through
+the secret manager; the adapter refreshes in memory and retries one expired
+session. Static access tokens are never persisted.
 
 ## Recognition validation
 

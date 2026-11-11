@@ -14,6 +14,7 @@ from providers import (
     _device_id,
     _provider_endpoint,
     _token,
+    _OAuthCredentials,
 )
 
 
@@ -41,6 +42,16 @@ def test_explicit_whep_endpoint_is_used():
     assert _provider_endpoint(camera) == ("wyze", "https://example.test/whep")
 
 
+def test_whep_endpoint_rejects_embedded_credentials():
+    camera = _camera(
+        CameraProtocol.wyze,
+        "wyze://cam-1",
+        {"whep_url": "https://user:pass@example.test/whep"},
+    )
+    with pytest.raises(ProviderError, match="embedded credentials"):
+        _provider_endpoint(camera)
+
+
 def test_arlo_can_use_a_local_rtsp_bridge():
     camera = _camera(
         CameraProtocol.arlo,
@@ -66,6 +77,14 @@ def test_token_can_be_loaded_from_secret_file(monkeypatch, tmp_path):
     monkeypatch.delenv("RING_ACCESS_TOKEN", raising=False)
     monkeypatch.setenv("RING_ACCESS_TOKEN_FILE", str(secret))
     assert _token({}, "RING_ACCESS_TOKEN") == "file-token"
+
+
+@pytest.mark.asyncio
+async def test_oauth_credentials_fail_closed_without_refresh_material(monkeypatch):
+    monkeypatch.delenv("RING_ACCESS_TOKEN", raising=False)
+    monkeypatch.delenv("RING_REFRESH_TOKEN", raising=False)
+    with pytest.raises(ProviderError, match="RING_ACCESS_TOKEN"):
+        await _OAuthCredentials({}, "ring").get()
 
 
 def test_webrtc_adapter_completes_offer_answer_and_yields_video(monkeypatch):
