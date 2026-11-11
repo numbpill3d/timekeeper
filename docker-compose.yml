@@ -15,7 +15,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - pgvector_pgdata_v2:/var/lib/postgresql/data
+      - pgvector_pgdata_v3:/var/lib/postgresql/data
       - ./infra/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "5432:5432"
@@ -226,7 +226,7 @@ services:
         condition: service_started
 
 volumes:
-  pgvector_pgdata_v2:
+  pgvector_pgdata_v3:
   kafkadata:
   redisdata:
   miniodata:
