@@ -19,6 +19,7 @@ import asyncpg
 from .db import get_pool
 from .llm import nl_to_sql, synthesize_response
 from .rag import retrieve_context
+from .structured_query import build_fallback_query
 
 log = logging.getLogger(__name__)
 
@@ -38,6 +39,12 @@ def _extract_sql(raw: str) -> str:
 def _safe_sql(sql: str) -> str:
     if not _SELECT_RE.match(sql):
         raise ValueError(f"non-SELECT statement rejected: {sql[:80]}")
+    if ";" in sql or "--" in sql or "/*" in sql or "*/" in sql:
+        raise ValueError("multiple statements and SQL comments are not allowed")
+    if re.search(r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|GRANT|REVOKE|COPY|CREATE)\b", sql, re.IGNORECASE):
+        raise ValueError("unsafe SQL keyword rejected")
+    if not re.search(r"\bFROM\s+(?:[a-zA-Z_][\w]*\.)?events\b", sql, re.IGNORECASE):
+        raise ValueError("query must read from the events table")
     return sql
 
 
@@ -63,14 +70,19 @@ async def answer(
     rag_context = await retrieve_context(question, owner_id)
 
     llm_context = "\n".join(filter(None, [history_text, rag_context]))
-    raw_sql = await nl_to_sql(question, llm_context)
+    try:
+        raw_sql = await nl_to_sql(question, llm_context)
+        fallback_params: list[object] = []
+    except RuntimeError as exc:
+        log.warning("LLM SQL planner unavailable; using structured fallback: %s", exc)
+        raw_sql, fallback_params = build_fallback_query(question)
     sql = _safe_sql(_extract_sql(raw_sql))
 
     # Scope all queries to the requesting owner's cameras; owner_id passed
     # as a parameter to avoid SQL injection.
     sql = _inject_owner_scope(sql)
 
-    rows = await _execute(sql, owner_id)
+    rows = await _execute(sql, owner_id, fallback_params)
     answer_text = await synthesize_response(question, rows, llm_context)
 
     clips = [r["clip_path"] for r in rows if r.get("clip_path")]
@@ -98,17 +110,27 @@ def _format_history(history: list[dict]) -> str:
 
 def _inject_owner_scope(sql: str) -> str:
     """Append a camera ownership filter using a $1 parameter placeholder."""
-    scope = "events.camera_id IN (SELECT id FROM cameras WHERE owner_id = $1::uuid)"
+    match = re.search(
+        r"\bFROM\s+(?:[a-zA-Z_][\w]*\.)?events(?:\s+(?:AS\s+)?([a-zA-Z_]\w*))?",
+        sql,
+        re.IGNORECASE,
+    )
+    reserved = {"WHERE", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "ORDER", "GROUP", "LIMIT"}
+    candidate = match.group(1) if match else None
+    alias = candidate if candidate and candidate.upper() not in reserved else "events"
+    scope = f"{alias}.camera_id IN (SELECT id FROM cameras WHERE owner_id = $1::uuid)"
     if re.search(r"\bWHERE\b", sql, re.IGNORECASE):
         return sql.rstrip(";") + f" AND {scope}"
     return sql.rstrip(";") + f" WHERE {scope}"
 
 
-async def _execute(sql: str, owner_id: str) -> list[dict]:
+async def _execute(
+    sql: str, owner_id: str, extra_params: list[object] | None = None
+) -> list[dict]:
     pool = get_pool()
     async with pool.acquire() as conn:
         try:
-            rows = await conn.fetch(sql, owner_id)
+            rows = await conn.fetch(sql, owner_id, *(extra_params or []))
             return [dict(r) for r in rows]
         except asyncpg.PostgresError as exc:
             log.error("query failed: %s | sql: %s", exc, sql)

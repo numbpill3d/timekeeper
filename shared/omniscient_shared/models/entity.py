@@ -24,6 +24,8 @@ class Detection(BaseModel):
     bbox: tuple[float, float, float, float]  # x1,y1,x2,y2 normalized 0-1
     person_id: UUID | None = None
     object_id: UUID | None = None
+    association_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    association_method: str | None = None
 
 
 class FrameMessage(BaseModel):

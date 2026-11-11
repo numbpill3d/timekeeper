@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
 import { listCameras, addCamera, deleteCamera, Camera } from "../api/client";
 
-const PROTOCOLS = ["rtsp", "onvif", "ring", "nest", "arlo", "wyze"];
+const PROTOCOLS = ["rtsp", "http", "https", "hls", "file", "onvif", "ring", "nest", "arlo", "wyze"];
 
 function CameraCard({
   cam,
@@ -154,6 +153,7 @@ export function Cameras() {
   const [loc, setLoc] = useState("");
   const [proto, setProto] = useState("rtsp");
   const [edgeOnly, setEdgeOnly] = useState(false);
+  const [providerConfigText, setProviderConfigText] = useState("");
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
 
@@ -163,14 +163,20 @@ export function Cameras() {
   });
 
   const add = useMutation({
-    mutationFn: () =>
-      addCamera({
+    mutationFn: () => {
+      let provider_config: Record<string, unknown> | undefined;
+      if (providerConfigText.trim()) {
+        provider_config = JSON.parse(providerConfigText) as Record<string, unknown>;
+      }
+      return addCamera({
         name,
         stream_url: url,
         protocol: proto,
         location_label: loc || undefined,
         is_edge_only: edgeOnly,
-      }).then((r) => r.data),
+        provider_config,
+      }).then((r) => r.data);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["cameras"] });
       setName("");
@@ -178,6 +184,7 @@ export function Cameras() {
       setLoc("");
       setProto("rtsp");
       setEdgeOnly(false);
+      setProviderConfigText("");
       setError("");
       setShowForm(false);
     },
@@ -292,6 +299,22 @@ export function Cameras() {
               </select>
             </div>
           </div>
+          {(proto === "ring" || proto === "nest" || proto === "arlo" || proto === "wyze") && (
+            <div>
+              <div className="label" style={{ marginBottom: 4 }}>
+                provider config (JSON, no secrets)
+              </div>
+              <input
+                value={providerConfigText}
+                onChange={(e) => setProviderConfigText(e.target.value)}
+                placeholder='{"whep_url":"https://..."}'
+                style={{ width: "100%", padding: "7px 10px" }}
+              />
+              <div style={{ color: "var(--text-dim)", fontSize: 10, marginTop: 4 }}>
+                Tokens stay in ingestion: {proto.toUpperCase()}_ACCESS_TOKEN.
+              </div>
+            </div>
+          )}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <label
               style={{

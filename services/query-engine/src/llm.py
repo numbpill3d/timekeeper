@@ -33,6 +33,11 @@ Rules:
 - Use timestamp >= NOW() - INTERVAL '...' for relative time filters.
 - Join persons ON events.person_id = persons.id when the query mentions names.
 - Join tracked_objects ON events.object_id = tracked_objects.id for objects.
+- When returning event rows, select timestamp, action_label, location_label,
+  confidence, clip_path, persons.label AS person_label, and
+  tracked_objects.label/category AS object_label/object_category when useful.
+- For object/person questions, always include those person and object fields
+  in the SELECT so the answer can name the evidence-bearing entities.
 - Limit results to 50 unless the user asks for more.
 - Never produce INSERT, UPDATE, DELETE, or DDL statements.
 """.strip()
@@ -48,6 +53,8 @@ Rules:
 - If confidence < 0.8, qualify with "I think" or "probably".
 - If no results, say so clearly and suggest the user check the camera feed.
 - Never hallucinate events not present in the data.
+- Treat every row as evidence, not as a guess. If the data does not establish
+  who, what, or when, say that it is unknown.
 """.strip()
 
 
@@ -106,11 +113,42 @@ async def synthesize_response(
     context: str = "",
 ) -> str:
     """Turn SQL result rows into a natural language answer."""
-    rows_text = "\n".join(str(r) for r in rows[:20]) if rows else "(no results)"
+    if not rows:
+        return "I couldn't find a matching recorded event in the selected camera history."
+    rows_text = "\n".join(str(r) for r in rows[:20])
     prompt = (
         f"User asked: {question}\n\n"
         f"Event data:\n{rows_text}"
     )
     if context:
         prompt = f"Conversation context:\n{context}\n\n{prompt}"
-    return await _complete(_SYNTH_SYSTEM, prompt)
+    try:
+        return await _complete(_SYNTH_SYSTEM, prompt)
+    except RuntimeError as exc:
+        log.warning("LLM synthesis unavailable; using evidence formatter: %s", exc)
+        return _format_evidence_response(rows)
+
+
+def _format_evidence_response(rows: list[dict]) -> str:
+    """Format recorded rows without adding facts not present in the database."""
+    lines: list[str] = []
+    for row in rows[:5]:
+        timestamp = row.get("timestamp")
+        time_text = timestamp.strftime("%I:%M %p") if timestamp else "an unknown time"
+        person = row.get("person_label") or "An unidentified person"
+        item = row.get("object_label") or row.get("object_category") or "the recorded item"
+        action = str(row.get("event_type") or row.get("action_label") or "activity")
+        location = row.get("location_label")
+        where = f" at {location}" if location else ""
+
+        if action == "object_picked_up":
+            lines.append(f"At {time_text}, {person} picked up {item}{where}.")
+        elif action == "object_moved":
+            lines.append(f"At {time_text}, {person} moved {item}{where}.")
+        elif action == "object_placed":
+            lines.append(f"At {time_text}, {person} was associated with {item}{where}.")
+        else:
+            label = row.get("action_label") or action.replace("_", " ")
+            lines.append(f"At {time_text}, the system recorded {label}{where}.")
+
+    return " ".join(lines)

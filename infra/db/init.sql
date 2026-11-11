@@ -28,10 +28,11 @@ CREATE TABLE cameras (
     name           TEXT NOT NULL,
     stream_url     TEXT NOT NULL,
     protocol       TEXT NOT NULL DEFAULT 'rtsp'
-        CHECK (protocol IN ('rtsp', 'onvif', 'ring', 'nest', 'arlo', 'wyze')),
+        CHECK (protocol IN ('rtsp', 'http', 'https', 'hls', 'file', 'onvif', 'ring', 'nest', 'arlo', 'wyze')),
     location_label TEXT,
     is_edge_only   BOOLEAN NOT NULL DEFAULT FALSE,
     is_active      BOOLEAN NOT NULL DEFAULT TRUE,
+    provider_config JSONB NOT NULL DEFAULT '{}',
     created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -75,6 +76,8 @@ CREATE TABLE detections (
     bbox        FLOAT[4],       -- [x1, y1, x2, y2] normalized 0-1
     person_id   UUID REFERENCES persons(id),
     object_id   UUID REFERENCES tracked_objects(id),
+    association_confidence FLOAT,
+    association_method TEXT,
     PRIMARY KEY (id, timestamp)
 );
 SELECT create_hypertable('detections', 'timestamp');
@@ -94,7 +97,8 @@ CREATE TABLE events (
     metadata        JSONB NOT NULL DEFAULT '{}',
     clip_path       TEXT,
     -- semantic vector for RAG retrieval
-    embedding       VECTOR(768),
+    -- all-MiniLM-L6-v2 emits 384-dimensional normalized vectors.
+    embedding       VECTOR(384),
     PRIMARY KEY (id, timestamp)
 );
 SELECT create_hypertable('events', 'timestamp');

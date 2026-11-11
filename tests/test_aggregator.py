@@ -27,6 +27,32 @@ def _det(
     )
 
 
+def test_object_events_preserve_person_attribution():
+    person_id = uuid4()
+    agg = CameraAggregator(camera_id=str(_CAM), location_label="kitchen")
+    detection = _det("keys", track_id=3)
+    detection.person_id = person_id
+    detection.association_confidence = 0.87
+    detection.association_method = "person_object_proximity"
+
+    events = agg.process(_msg([detection]))
+    event = next(e for e in events if e.event_type == EventType.object_placed)
+    assert event.person_id == person_id
+    assert event.metadata["attribution"]["confidence"] == 0.87
+
+
+def test_object_pickup_event_preserves_person_attribution():
+    person_id = uuid4()
+    agg = CameraAggregator(camera_id=str(_CAM), location_label="kitchen")
+    t = datetime.now(tz=timezone.utc)
+    detection = _det("keys", track_id=3, ts=t)
+    detection.person_id = person_id
+    agg.process(_msg([detection], ts=t))
+    events = agg.process(_msg([], ts=t + EXIT_TIMEOUT + timedelta(seconds=1)))
+    event = next(e for e in events if e.event_type == EventType.object_picked_up)
+    assert event.person_id == person_id
+
+
 def _msg(dets: list[Detection], ts: datetime | None = None) -> DetectionMessage:
     return DetectionMessage(
         camera_id=_CAM,

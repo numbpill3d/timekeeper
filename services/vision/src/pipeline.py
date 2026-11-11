@@ -42,6 +42,7 @@ from omniscient_shared.models.entity import (
 )
 
 from .detector import Detector
+from .association import PersonCandidate, associate_person
 from .reid import ReIDModel
 from .tracker import Tracker
 
@@ -145,19 +146,35 @@ class VisionPipeline:
         raw = self.detector.detect(frame)
         tracked = tracker.update(raw, frame.shape[:2])
 
+        person_candidates: list[PersonCandidate] = []
+        person_ids: dict[int, UUID | None] = {}
+        for rd in tracked:
+            if rd.class_name != "person":
+                continue
+            person_id = await self._reid_person(
+                frame, rd.bbox, frame_msg.camera_id
+            )
+            person_ids[rd.track_id] = person_id
+            if person_id:
+                person_candidates.append(
+                    PersonCandidate(person_id, rd.bbox, rd.confidence)
+                )
+
         detections: list[Detection] = []
         for rd in tracked:
-            person_id: UUID | None = None
-
+            person_id: UUID | None = person_ids.get(rd.track_id)
             object_id: UUID | None = None
-            if rd.class_name == "person":
-                person_id = await self._reid_person(
-                    frame, rd.bbox, frame_msg.camera_id
-                )
-            else:
+            association_confidence: float | None = None
+            association_method: str | None = None
+            if rd.class_name != "person":
                 object_id = await self._get_or_create_object(
                     frame_msg.camera_id, rd.track_id, rd.class_name
                 )
+                association = associate_person(rd.bbox, person_candidates)
+                if association:
+                    person_id = association.person_id
+                    association_confidence = association.confidence
+                    association_method = association.method
 
             detections.append(
                 Detection(
@@ -170,6 +187,8 @@ class VisionPipeline:
                     bbox=rd.bbox,
                     person_id=person_id,
                     object_id=object_id,
+                    association_confidence=association_confidence,
+                    association_method=association_method,
                 )
             )
 

@@ -53,7 +53,7 @@ class Correlator:
                             event_type=EventType.object_moved,
                             timestamp=event.timestamp,
                             object_id=event.object_id,
-                            person_id=event.person_id,
+                            person_id=from_evt.person_id or event.person_id,
                             location_label=event.location_label,
                             action_label=label,
                             confidence=min(from_evt.confidence, event.confidence),
@@ -61,6 +61,8 @@ class Correlator:
                                 **event.metadata,
                                 "from_camera_id": from_cam,
                                 "from_location": from_evt.location_label,
+                                "pickup_attribution": from_evt.metadata.get("attribution"),
+                                "placement_attribution": event.metadata.get("attribution"),
                             },
                         )
                     )

@@ -50,6 +50,7 @@ export interface Camera {
   location_label: string | null;
   is_edge_only: boolean;
   is_active: boolean;
+  provider_config: Record<string, unknown>;
 }
 
 export interface Person {
@@ -124,6 +125,7 @@ export const addCamera = (data: {
   protocol?: string;
   location_label?: string;
   is_edge_only?: boolean;
+  provider_config?: Record<string, unknown>;
 }) => api.post<Camera>("/cameras", data);
 
 export const deleteCamera = (id: string) => api.delete(`/cameras/${id}`);

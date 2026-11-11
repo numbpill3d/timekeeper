@@ -4,11 +4,15 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CameraProtocol(str, Enum):
     rtsp = "rtsp"
+    http = "http"
+    https = "https"
+    hls = "hls"
+    file = "file"
     onvif = "onvif"
     ring = "ring"
     nest = "nest"
@@ -17,7 +21,7 @@ class CameraProtocol(str, Enum):
 
 
 class Camera(BaseModel):
-    id: UUID = uuid4()
+    id: UUID = Field(default_factory=uuid4)
     owner_id: UUID
     name: str
     stream_url: str
@@ -25,4 +29,5 @@ class Camera(BaseModel):
     location_label: str | None = None
     is_edge_only: bool = False
     is_active: bool = True
-    created_at: datetime = datetime.utcnow()
+    provider_config: dict = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=datetime.utcnow)

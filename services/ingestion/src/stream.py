@@ -15,11 +15,12 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-import av
 import cv2
 
 from omniscient_shared.models.camera import Camera
 from omniscient_shared.models.entity import FrameMessage
+
+from .providers import ProviderError, frames_for
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ async def stream_camera(
         try:
             await _read_loop(camera, publish_cb)
             backoff = 1.0
-        except av.AVError as exc:
+        except (ProviderError, OSError) as exc:
             log.warning(
                 "stream error for %s (%s): %s — retrying in %.0fs",
                 camera.name, camera.stream_url, exc, backoff,
@@ -54,36 +55,25 @@ async def stream_camera(
 
 
 async def _read_loop(camera: Camera, publish_cb) -> None:
-    container = av.open(
-        camera.stream_url,
-        options={
-            "rtsp_transport": "tcp",
-            "stimeout": "5000000",  # 5s socket timeout
-        },
-    )
-    stream = container.streams.video[0]
-    stream.thread_type = "AUTO"
-
     last_publish = 0.0
+    async for img in frames_for(camera):
+        # PTS is not comparable across reconnects; use wall-clock time to
+        # enforce the sampling interval consistently for live and file feeds.
+        now = asyncio.get_running_loop().time()
+        if now - last_publish < FRAME_INTERVAL_S:
+            continue
+        last_publish = now
 
-    for packet in container.demux(stream):
-        for frame in packet.decode():
-            now = frame.pts * float(stream.time_base)
-            if now - last_publish < FRAME_INTERVAL_S:
-                continue
-            last_publish = now
+        frame_id = str(uuid.uuid4())
+        path = FRAME_DIR / f"{frame_id}.jpg"
+        cv2.imwrite(str(path), img, [cv2.IMWRITE_JPEG_QUALITY, 85])
 
-            frame_id = str(uuid.uuid4())
-            img = frame.to_ndarray(format="bgr24")
-            path = FRAME_DIR / f"{frame_id}.jpg"
-            cv2.imwrite(str(path), img, [cv2.IMWRITE_JPEG_QUALITY, 85])
-
-            msg = FrameMessage(
-                camera_id=camera.id,
-                timestamp=datetime.now(tz=timezone.utc),
-                frame_id=frame_id,
-                frame_path=str(path),
-                width=img.shape[1],
-                height=img.shape[0],
-            )
-            await publish_cb(msg)
+        msg = FrameMessage(
+            camera_id=camera.id,
+            timestamp=datetime.now(tz=timezone.utc),
+            frame_id=frame_id,
+            frame_path=str(path),
+            width=img.shape[1],
+            height=img.shape[0],
+        )
+        await publish_cb(msg)

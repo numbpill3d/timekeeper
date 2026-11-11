@@ -102,22 +102,26 @@ class CameraAggregator:
                 event_type=EventType.package_delivered,
                 timestamp=now,
                 object_id=det.object_id,
+                person_id=det.person_id,
                 location_label=self.location_label,
                 action_label="Package delivered"
                 + (f" at {self.location_label}" if self.location_label else ""),
-                confidence=det.confidence,
+                confidence=self._event_confidence(det),
+                metadata=self._attribution_metadata(det),
             )
         return Event(
             camera_id=det.camera_id,
             event_type=EventType.object_placed,
             timestamp=now,
             object_id=det.object_id,
+            person_id=det.person_id,
             location_label=self.location_label,
             action_label=(
                 f"{det.class_name.capitalize()} detected"
                 + (f" at {self.location_label}" if self.location_label else "")
             ),
-            confidence=det.confidence,
+            confidence=self._event_confidence(det),
+            metadata=self._attribution_metadata(det),
         )
 
     def _on_exit(self, det: Detection, now: datetime) -> Event | None:
@@ -139,7 +143,27 @@ class CameraAggregator:
             event_type=EventType.object_picked_up,
             timestamp=now,
             object_id=det.object_id,
+            person_id=det.person_id,
             location_label=self.location_label,
-            action_label=f"{det.class_name.capitalize()} removed",
-            confidence=det.confidence,
+            action_label=f"{det.class_name.capitalize()} picked up",
+            confidence=self._event_confidence(det),
+            metadata=self._attribution_metadata(det),
         )
+
+    @staticmethod
+    def _attribution_metadata(det: Detection) -> dict:
+        if not det.person_id:
+            return {}
+        return {
+            "attribution": {
+                "person_id": str(det.person_id),
+                "confidence": det.association_confidence,
+                "method": det.association_method or "unknown",
+            }
+        }
+
+    @staticmethod
+    def _event_confidence(det: Detection) -> float:
+        if det.association_confidence is None:
+            return det.confidence
+        return min(det.confidence, det.association_confidence)

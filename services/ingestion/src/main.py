@@ -28,7 +28,9 @@ _RELOAD_INTERVAL = int(os.getenv("CAMERA_RELOAD_INTERVAL_S", "30"))
 
 async def _load_cameras(conn: asyncpg.Connection) -> list[Camera]:
     rows = await conn.fetch(
-        "SELECT * FROM cameras WHERE is_active = TRUE AND protocol = 'rtsp'"
+        "SELECT * FROM cameras WHERE is_active = TRUE "
+        "AND protocol IN ('rtsp', 'http', 'https', 'hls', 'file', 'onvif', "
+        "'ring', 'nest', 'arlo', 'wyze')"
     )
     return [
         Camera(
@@ -39,6 +41,7 @@ async def _load_cameras(conn: asyncpg.Connection) -> list[Camera]:
             protocol=CameraProtocol(r["protocol"]),
             location_label=r["location_label"],
             is_edge_only=r["is_edge_only"],
+            provider_config=r["provider_config"] or {},
         )
         for r in rows
     ]

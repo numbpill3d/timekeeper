@@ -55,7 +55,8 @@ async def retrieve_context(question: str, owner_id: str) -> str:
         SELECT e.action_label, e.timestamp, e.location_label,
                e.confidence, e.event_type,
                p.label AS person_label,
-               o.label AS object_label
+               o.label AS object_label,
+               o.category AS object_category
         FROM events e
         LEFT JOIN persons p ON e.person_id = p.id
         LEFT JOIN tracked_objects o ON e.object_id = o.id
@@ -82,7 +83,10 @@ async def retrieve_context(question: str, owner_id: str) -> str:
     for r in rows:
         ts = r["timestamp"].strftime("%Y-%m-%d %H:%M") if r["timestamp"] else "?"
         who = r["person_label"] or "unknown person"
+        object_name = r["object_label"] or r["object_category"]
         what = r["action_label"] or r["event_type"]
+        if object_name and object_name.lower() not in what.lower():
+            what = f"{object_name}: {what}"
         where = f" at {r['location_label']}" if r["location_label"] else ""
         lines.append(f"  [{ts}] {who}: {what}{where}")
 
