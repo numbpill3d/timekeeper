@@ -16,10 +16,16 @@ import re
 
 import asyncpg
 
-from .db import get_pool
-from .llm import nl_to_sql, synthesize_response
-from .rag import retrieve_context
-from .structured_query import build_fallback_query
+try:
+    from .db import get_pool
+    from .llm import nl_to_sql, synthesize_response
+    from .rag import retrieve_context
+    from .structured_query import build_fallback_query
+except ImportError:  # Support the repository's direct-module test harness.
+    from db import get_pool
+    from llm import nl_to_sql, synthesize_response
+    from rag import retrieve_context
+    from structured_query import build_fallback_query
 
 log = logging.getLogger(__name__)
 

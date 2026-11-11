@@ -15,7 +15,10 @@ from __future__ import annotations
 import logging
 import os
 
-from .db import get_pool
+try:
+    from .db import get_pool
+except ImportError:  # Support direct-module imports used by local tests.
+    from db import get_pool
 
 log = logging.getLogger(__name__)
 
