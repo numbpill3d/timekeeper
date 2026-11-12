@@ -28,6 +28,7 @@ if os.getenv("ENVIRONMENT", "development").lower() == "production" and _SECRET i
     "changeme",
     "secret",
     "test-secret-for-unit-tests-only-must-be-32c",
+    "local-development-secret-change-me-please-123456",
 }:
     raise RuntimeError("JWT_SECRET must be unique in production")
 _ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256").upper()
