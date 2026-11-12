@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { ChatPanel } from "../components/ChatPanel";
@@ -7,7 +7,6 @@ import {
   listEvents,
   listCameras,
   OmniscientEvent,
-  EventStream,
   openEventStream,
 } from "../api/client";
 
@@ -26,7 +25,6 @@ export function Dashboard() {
   const [live, setLive] = useState<OmniscientEvent[]>([]);
   const [selected, setSelected] = useState<OmniscientEvent | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
-  const wsRef = useRef<EventStream | null>(null);
 
   const { data: recent = [] } = useQuery({
     queryKey: ["events", "dashboard"],
@@ -53,11 +51,12 @@ export function Dashboard() {
       (e) => setLive((p) => [e, ...p].slice(0, 20)),
       (connected) => setWsConnected(connected),
     );
-    wsRef.current = stream;
     return () => stream.close();
   }, []);
 
-  const events = [...live, ...recent].slice(0, 14);
+  const events = Array.from(
+    new Map([...live, ...recent].map((event) => [event.id, event])).values()
+  ).slice(0, 14);
   const now = new Date();
   const todayCount = todayEvents.length;
   const activeCams = cameras.filter((c) => c.is_active).length;

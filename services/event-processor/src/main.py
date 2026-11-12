@@ -64,7 +64,10 @@ async def main() -> None:
         cam_owners = {str(r["id"]): str(r["owner_id"]) for r in cam_rows}
 
         log.info("event processor started")
-        retention_task = asyncio.create_task(_retention_loop(db))
+        # Retention uses its own connection. asyncpg connections do not allow
+        # concurrent operations, and the consumer loop must remain free to
+        # persist incoming detections while cleanup runs.
+        retention_task = asyncio.create_task(_retention_loop())
         async for msg in consumer:
             try:
                 det_msg = DetectionMessage(**msg.value)
@@ -125,14 +128,21 @@ async def main() -> None:
             await db.close()
 
 
-async def _retention_loop(db: asyncpg.Connection) -> None:
+async def _retention_loop() -> None:
     while True:
+        retention_db: asyncpg.Connection | None = None
         try:
-            deleted = await purge_expired_events(db)
+            retention_db = await asyncpg.connect(_DB_URL)
+            deleted = await purge_expired_events(retention_db)
             if deleted:
                 log.info("retention removed %d expired events", deleted)
-        except Exception:
-            log.exception("retention sweep failed")
+        except asyncio.CancelledError:
+            raise
+        except (OSError, asyncpg.PostgresError) as exc:
+            log.warning("retention sweep unavailable: %s", exc)
+        finally:
+            if retention_db:
+                await retention_db.close()
         await asyncio.sleep(_RETENTION_INTERVAL)
 if __name__ == "__main__":
     asyncio.run(main())
