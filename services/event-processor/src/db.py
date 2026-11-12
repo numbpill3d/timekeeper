@@ -14,7 +14,6 @@ import asyncpg
 import boto3
 import httpx
 from botocore.exceptions import BotoCoreError, ClientError
-
 from omniscient_shared.models.event import Event
 
 from .storage import object_key
@@ -111,40 +110,66 @@ async def purge_expired_events(conn: asyncpg.Connection) -> int:
     """Delete expired event rows and their private clip objects."""
     rows = await conn.fetch(
         """
-        DELETE FROM events e
-        USING cameras c
-        WHERE e.camera_id = c.id
-          AND e.timestamp < NOW() - make_interval(days => COALESCE(
+        SELECT e.id, e.clip_path
+        FROM events e
+        JOIN cameras c ON e.camera_id = c.id
+        WHERE
+          e.timestamp < NOW() - make_interval(days => COALESCE(
               (SELECT p.retention_days FROM persons p WHERE p.id = e.person_id),
               $1
           ))
-        RETURNING e.clip_path
+        LIMIT 1000
         """,
         _DEFAULT_RETENTION_DAYS,
     )
-    keys = []
+    deletable_ids = []
+    keys_by_id: dict[UUID, str] = {}
     for row in rows:
         if not row["clip_path"]:
+            deletable_ids.append(row["id"])
             continue
         try:
             key = object_key(row["clip_path"])
         except ValueError:
             log.warning("skipping invalid expired clip key")
+            # The value cannot identify a safe object; remove the event so a
+            # malformed legacy key cannot block retention forever.
+            deletable_ids.append(row["id"])
             continue
-        keys.append(key)
-    if keys:
-        await asyncio.get_running_loop().run_in_executor(
-            None, _delete_objects_sync, keys
-        )
-    return len(rows)
+        keys_by_id[row["id"]] = key
+
+    if keys_by_id:
+        try:
+            await asyncio.get_running_loop().run_in_executor(
+                None, _delete_objects_sync, list(keys_by_id.values())
+            )
+        except (BotoCoreError, ClientError, OSError, RuntimeError) as exc:
+            log.warning(
+                "retention clip cleanup failed; preserving %d event rows: %s",
+                len(keys_by_id),
+                exc,
+            )
+        else:
+            deletable_ids.extend(keys_by_id)
+
+    if not deletable_ids:
+        return 0
+    await conn.execute(
+        "DELETE FROM events WHERE id = ANY($1::uuid[])",
+        deletable_ids,
+    )
+    return len(deletable_ids)
 
 
 def _delete_objects_sync(keys: list[str]) -> None:
     for start in range(0, len(keys), 1000):
-        _s3.delete_objects(
+        response = _s3.delete_objects(
             Bucket=_BUCKET,
             Delete={"Objects": [{"Key": key} for key in keys[start:start + 1000]]},
         )
+        errors = response.get("Errors", [])
+        if errors:
+            raise RuntimeError(f"object storage rejected {len(errors)} deletions")
 
 
 async def _get_embedding(event: Event) -> str | None:
@@ -157,6 +182,6 @@ async def _get_embedding(event: Event) -> str | None:
             resp.raise_for_status()
             vec = resp.json()["embedding"]
             return "[" + ",".join(f"{v:.6f}" for v in vec) + "]"
-    except Exception as exc:
+    except (httpx.HTTPError, KeyError, TypeError, ValueError, RuntimeError) as exc:
         log.warning("embedding skipped for event %s: %s", event.id, exc)
         return None
