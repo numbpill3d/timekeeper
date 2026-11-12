@@ -30,8 +30,15 @@ if os.getenv("ENVIRONMENT", "development").lower() == "production" and _SECRET i
     "test-secret-for-unit-tests-only-must-be-32c",
 }:
     raise RuntimeError("JWT_SECRET must be unique in production")
-_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-_EXPIRE_MIN = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
+_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256").upper()
+if _ALGORITHM not in {"HS256", "HS384", "HS512"}:
+    raise RuntimeError("JWT_ALGORITHM must be HS256, HS384, or HS512")
+try:
+    _EXPIRE_MIN = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
+except ValueError as exc:
+    raise RuntimeError("JWT_EXPIRE_MINUTES must be an integer") from exc
+if not 1 <= _EXPIRE_MIN <= 1440:
+    raise RuntimeError("JWT_EXPIRE_MINUTES must be between 1 and 1440")
 
 _bearer = HTTPBearer()
 

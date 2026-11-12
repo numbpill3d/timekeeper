@@ -34,7 +34,21 @@ logging.basicConfig(
 )
 
 _REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
-_ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+
+
+def _parse_allowed_origins(raw: str | None) -> list[str]:
+    """Return explicit CORS origins; credentials must never use ``*``."""
+    origins = [origin.strip() for origin in (raw or "").split(",") if origin.strip()]
+    if not origins:
+        return ["http://localhost:3000", "http://127.0.0.1:3000"]
+    if "*" in origins:
+        raise RuntimeError(
+            "ALLOWED_ORIGINS cannot contain '*' while credentialed requests are enabled"
+        )
+    return origins
+
+
+_ALLOWED_ORIGINS = _parse_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
 
 
 @asynccontextmanager

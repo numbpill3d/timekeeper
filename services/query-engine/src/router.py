@@ -35,6 +35,11 @@ _DB_URL = os.getenv("DATABASE_URL", "")
 _SELECT_RE = re.compile(r"^\s*SELECT\b", re.IGNORECASE)
 # Strip markdown fences LLMs sometimes wrap SQL in
 _FENCE_RE = re.compile(r"```(?:sql)?\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
+_TABLE_RE = re.compile(
+    r"\b(?:FROM|JOIN)\s+(?:[a-zA-Z_][\w]*\.)?([a-zA-Z_][\w]*)",
+    re.IGNORECASE,
+)
+_ALLOWED_TABLES = {"events", "persons", "tracked_objects", "cameras"}
 
 
 def _extract_sql(raw: str) -> str:
@@ -51,6 +56,12 @@ def _safe_sql(sql: str) -> str:
         raise ValueError("unsafe SQL keyword rejected")
     if not re.search(r"\bFROM\s+(?:[a-zA-Z_][\w]*\.)?events\b", sql, re.IGNORECASE):
         raise ValueError("query must read from the events table")
+    if re.search(r"\b(UNION|INTERSECT|EXCEPT|WITH)\b", sql, re.IGNORECASE):
+        raise ValueError("set operations and CTEs are not allowed")
+    tables = {match.group(1).lower() for match in _TABLE_RE.finditer(sql)}
+    unexpected = tables - _ALLOWED_TABLES
+    if unexpected:
+        raise ValueError(f"query references disallowed tables: {sorted(unexpected)}")
     return sql
 
 
@@ -93,7 +104,7 @@ async def answer(
 
     clips = [r["clip_path"] for r in rows if r.get("clip_path")]
     confidences = [r["confidence"] for r in rows if r.get("confidence")]
-    avg_conf = sum(confidences) / len(confidences) if confidences else 1.0
+    avg_conf = sum(confidences) / len(confidences) if confidences else 0.0
 
     return {
         "answer": answer_text,
@@ -147,4 +158,4 @@ async def _execute(
             return [dict(r) for r in rows]
         except asyncpg.PostgresError as exc:
             log.error("query failed: %s | sql: %s", exc, sql)
-            return []
+            raise RuntimeError("query execution unavailable") from exc

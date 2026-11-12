@@ -36,7 +36,7 @@ class EventOut(BaseModel):
 async def list_events(
     user: CurrentUser,
     db: DB,
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     event_type: str | None = None,
     person_id: UUID | None = None,

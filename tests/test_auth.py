@@ -55,8 +55,10 @@ def test_invalid_token_raises_401():
 
 def test_tampered_signature_raises_401():
     token = create_access_token("user-xyz", "pro")
-    last = token[-1]
-    tampered = token[:-1] + ("A" if last != "A" else "B")
+    header, payload, signature = token.split(".")
+    first = signature[0]
+    tampered_signature = ("A" if first != "A" else "B") + signature[1:]
+    tampered = ".".join((header, payload, tampered_signature))
     with pytest.raises(HTTPException) as exc_info:
         decode_token(tampered)
     assert exc_info.value.status_code == 401

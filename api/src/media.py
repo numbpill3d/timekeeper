@@ -3,20 +3,27 @@
 from __future__ import annotations
 
 import os
+from pathlib import PurePosixPath
 from urllib.parse import urlparse
-
-import boto3
 
 _PUBLIC_ENDPOINT = os.getenv(
     "S3_PUBLIC_ENDPOINT_URL", os.getenv("S3_ENDPOINT_URL", "http://minio:9000")
 )
-_KEY = os.getenv("S3_ACCESS_KEY", "minioadmin")
-_SECRET = os.getenv("S3_SECRET_KEY", "minioadmin")
+_INTERNAL_ENDPOINT = os.getenv("S3_ENDPOINT_URL", _PUBLIC_ENDPOINT)
+_KEY = os.getenv("S3_ACCESS_KEY", "")
+_SECRET = os.getenv("S3_SECRET_KEY", "")
 _BUCKET = os.getenv("MEDIA_BUCKET", "omniscient-media")
 _TTL = max(60, int(os.getenv("CLIP_URL_TTL_SECONDS", "300")))
 
+if os.getenv("ENVIRONMENT", "development").lower() == "production" and (
+    not _KEY or not _SECRET or _KEY == "minioadmin" or _SECRET == "minioadmin"
+):
+    raise RuntimeError("production media storage credentials must be configured")
+
 
 def _client():
+    import boto3
+
     return boto3.client(
         "s3",
         endpoint_url=_PUBLIC_ENDPOINT,
@@ -32,9 +39,18 @@ def object_key(value: str | None) -> str | None:
     parsed = urlparse(value)
     if parsed.scheme and parsed.netloc:
         prefix = f"/{_BUCKET}/"
-        if parsed.path.startswith(prefix):
+        allowed_hosts = {
+            urlparse(_PUBLIC_ENDPOINT).hostname,
+            urlparse(_INTERNAL_ENDPOINT).hostname,
+        }
+        if parsed.hostname in allowed_hosts and parsed.path.startswith(prefix):
             return parsed.path[len(prefix):]
-    return value.lstrip("/")
+        raise ValueError("media URL does not belong to the configured bucket")
+    key = value.lstrip("/")
+    path = PurePosixPath(key)
+    if not key or ".." in path.parts or "\\" in key:
+        raise ValueError("invalid media object key")
+    return key
 
 
 def signed_clip_url(value: str | None) -> str | None:

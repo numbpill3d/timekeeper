@@ -50,6 +50,7 @@ from .tracker import Tracker
 log = logging.getLogger(__name__)
 
 _DB_URL = os.getenv("DATABASE_URL", "")
+_FRAME_ROOT = Path(os.getenv("FRAME_STORE_PATH", "/tmp/frames")).resolve()
 
 
 class VisionPipeline:
@@ -220,12 +221,19 @@ class VisionPipeline:
         # Frames accumulate at 10 fps per camera; cleanup is critical for
         # disk health.  Missing files are benign — log at debug only.
         try:
-            Path(frame_msg.frame_path).unlink(missing_ok=True)
-        except OSError as exc:
+            cleanup_path = Path(frame_msg.frame_path).resolve()
+            cleanup_path.relative_to(_FRAME_ROOT)
+            cleanup_path.unlink(missing_ok=True)
+        except (OSError, ValueError) as exc:
             log.debug("frame cleanup failed for %s: %s", frame_msg.frame_path, exc)
 
     async def _load_frame(self, path: str) -> np.ndarray | None:
-        p = Path(path)
+        try:
+            p = Path(path).resolve()
+            p.relative_to(_FRAME_ROOT)
+        except (OSError, ValueError):
+            log.warning("rejected frame path outside frame store: %s", path)
+            return None
         if not p.exists():
             log.warning("frame not found: %s", path)
             return None

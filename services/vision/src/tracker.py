@@ -61,17 +61,52 @@ class Tracker:
         )
         tracked = self._bt.update_with_detections(sv_dets)
 
-        # Map tracker IDs back to detections by bbox overlap
+        # ByteTrack may filter and reorder detections. Match its output boxes
+        # back to source detections instead of assuming array positions are
+        # stable; positional matching can swap identities after a dropout.
         updated: list[RawDetection] = list(detections)
-        if tracked.tracker_id is not None:
-            for i, det in enumerate(updated):
-                if i < len(tracked.tracker_id):
-                    tid = tracked.tracker_id[i]
-                    updated[i] = RawDetection(
-                        track_id=int(tid) if tid is not None else -1,
-                        class_name=det.class_name,
-                        confidence=det.confidence,
-                        bbox=det.bbox,
-                    )
+        if tracked.tracker_id is None:
+            return updated
+
+        used: set[int] = set()
+        for tracked_box, tid in zip(tracked.xyxy, tracked.tracker_id):
+            if tid is None:
+                continue
+            best_index, _ = max(
+                (
+                    (index, _iou(tracked_box, xyxy[index]))
+                    for index in range(len(xyxy))
+                    if index not in used
+                ),
+                key=lambda pair: pair[1],
+                default=(-1, 0.0),
+            )
+            if best_index < 0:
+                continue
+            used.add(best_index)
+            det = updated[best_index]
+            updated[best_index] = RawDetection(
+                track_id=int(tid),
+                class_name=det.class_name,
+                confidence=det.confidence,
+                bbox=det.bbox,
+            )
 
         return updated
+
+
+def _iou(left: np.ndarray, right: np.ndarray) -> float:
+    """Return intersection-over-union for two ``xyxy`` boxes."""
+    x1 = max(float(left[0]), float(right[0]))
+    y1 = max(float(left[1]), float(right[1]))
+    x2 = min(float(left[2]), float(right[2]))
+    y2 = min(float(left[3]), float(right[3]))
+    intersection = max(0.0, x2 - x1) * max(0.0, y2 - y1)
+    left_area = max(0.0, float(left[2]) - float(left[0])) * max(
+        0.0, float(left[3]) - float(left[1])
+    )
+    right_area = max(0.0, float(right[2]) - float(right[0])) * max(
+        0.0, float(right[3]) - float(right[1])
+    )
+    union = left_area + right_area - intersection
+    return intersection / union if union else 0.0

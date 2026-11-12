@@ -123,7 +123,7 @@ async def list_deliveries(
     rule_id: UUID,
     user: CurrentUser,
     db: DB,
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, ge=1, le=200),
 ) -> list[AlertDeliveryOut]:
     exists = await db.fetchval(
         "SELECT 1 FROM alert_rules WHERE id = $1 AND owner_id = $2",
