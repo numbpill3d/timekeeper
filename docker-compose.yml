@@ -18,7 +18,7 @@ services:
       - pgvector_pgdata_v4:/var/lib/postgresql/data
       - ./infra/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
@@ -62,7 +62,7 @@ services:
     volumes:
       - kafkadata:/bitnami/kafka
     ports:
-      - "9092:9092"
+      - "127.0.0.1:9092:9092"
     healthcheck:
       test: kafka-topics.sh --bootstrap-server localhost:9092 --list
       interval: 15s
@@ -74,7 +74,7 @@ services:
     volumes:
       - redisdata:/data
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
 
   minio:
     image: rustfs/rustfs:latest
@@ -87,8 +87,8 @@ services:
     volumes:
       - miniodata:/data
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
 
   ollama:
     image: ollama/ollama:latest
@@ -96,7 +96,7 @@ services:
       - ollamadata:/root/.ollama
     ports:
       # Keep the host's existing Ollama service undisturbed.
-      - "11435:11434"
+      - "127.0.0.1:11435:11434"
   # ── Application Services ─────────────────────────────────────────
 
   ingestion:
@@ -170,7 +170,7 @@ services:
       OLLAMA_MODEL: ${OLLAMA_MODEL}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"
     depends_on:
       db-migrate:
         condition: service_completed_successfully
@@ -213,7 +213,7 @@ services:
       MEDIA_BUCKET: ${MEDIA_BUCKET}
       CLIP_URL_TTL_SECONDS: ${CLIP_URL_TTL_SECONDS}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
