@@ -86,6 +86,8 @@ class CameraCreate(BaseModel):
     stream_url: str = Field(max_length=2048)
     protocol: str = "rtsp"
     location_label: str | None = Field(default=None, max_length=120)
+    # Keep the legacy field readable, but the bundled deployment has no
+    # external edge-agent protocol that could process such a camera.
     is_edge_only: bool = False
     provider_config: dict = Field(default_factory=dict)
 
@@ -96,6 +98,15 @@ class CameraCreate(BaseModel):
             opts = ", ".join(sorted(_PROTOCOLS))
             raise ValueError(f"protocol must be one of: {opts}")
         return v
+
+    @field_validator("is_edge_only")
+    @classmethod
+    def _edge_agent_required(cls, value: bool) -> bool:
+        if value:
+            raise ValueError(
+                "edge-only cameras require an external edge agent, which is not bundled"
+            )
+        return value
 
     @field_validator("name")
     @classmethod

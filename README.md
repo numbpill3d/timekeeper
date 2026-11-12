@@ -100,6 +100,12 @@ uses its authenticated WHEP live-video API; Arlo and Wyze can use a configured
 RTSP or WebRTC bridge. Provider secrets belong in environment variables or
 secret files, never in `provider_config`, URLs, commits, or screenshots.
 
+The bundled deployment processes feeds in the local ingestion/vision stack.
+The legacy `is_edge_only` database flag is retained for compatibility, but the
+repository does not include an external edge agent; new edge-only cameras are
+rejected and existing ones are skipped by ingestion until such an agent is
+connected.
+
 ## Query behavior
 
 The evidence answer includes the timestamp, action, person/object label,

@@ -92,7 +92,7 @@ function CameraCard({
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
         <span className="badge badge-dim">{cam.protocol}</span>
         {cam.is_edge_only && (
-          <span className="badge badge-amber">edge only</span>
+          <span className="badge badge-amber">external agent required</span>
         )}
       </div>
 
@@ -152,7 +152,6 @@ export function Cameras() {
   const [url, setUrl] = useState("");
   const [loc, setLoc] = useState("");
   const [proto, setProto] = useState("rtsp");
-  const [edgeOnly, setEdgeOnly] = useState(false);
   const [providerConfigText, setProviderConfigText] = useState("");
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -173,7 +172,6 @@ export function Cameras() {
         stream_url: url,
         protocol: proto,
         location_label: loc || undefined,
-        is_edge_only: edgeOnly,
         provider_config,
       }).then((r) => r.data);
     },
@@ -183,7 +181,6 @@ export function Cameras() {
       setUrl("");
       setLoc("");
       setProto("rtsp");
-      setEdgeOnly(false);
       setProviderConfigText("");
       setError("");
       setShowForm(false);
@@ -315,27 +312,6 @@ export function Cameras() {
               </div>
             </div>
           )}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                cursor: "pointer",
-                fontSize: 12,
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={edgeOnly}
-                onChange={(e) => setEdgeOnly(e.target.checked)}
-                style={{ width: 14, height: 14 }}
-              />
-              <span style={{ color: "var(--text-dim)" }}>
-                edge-only (no cloud processing)
-              </span>
-            </label>
-          </div>
           {error && (
             <div
               style={{

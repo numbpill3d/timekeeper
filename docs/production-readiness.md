@@ -20,6 +20,10 @@ Use a host with Docker Compose available for steps 3–5. The repository's CI
 workflow validates the rendered Compose configuration, while a complete local
 stack still requires Docker Engine and its runtime images.
 
+The bundled stack does not include an external edge-processing agent. Cameras
+marked `is_edge_only` in a legacy database are skipped by ingestion, and new
+edge-only cameras are rejected by the API until an agent integration is added.
+
 ## Provider credentials
 
 Prefer a secret manager or mounted secret files. For example:

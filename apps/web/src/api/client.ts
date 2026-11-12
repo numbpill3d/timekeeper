@@ -126,7 +126,6 @@ export const addCamera = (data: {
   stream_url: string;
   protocol?: string;
   location_label?: string;
-  is_edge_only?: boolean;
   provider_config?: Record<string, unknown>;
 }) => api.post<Camera>("/cameras", data);
 

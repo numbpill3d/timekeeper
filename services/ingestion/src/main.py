@@ -31,6 +31,7 @@ except ValueError as exc:
 async def _load_cameras(conn: asyncpg.Connection) -> list[Camera]:
     rows = await conn.fetch(
         "SELECT * FROM cameras WHERE is_active = TRUE "
+        "AND is_edge_only = FALSE "
         "AND protocol IN ('rtsp', 'http', 'https', 'hls', 'file', 'onvif', "
         "'ring', 'nest', 'arlo', 'wyze')"
     )

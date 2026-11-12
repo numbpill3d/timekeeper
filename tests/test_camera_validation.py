@@ -58,6 +58,15 @@ def test_camera_metadata_is_bounded():
         )
 
 
+def test_edge_only_camera_requires_an_external_agent():
+    with pytest.raises(ValidationError, match="external edge agent"):
+        CameraCreate(
+            name="front",
+            stream_url="rtsp://camera/stream",
+            is_edge_only=True,
+        )
+
+
 def test_detection_contract_rejects_invalid_bounds():
     with pytest.raises(ValidationError):
         Detection(

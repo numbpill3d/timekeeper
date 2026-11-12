@@ -8,6 +8,9 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 ALTER TABLE cameras
     ADD COLUMN IF NOT EXISTS provider_config JSONB NOT NULL DEFAULT '{}';
 
+ALTER TABLE cameras
+    ADD COLUMN IF NOT EXISTS is_edge_only BOOLEAN NOT NULL DEFAULT FALSE;
+
 ALTER TABLE persons
     ADD COLUMN IF NOT EXISTS face_embedding VECTOR(512);
 
