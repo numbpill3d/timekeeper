@@ -130,6 +130,9 @@ validation additionally requires an authorized camera session and hardware.
 The prioritized product improvement backlog is in
 [`docs/ux-improvement-plan.md`](docs/ux-improvement-plan.md).
 
+Every push and pull request runs the Python, web, mobile, and Compose gates in
+GitHub Actions. Hardware/provider smoke tests remain a separate release check.
+
 ## Repository layout
 
 - `api/` — FastAPI authentication, cameras, events, alerts, and query proxy.
