@@ -55,7 +55,7 @@ function Sidebar({ open, onNavigate }: { open: boolean; onNavigate: () => void }
               onClick={onNavigate}
               title={label}
             >
-              <span className="nav-icon" aria-hidden="true">{icon}</span><span>{label}</span>
+              <span className="nav-icon" data-icon={icon} aria-hidden="true" /><span>{label}</span>
             </NavLink>
           </li>
         ))}

@@ -23,7 +23,7 @@ export function ChatPanel() {
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const history = messages.slice(1).map((m) => ({
+  const history = messages.slice(-6).map((m) => ({
     role: m.role,
     content: m.content,
   }));
@@ -81,7 +81,7 @@ export function ChatPanel() {
           flexShrink: 0,
         }}
       >
-        <span aria-hidden="true" style={{ color: "var(--accent)", fontSize: 9 }}>◆</span>
+        <span className="panel-bullet" aria-hidden="true" />
         <span className="section-title">query interface</span>
         {messages.length > 1 && (
           <button
@@ -226,7 +226,6 @@ export function ChatPanel() {
           maxLength={1000}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && e.preventDefault()}
           placeholder="where are my keys?"
           disabled={loading}
           style={{
@@ -240,7 +239,7 @@ export function ChatPanel() {
         />
         <button
           className="btn btn-primary"
-          onClick={() => void send()}
+          type="submit"
           disabled={loading || !input.trim()}
           style={{ padding: "7px 14px" }}
         >

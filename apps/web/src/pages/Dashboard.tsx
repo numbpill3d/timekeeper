@@ -96,7 +96,7 @@ export function Dashboard() {
       <div className="dashboard-grid">
         <div className="feed-panel">
           <div className="panel-heading">
-            <span aria-hidden="true" style={{ color: "var(--accent)", fontSize: 9 }}>◆</span>
+            <span className="panel-bullet" aria-hidden="true" />
             <span className="section-title">live activity</span>
             {live.length > 0 && (
               <span className="badge badge-green" style={{ marginLeft: "auto" }}>
@@ -113,6 +113,15 @@ export function Dashboard() {
                 <div
                   key={e.id}
                   onClick={() => e.clip_path && setSelected(e)}
+                  role={e.clip_path ? "button" : undefined}
+                  tabIndex={e.clip_path ? 0 : undefined}
+                  onKeyDown={(event) => {
+                    if (e.clip_path && (event.key === "Enter" || event.key === " ")) {
+                      event.preventDefault();
+                      setSelected(e);
+                    }
+                  }}
+                  aria-label={e.clip_path ? `View evidence for ${e.action_label}` : undefined}
                   className={`activity-row${e.clip_path ? " has-clip" : ""}`}
                 >
                   <span className="event-marker" style={{ background: EVENT_COLORS[e.event_type] ?? "var(--text-dim)" }} />

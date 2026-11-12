@@ -162,6 +162,9 @@ input::placeholder, textarea::placeholder { color: var(--text-dim); }
 .nav-link:hover { color: var(--text); background: rgba(255,255,255,.025); }
 .nav-link.active { color: var(--text-bright); background: var(--elevated); border-left-color: var(--accent); }
 .nav-icon { width: 14px; color: var(--accent); font-size: 9px; }
+.nav-icon::before { content: attr(data-icon); }
+.panel-bullet { width: 9px; height: 9px; color: var(--accent); flex-shrink: 0; }
+.panel-bullet::before { content: '◆'; font-size: 9px; }
 .sidebar-footer { border-top: 1px solid var(--border); padding: 12px; display: flex; flex-direction: column; gap: 9px; }
 .system-status { display: flex; align-items: center; gap: 7px; color: var(--green); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
 .status-dot { width: 6px; height: 6px; background: currentColor; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
@@ -248,7 +251,7 @@ input::placeholder, textarea::placeholder { color: var(--text-dim); }
 
 /* toggle switch */
 .toggle { position: relative; display: inline-block; width: 30px; height: 16px; cursor: pointer; flex-shrink: 0; }
-.toggle input { display: none; }
+.toggle input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .toggle-track { position: absolute; inset: 0; background: var(--border-hi); border: 1px solid #333; transition: all 0.15s; }
 .toggle input:checked + .toggle-track { background: var(--accent); border-color: var(--accent); }
 .toggle-knob { position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; background: #666; transition: left 0.15s, background 0.15s; pointer-events: none; }

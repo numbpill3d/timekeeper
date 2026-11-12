@@ -97,12 +97,19 @@ export function Login({ onAuth }: Props) {
             />
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit();
+            }}
+            style={{ display: "flex", flexDirection: "column", gap: 10 }}
+          >
             <div>
               <div className="label" style={{ marginBottom: 4 }}>
                 email
               </div>
               <input
+                aria-label="Email address"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -122,6 +129,7 @@ export function Login({ onAuth }: Props) {
                 password
               </div>
               <input
+                aria-label="Password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -133,7 +141,6 @@ export function Login({ onAuth }: Props) {
                   border: "1px solid var(--border-hi)",
                   color: "var(--text)",
                 }}
-                onKeyDown={(e) => e.key === "Enter" && submit()}
               />
             </div>
 
@@ -146,6 +153,7 @@ export function Login({ onAuth }: Props) {
                   fontSize: 11,
                   letterSpacing: "0.05em",
                 }}
+                role="alert"
               >
                 ! {error}
               </div>
@@ -153,14 +161,15 @@ export function Login({ onAuth }: Props) {
 
             <button
               className="btn btn-primary"
+              type="submit"
               style={{ width: "100%", marginTop: 4, padding: "10px" }}
-              onClick={submit}
               disabled={loading || !email || !password}
             >
               {loading ? "..." : mode === "login" ? "sign in" : "create account"}
             </button>
 
             <button
+              type="button"
               style={{
                 background: "none",
                 border: "none",
@@ -182,7 +191,7 @@ export function Login({ onAuth }: Props) {
                 ? "register new account →"
                 : "← back to sign in"}
             </button>
-          </div>
+          </form>
         </div>
 
         <div

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { OmniscientEvent } from "../api/client";
 
 interface Props {
@@ -7,7 +7,10 @@ interface Props {
 }
 
 export function ClipModal({ event, onClose }: Props) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
+    closeRef.current?.focus();
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -74,6 +77,7 @@ export function ClipModal({ event, onClose }: Props) {
             </span>
           </div>
           <button
+            ref={closeRef}
             className="btn btn-ghost"
             style={{ padding: "3px 10px" }}
             onClick={onClose}

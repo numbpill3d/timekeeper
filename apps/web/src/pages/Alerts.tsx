@@ -22,13 +22,16 @@ const CHANNEL_LABELS: Record<string, string> = {
 function Toggle({
   checked,
   onChange,
+  label,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
+  label: string;
 }) {
   return (
     <label className="toggle" title={checked ? "active" : "paused"}>
       <input
+        aria-label={`${checked ? "Disable" : "Enable"} ${label}`}
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
@@ -70,6 +73,7 @@ function AlertRow({ rule }: { rule: AlertRule }) {
       <Toggle
         checked={rule.is_active}
         onChange={(v) => toggle.mutate(v)}
+        label={rule.name}
       />
 
       <div style={{ flex: 1, minWidth: 0 }}>

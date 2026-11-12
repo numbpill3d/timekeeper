@@ -184,6 +184,14 @@ export function Timeline() {
                 <tr
                   key={e.id}
                   onClick={() => e.clip_path && setSelected(e)}
+                  tabIndex={e.clip_path ? 0 : undefined}
+                  onKeyDown={(event) => {
+                    if (e.clip_path && (event.key === "Enter" || event.key === " ")) {
+                      event.preventDefault();
+                      setSelected(e);
+                    }
+                  }}
+                  aria-label={e.clip_path ? `View evidence for ${e.action_label}` : undefined}
                   style={{
                     borderBottom: "1px solid var(--border)",
                     cursor: e.clip_path ? "pointer" : "default",
