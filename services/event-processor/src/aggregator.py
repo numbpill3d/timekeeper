@@ -35,12 +35,11 @@ class CameraAggregator:
     def __init__(self, camera_id: str, location_label: str | None) -> None:
         self.camera_id = camera_id
         self.location_label = location_label
-        # track_id -> last Detection
-        self._active: dict[int, Detection] = {}
-        # track_id -> first seen time
-        self._first_seen: dict[int, datetime] = {}
-        # track_id -> last seen time
-        self._last_seen: dict[int, datetime] = {}
+        # (class_name, track_id) -> state. Track IDs are only unique within a
+        # tracker stream and can overlap between person/object classes.
+        self._active: dict[tuple[str, int], Detection] = {}
+        self._first_seen: dict[tuple[str, int], datetime] = {}
+        self._last_seen: dict[tuple[str, int], datetime] = {}
 
     def process(self, msg: DetectionMessage) -> list[Event]:
         events: list[Event] = []
@@ -48,30 +47,30 @@ class CameraAggregator:
         seen_ids: set[int] = set()
 
         for det in msg.detections:
-            tid = det.track_id
-            seen_ids.add(tid)
+            key = (det.class_name, det.track_id)
+            seen_ids.add(key)
 
-            if tid not in self._active:
+            if key not in self._active:
                 evt = self._on_first_seen(det, now)
                 if evt:
                     events.append(evt)
-                self._first_seen[tid] = now
+                self._first_seen[key] = now
 
-            self._active[tid] = det
-            self._last_seen[tid] = now
+            self._active[key] = det
+            self._last_seen[key] = now
 
         # Check for exits
         stale = [
-            tid for tid, last in self._last_seen.items()
-            if tid not in seen_ids and now - last > EXIT_TIMEOUT
+            key for key, last in self._last_seen.items()
+            if key not in seen_ids and now - last > EXIT_TIMEOUT
         ]
-        for tid in stale:
-            evt = self._on_exit(self._active[tid], now)
+        for key in stale:
+            evt = self._on_exit(self._active[key], now)
             if evt:
                 events.append(evt)
-            del self._active[tid]
-            del self._last_seen[tid]
-            self._first_seen.pop(tid, None)
+            del self._active[key]
+            del self._last_seen[key]
+            self._first_seen.pop(key, None)
 
         return events
 

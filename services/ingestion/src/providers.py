@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
@@ -24,6 +25,20 @@ from omniscient_shared.models.camera import Camera, CameraProtocol
 
 class ProviderError(RuntimeError):
     """A provider could not produce a usable video stream."""
+
+
+_ENV_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
+
+
+def _safe_provider_env_name(value: str, provider: str) -> str:
+    """Prevent camera config from selecting unrelated process secrets."""
+    name = value.strip()
+    prefix = f"{provider.upper()}_"
+    if not _ENV_NAME_RE.fullmatch(name) or not name.startswith(prefix):
+        raise ProviderError(
+            f"{provider} access_token_env must be an uppercase {prefix}* name"
+        )
+    return name
 
 
 def _control_endpoint(value: str, label: str) -> str:
@@ -84,7 +99,10 @@ class _OAuthCredentials:
         prefix = provider.upper()
         self.config = config
         self.provider = provider
-        self.access_env = str(config.get("access_token_env", f"{prefix}_ACCESS_TOKEN"))
+        self.access_env = _safe_provider_env_name(
+            str(config.get("access_token_env", f"{prefix}_ACCESS_TOKEN")),
+            provider,
+        )
         self.refresh_env = f"{prefix}_REFRESH_TOKEN"
         self.token_url = str(
             config.get("token_url") or os.getenv(f"{prefix}_TOKEN_URL", "")

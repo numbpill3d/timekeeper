@@ -217,15 +217,9 @@ class VisionPipeline:
             value=out.model_dump(mode="json"),
         )
 
-        # Remove the frame file now that it has been processed.
-        # Frames accumulate at 10 fps per camera; cleanup is critical for
-        # disk health.  Missing files are benign — log at debug only.
-        try:
-            cleanup_path = Path(frame_msg.frame_path).resolve()
-            cleanup_path.relative_to(_FRAME_ROOT)
-            cleanup_path.unlink(missing_ok=True)
-        except (OSError, ValueError) as exc:
-            log.debug("frame cleanup failed for %s: %s", frame_msg.frame_path, exc)
+        # The event processor still needs this shared frame to create an
+        # evidence clip.  It owns cleanup after consuming the detection
+        # message; deleting here races that consumer and silently loses clips.
 
     async def _load_frame(self, path: str) -> np.ndarray | None:
         try:

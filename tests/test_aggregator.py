@@ -125,3 +125,25 @@ def test_multiple_tracks_emit_independent_entered_events():
     )
     entered = [e for e in events if e.event_type == EventType.person_entered]
     assert len(entered) == 2
+
+
+def test_person_and_object_can_share_tracker_id_without_state_collision():
+    agg = CameraAggregator(camera_id=str(_CAM), location_label=None)
+    t = datetime.now(tz=timezone.utc)
+    events = agg.process(
+        _msg(
+            [_det("person", track_id=1, ts=t), _det("keys", track_id=1, ts=t)],
+            ts=t,
+        )
+    )
+    assert {event.event_type for event in events} == {
+        EventType.person_entered,
+        EventType.object_placed,
+    }
+
+    later = t + EXIT_TIMEOUT + timedelta(seconds=1)
+    events = agg.process(_msg([], ts=later))
+    assert {event.event_type for event in events} == {
+        EventType.person_exited,
+        EventType.object_picked_up,
+    }

@@ -22,6 +22,7 @@ from omniscient_shared.models.entity import DetectionMessage
 from .aggregator import CameraAggregator
 from .correlator import Correlator
 from .db import persist_event, purge_expired_events, store_clip
+from .storage import cleanup_frame
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -62,46 +63,52 @@ async def main() -> None:
     retention_task = asyncio.create_task(_retention_loop(db))
     try:
         async for msg in consumer:
-            det_msg = DetectionMessage(**msg.value)
+            try:
+                det_msg = DetectionMessage(**msg.value)
+            except Exception as exc:
+                log.warning("dropping malformed detection message: %s", exc)
+                continue
             cam_key = str(det_msg.camera_id)
-
-            if cam_key not in cam_locations:
-                row = await db.fetchrow(
-                    "SELECT location_label, owner_id FROM cameras "
-                    "WHERE id = $1 AND is_active = TRUE",
-                    det_msg.camera_id,
-                )
-                if not row:
-                    log.warning("dropping detection for unknown/inactive camera %s", cam_key)
-                    continue
-                cam_locations[cam_key] = row["location_label"]
-                cam_owners[cam_key] = str(row["owner_id"])
-
-            if cam_key not in aggregators:
-                aggregators[cam_key] = CameraAggregator(
-                    camera_id=cam_key,
-                    location_label=cam_locations.get(cam_key),
-                )
-
-            events = aggregators[cam_key].process(det_msg)
-
-            # cross-camera correlation may produce additional events
-            extra: list = []
-            for evt in events:
-                extra.extend(correlator.process(evt))
-            events.extend(extra)
-
-            owner_id = cam_owners.get(cam_key, "")
-            for event in events:
-                event.metadata["owner_id"] = owner_id
-                if det_msg.frame_path and not event.clip_path:
-                    event.clip_path = await store_clip(
-                        det_msg.frame_path, event.id
+            try:
+                if cam_key not in cam_locations:
+                    row = await db.fetchrow(
+                        "SELECT location_label, owner_id FROM cameras "
+                        "WHERE id = $1 AND is_active = TRUE",
+                        det_msg.camera_id,
                     )
-                await persist_event(db, event)
-                await producer.send(
-                    EVENTS, value=event.model_dump(mode="json")
-                )
+                    if not row:
+                        log.warning("dropping detection for unknown/inactive camera %s", cam_key)
+                        continue
+                    cam_locations[cam_key] = row["location_label"]
+                    cam_owners[cam_key] = str(row["owner_id"])
+
+                if cam_key not in aggregators:
+                    aggregators[cam_key] = CameraAggregator(
+                        camera_id=cam_key,
+                        location_label=cam_locations.get(cam_key),
+                    )
+
+                events = aggregators[cam_key].process(det_msg)
+
+                # cross-camera correlation may produce additional events
+                extra: list = []
+                for evt in events:
+                    extra.extend(correlator.process(evt))
+                events.extend(extra)
+
+                owner_id = cam_owners.get(cam_key, "")
+                for event in events:
+                    event.metadata["owner_id"] = owner_id
+                    if det_msg.frame_path and not event.clip_path:
+                        event.clip_path = await store_clip(
+                            det_msg.frame_path, event.id
+                        )
+                    await persist_event(db, event)
+                    await producer.send(
+                        EVENTS, value=event.model_dump(mode="json")
+                    )
+            finally:
+                cleanup_frame(det_msg.frame_path)
     finally:
         retention_task.cancel()
         await asyncio.gather(retention_task, return_exceptions=True)
@@ -119,7 +126,5 @@ async def _retention_loop(db: asyncpg.Connection) -> None:
         except Exception:
             log.exception("retention sweep failed")
         await asyncio.sleep(_RETENTION_INTERVAL)
-
-
 if __name__ == "__main__":
     asyncio.run(main())

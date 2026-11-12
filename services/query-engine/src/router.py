@@ -154,7 +154,16 @@ async def _execute(
     pool = get_pool()
     async with pool.acquire() as conn:
         try:
-            rows = await conn.fetch(sql, owner_id, *(extra_params or []))
+            # Generated SQL is untrusted model output. A read-only transaction
+            # blocks mutation even if validation misses a dialect edge case;
+            # timeout and row caps keep one query from monopolizing the service.
+            bounded_sql = f"SELECT * FROM ({sql}) AS timekeeper_result LIMIT 50"
+            async with conn.transaction():
+                await conn.execute("SET TRANSACTION READ ONLY")
+                await conn.execute("SET LOCAL statement_timeout = '5000ms'")
+                rows = await conn.fetch(
+                    bounded_sql, owner_id, *(extra_params or [])
+                )
             return [dict(r) for r in rows]
         except asyncpg.PostgresError as exc:
             log.error("query failed: %s | sql: %s", exc, sql)

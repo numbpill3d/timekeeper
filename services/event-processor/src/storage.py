@@ -11,6 +11,7 @@ _ALLOWED_HOSTS = {
     urlparse(os.getenv("S3_ENDPOINT_URL", "http://minio:9000")).hostname,
     urlparse(os.getenv("S3_PUBLIC_ENDPOINT_URL", "")).hostname,
 }
+_FRAME_ROOT = Path(os.getenv("FRAME_STORE_PATH", "/tmp/frames")).resolve()
 
 
 def object_key(value: str) -> str:
@@ -31,3 +32,16 @@ def object_key(value: str) -> str:
     if not key or ".." in Path(key).parts or "\\" in key:
         raise ValueError("invalid clip object key")
     return key
+
+
+def cleanup_frame(frame_path: str | None) -> None:
+    """Remove a consumed frame only when it is inside the shared frame root."""
+    if not frame_path:
+        return
+    try:
+        path = Path(frame_path).resolve()
+        path.relative_to(_FRAME_ROOT)
+        path.unlink(missing_ok=True)
+    except (OSError, ValueError):
+        # Cleanup is best effort; callers must never delete outside the store.
+        return

@@ -87,6 +87,12 @@ async def test_oauth_credentials_fail_closed_without_refresh_material(monkeypatc
         await _OAuthCredentials({}, "ring").get()
 
 
+def test_provider_config_cannot_select_unrelated_secret_env(monkeypatch):
+    monkeypatch.setenv("JWT_SECRET", "do-not-send-this")
+    with pytest.raises(ProviderError, match="uppercase RING_"):
+        _OAuthCredentials({"access_token_env": "JWT_SECRET"}, "ring")
+
+
 def test_webrtc_adapter_completes_offer_answer_and_yields_video(monkeypatch):
     """Exercise the adapter handshake without requiring a camera or aiortc install."""
     captured: dict[str, str] = {}
