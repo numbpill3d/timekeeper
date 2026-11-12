@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from typing import Annotated
-from urllib.parse import parse_qsl, urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from uuid import UUID
 
 import asyncpg
@@ -27,6 +28,19 @@ _SECRET_URL_KEYS = {
 _URL_CONFIG_KEYS = {
     "whepurl", "rtspurl", "streamurl", "apiurl", "commandurl", "tokenurl",
 }
+_MAX_PROVIDER_CONFIG_BYTES = 16 * 1024
+
+
+def _normalized_key(key: object) -> str:
+    return "".join(char for char in str(key).lower() if char.isalnum())
+
+
+def _is_secret_key(key: object) -> bool:
+    normalized = _normalized_key(key)
+    return normalized in {
+        "accesstoken", "apikey", "auth", "authorization", "clientsecret",
+        "password", "secret", "signature", "token",
+    } or normalized.endswith("token")
 
 
 def _validate_endpoint_value(value: str) -> None:
@@ -43,23 +57,22 @@ def _validate_endpoint_value(value: str) -> None:
 
 
 def _validate_provider_config(v: dict) -> dict:
-    forbidden = {
-        "accesstoken", "clientsecret", "password", "secret", "token",
-    }
-
-    def is_secret_key(key: object) -> bool:
-        normalized = "".join(char for char in str(key).lower() if char.isalnum())
-        return normalized in forbidden or normalized.endswith("token")
-
     def contains_secret(value: object) -> bool:
         if isinstance(value, dict):
             return any(
-                is_secret_key(key) or contains_secret(child)
+                _is_secret_key(key) or contains_secret(child)
                 for key, child in value.items()
             )
         if isinstance(value, list):
             return any(contains_secret(child) for child in value)
         return False
+
+    try:
+        encoded = json.dumps(v, separators=(",", ":"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("provider_config must contain JSON values") from exc
+    if len(encoded) > _MAX_PROVIDER_CONFIG_BYTES:
+        raise ValueError("provider_config exceeds the 16 KiB limit")
 
     if contains_secret(v):
         raise ValueError(
@@ -67,7 +80,7 @@ def _validate_provider_config(v: dict) -> dict:
         )
 
     def inspect_urls(value: object, key: str = "") -> None:
-        normalized_key = "".join(char for char in key.lower() if char.isalnum())
+        normalized_key = _normalized_key(key)
         if normalized_key in _URL_CONFIG_KEYS and isinstance(value, str):
             _validate_endpoint_value(value.strip())
         elif isinstance(value, dict):
@@ -79,6 +92,35 @@ def _validate_provider_config(v: dict) -> dict:
 
     inspect_urls(v)
     return v
+
+
+def _redact_url(value: str) -> str:
+    parsed = urlparse(value)
+    if not parsed.scheme or not parsed.netloc:
+        return value
+    query = [
+        (key, item)
+        for key, item in parse_qsl(parsed.query, keep_blank_values=True)
+        if _normalized_key(key) not in _SECRET_URL_KEYS
+    ]
+    netloc = parsed.netloc.rsplit("@", 1)[-1]
+    return urlunparse(
+        (parsed.scheme, netloc, parsed.path, parsed.params, urlencode(query), "")
+    )
+
+
+def _redact_provider_config(value: object, key: str = "") -> object:
+    if isinstance(value, dict):
+        return {
+            str(child_key): _redact_provider_config(child_value, str(child_key))
+            for child_key, child_value in value.items()
+            if not _is_secret_key(child_key)
+        }
+    if isinstance(value, list):
+        return [_redact_provider_config(item, key) for item in value]
+    if _normalized_key(key) in _URL_CONFIG_KEYS and isinstance(value, str):
+        return _redact_url(value)
+    return value
 
 
 class CameraCreate(BaseModel):
@@ -173,13 +215,20 @@ class CameraOut(BaseModel):
     provider_config: dict
 
 
+def _public_camera(row: asyncpg.Record | dict) -> CameraOut:
+    data = dict(row)
+    data["stream_url"] = _redact_url(str(data["stream_url"]))
+    data["provider_config"] = _redact_provider_config(data["provider_config"] or {})
+    return CameraOut(**data)
+
+
 @router.get("", response_model=list[CameraOut])
 async def list_cameras(user: CurrentUser, db: DB) -> list[CameraOut]:
     rows = await db.fetch(
         "SELECT * FROM cameras WHERE owner_id = $1 ORDER BY created_at",
         user["sub"],
     )
-    return [CameraOut(**dict(r)) for r in rows]
+    return [_public_camera(r) for r in rows]
 
 
 @router.post("", response_model=CameraOut, status_code=201)
@@ -218,7 +267,7 @@ async def add_camera(
             req.is_edge_only,
             req.provider_config,
         )
-    return CameraOut(**dict(row))
+    return _public_camera(row)
 
 
 @router.patch("/{camera_id}", response_model=CameraOut)
@@ -239,7 +288,7 @@ async def update_camera(
     if result == "UPDATE 0":
         raise HTTPException(status_code=404, detail="camera not found")
     row = await db.fetchrow("SELECT * FROM cameras WHERE id = $1", camera_id)
-    return CameraOut(**dict(row))
+    return _public_camera(row)
 
 
 @router.delete("/{camera_id}", status_code=204)

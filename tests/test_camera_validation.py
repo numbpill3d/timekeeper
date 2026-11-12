@@ -5,7 +5,7 @@ from omniscient_shared.models.entity import Detection, DetectionMessage, FrameMe
 from omniscient_shared.models.event import Event, EventType
 from pydantic import ValidationError
 
-from api.src.routes.cameras import CameraCreate
+from api.src.routes.cameras import CameraCreate, _public_camera
 
 
 def test_stream_url_rejects_embedded_credentials():
@@ -44,6 +44,35 @@ def test_provider_config_rejects_credentials_in_nested_endpoint():
             stream_url="arlo://camera-1",
             provider_config={"rtsp_url": "rtsp://user:password@camera/live"},
         )
+
+
+def test_provider_config_is_bounded():
+    with pytest.raises(ValidationError, match="16 KiB"):
+        CameraCreate(
+            name="front door",
+            stream_url="rtsp://camera/live",
+            provider_config={"notes": "x" * 16385},
+        )
+
+
+def test_legacy_camera_output_redacts_credentials():
+    camera = _public_camera(
+        {
+            "id": "00000000-0000-0000-0000-000000000001",
+            "name": "legacy",
+            "stream_url": "rtsp://user:password@camera/live?token=secret&quality=high#fragment",
+            "protocol": "rtsp",
+            "location_label": None,
+            "is_edge_only": False,
+            "is_active": True,
+            "provider_config": {
+                "access_token": "secret",
+                "whep_url": "https://camera.example/live?token=secret",
+            },
+        }
+    )
+    assert camera.stream_url == "rtsp://camera/live?quality=high"
+    assert camera.provider_config == {"whep_url": "https://camera.example/live"}
 
 
 def test_camera_metadata_is_bounded():
