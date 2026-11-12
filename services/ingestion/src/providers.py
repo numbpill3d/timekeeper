@@ -16,7 +16,7 @@ import re
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlparse
 
 import numpy as np
 from omniscient_shared.models.camera import Camera, CameraProtocol
@@ -42,8 +42,17 @@ def _safe_provider_env_name(value: str, provider: str) -> str:
 
 def _control_endpoint(value: str, label: str) -> str:
     parsed = urlparse(value)
-    if parsed.username or parsed.password or not parsed.hostname:
+    secret_keys = {
+        "accesstoken", "apikey", "auth", "authorization", "password", "secret",
+        "signature", "token",
+    }
+    if parsed.username or parsed.password or parsed.fragment or not parsed.hostname:
         raise ProviderError(f"{label} must be a URL without embedded credentials")
+    if any(
+        "".join(char for char in key.lower() if char.isalnum()) in secret_keys
+        for key, _ in parse_qsl(parsed.query, keep_blank_values=True)
+    ):
+        raise ProviderError(f"{label} must not contain credential-like query parameters")
     if parsed.scheme == "https":
         return value
     if parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost", "::1"}:
@@ -142,10 +151,10 @@ class _OAuthCredentials:
                 "client_secret": client_secret,
             }
             async with ClientSession() as session, session.post(
-                self.token_url, data=payload
+                self.token_url, data=payload, allow_redirects=False
             ) as response:
                 body = await response.text()
-                if response.status >= 400:
+                if response.status >= 300:
                     raise ProviderError(
                         f"{self.provider} token refresh failed ({response.status})"
                     )
@@ -280,7 +289,7 @@ async def _whep_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
                 "Accept": "application/sdp, application/json",
             }
             async with ClientSession() as session, session.post(
-                endpoint, data=offer_sdp, headers=headers
+                endpoint, data=offer_sdp, headers=headers, allow_redirects=False
             ) as response:
                 return response.status, response.content_type, await response.text()
 
@@ -290,7 +299,7 @@ async def _whep_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
             status, content_type, body = await request(
                 await credentials.get(force_refresh=True)
             )
-        if status >= 400:
+        if status >= 300:
             raise ProviderError(f"{provider} WHEP error {status}")
         if content_type == "application/json":
             payload = json.loads(body)
@@ -315,10 +324,14 @@ async def _nest_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
         )
     await credentials.get()
 
-    api_base = str(config.get("api_base", "https://smartdevicemanagement.googleapis.com/v1"))
+    api_base = _control_endpoint(
+        str(config.get("api_base", "https://smartdevicemanagement.googleapis.com/v1")),
+        "Nest API endpoint",
+    )
     command_url = config.get("command_url") or (
         f"{api_base}/enterprises/{project_id}/devices/{device_id}:executeCommand"
     )
+    command_url = _control_endpoint(str(command_url), "Nest command endpoint")
 
     async def answer_request(offer_sdp: str) -> str:
         from aiohttp import ClientSession
@@ -330,14 +343,14 @@ async def _nest_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
         async def request(token: str) -> tuple[int, str]:
             headers = {"Authorization": f"Bearer {token}"}
             async with ClientSession() as session, session.post(
-                command_url, json=payload, headers=headers
+                command_url, json=payload, headers=headers, allow_redirects=False
             ) as response:
                 return response.status, await response.text()
 
         status, body = await request(await credentials.get())
         if status == 401:
             status, body = await request(await credentials.get(force_refresh=True))
-        if status >= 400:
+        if status >= 300:
             raise ProviderError(f"Nest API error {status}")
         try:
             answer = json.loads(body)["results"]["answerSdp"]

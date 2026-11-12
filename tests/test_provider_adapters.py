@@ -3,18 +3,18 @@
 import asyncio
 import sys
 import types
-import pytest
-import numpy as np
 from uuid import uuid4
 
+import numpy as np
+import pytest
 from omniscient_shared.models.camera import Camera, CameraProtocol
 from providers import (
     ProviderError,
     _configured_direct_camera,
     _device_id,
+    _OAuthCredentials,
     _provider_endpoint,
     _token,
-    _OAuthCredentials,
 )
 
 
@@ -49,6 +49,16 @@ def test_whep_endpoint_rejects_embedded_credentials():
         {"whep_url": "https://user:pass@example.test/whep"},
     )
     with pytest.raises(ProviderError, match="embedded credentials"):
+        _provider_endpoint(camera)
+
+
+def test_whep_endpoint_rejects_credential_query_parameter():
+    camera = _camera(
+        CameraProtocol.wyze,
+        "wyze://cam-1",
+        {"whep_url": "https://example.test/whep?token=secret"},
+    )
+    with pytest.raises(ProviderError, match="credential-like"):
         _provider_endpoint(camera)
 
 

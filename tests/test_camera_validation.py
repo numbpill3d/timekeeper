@@ -36,6 +36,15 @@ def test_provider_config_rejects_camel_case_token_key():
         )
 
 
+def test_provider_config_rejects_credentials_in_nested_endpoint():
+    with pytest.raises(ValidationError, match="provider endpoint"):
+        CameraCreate(
+            name="front door",
+            stream_url="arlo://camera-1",
+            provider_config={"rtsp_url": "rtsp://user:password@camera/live"},
+        )
+
+
 def test_detection_contract_rejects_invalid_bounds():
     with pytest.raises(ValidationError):
         Detection(

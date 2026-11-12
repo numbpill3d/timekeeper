@@ -24,6 +24,22 @@ _SECRET_URL_KEYS = {
     "accesstoken", "apikey", "auth", "authorization", "password", "secret",
     "signature", "token",
 }
+_URL_CONFIG_KEYS = {
+    "whepurl", "rtspurl", "streamurl", "apiurl", "commandurl", "tokenurl",
+}
+
+
+def _validate_endpoint_value(value: str) -> None:
+    parsed = urlparse(value)
+    if parsed.username or parsed.password or parsed.fragment:
+        raise ValueError("provider endpoint must not contain embedded credentials")
+    if any(
+        "".join(char for char in key.lower() if char.isalnum()) in _SECRET_URL_KEYS
+        for key, _ in parse_qsl(parsed.query, keep_blank_values=True)
+    ):
+        raise ValueError(
+            "provider endpoint must not contain credential-like query parameters"
+        )
 
 
 def _validate_provider_config(v: dict) -> dict:
@@ -49,6 +65,19 @@ def _validate_provider_config(v: dict) -> dict:
         raise ValueError(
             "provider_config may contain endpoints and IDs only; keep credentials in environment variables"
         )
+
+    def inspect_urls(value: object, key: str = "") -> None:
+        normalized_key = "".join(char for char in key.lower() if char.isalnum())
+        if normalized_key in _URL_CONFIG_KEYS and isinstance(value, str):
+            _validate_endpoint_value(value.strip())
+        elif isinstance(value, dict):
+            for child_key, child_value in value.items():
+                inspect_urls(child_value, str(child_key))
+        elif isinstance(value, list):
+            for child_value in value:
+                inspect_urls(child_value, key)
+
+    inspect_urls(v)
     return v
 
 
