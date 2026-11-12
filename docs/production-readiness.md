@@ -24,6 +24,10 @@ The bundled stack does not include an external edge-processing agent. Cameras
 marked `is_edge_only` in a legacy database are skipped by ingestion, and new
 edge-only cameras are rejected by the API until an agent integration is added.
 
+Application containers run with `no-new-privileges` and no Linux capabilities.
+Keep those restrictions enabled in production overrides unless a provider
+integration demonstrably requires a narrowly scoped capability.
+
 ## Provider credentials
 
 Prefer a secret manager or mounted secret files. For example:

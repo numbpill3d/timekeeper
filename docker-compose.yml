@@ -1,6 +1,10 @@
 x-python-base: &python-base
   restart: unless-stopped
   env_file: ${TIMEKEEPER_ENV_FILE:-.env}
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
   volumes:
     - ./shared:/shared:ro
 
