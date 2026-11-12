@@ -1,71 +1,147 @@
-# Omniscient Home
+# Timekeeper
 
-An AI-powered home surveillance intelligence platform designed for privacy and real-time monitoring.
+Local-first camera intelligence for answering questions about recorded events.
+Attach a live camera feed, let the CV pipeline turn observations into
+timestamped evidence, and ask questions such as:
 
-## Features
-- **Real-time CV Pipeline**: YOLOv8 + ByteTrack + OSNet ReID for accurate object tracking.
-- **Structured Data**: Detections are aggregated into actionable events and stored in TimescaleDB.
-- **Natural Language Querying**: Ask questions like "Where are my keys?" using a powerful RAG + text-to-SQL pipeline.
-- **Secure Alerting**: Instant notifications via Twilio/FCM.
+> At 4:30 PM, who grabbed the blue toolbox and where did they go?
 
-## Getting Started
+Timekeeper answers from recorded events and supporting clips. It does not
+invent an identity or action when the evidence is missing or weak.
+
+![Timekeeper dashboard](docs/assets/timekeeper-ui.png)
+
+## What it does
+
+- Ingests RTSP/RTSPS, HTTP(S), HLS, local files, and supported provider sessions.
+- Detects and tracks people and objects with a local CV pipeline.
+- Associates people and objects using time, position, tracking, and ReID data.
+- Stores events, labels, confidence, embeddings, and clip references in
+  PostgreSQL/TimescaleDB with pgvector.
+- Answers natural-language questions through RAG + text-to-SQL, with a
+  parameterized no-LLM fallback for common item/person/time questions.
+- Provides a React/Vite dashboard, FastAPI API, mobile app foundation, alerts,
+  retention cleanup, and private signed clip URLs.
+- Keeps camera/provider credentials out of event data and rejects credential
+  material embedded in camera URLs or provider configuration.
+
+## Architecture
+
+```text
+camera/provider feed
+        │
+        ▼
+ingestion → Kafka → vision (detect / track / ReID)
+                         │
+                         ▼
+                 event processor → TimescaleDB + pgvector
+                         │
+       dashboard/mobile ─┴─ query engine (RAG / SQL / evidence answer)
+                         │
+                         ▼
+                    FastAPI API
+```
+
+The default deployment is local Docker Compose. Infrastructure ports bind to
+`127.0.0.1`; production deployments still need their own network, secret,
+backup, and access-control policy.
+
+## Quick start
 
 ### Prerequisites
-- Docker & Docker Compose installed.
-- Python 3.10+ installed for local development.
 
-### Installation
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/<YOUR_USERNAME>/timekeeper.git
-   cd timekeeper
-   ```
-2. Configure your environment:
-   ```bash
-   cp .env.example .env
-   # Edit .env and fill in your local/prod settings and provider secrets.
-   ```
-3. Start the system:
-   ```bash
-   docker compose up --build
-   ```
+- Docker Engine and Docker Compose.
+- At least 8 GB free disk for the CPU images; model downloads require more.
+- Python 3.10+ for local tests.
+- Node.js/npm for the web application.
 
-### Camera sources
+### Start the stack
 
-The ingestion service accepts direct RTSP/RTSPS, HTTP(S), HLS, and local-file
-URLs. Use a stable location label (for example `front door` or `kitchen`) so
-events can be answered in natural language. Vendor cameras that do not expose
-a direct stream use the built-in Ring, Nest, Arlo, and Wyze adapters. Configure
-the provider camera as `ring://device-id`, `nest://device-id`, `arlo://device-id`,
-or `wyze://device-id`; put non-secret endpoint settings in `provider_config`.
-Nest also requires `NEST_PROJECT_ID`. Ring uses its authenticated WHEP live
-video API; set `provider_config.whep_url` or `RING_WHEP_URL_TEMPLATE`. Arlo
-and Wyze can use `provider_config.rtsp_url` for a local bridge, or
-`provider_config.whep_url` for a compatible WebRTC bridge. Their adapter does
-not pretend a public cloud camera API exists where the vendor does not provide one.
+```bash
+git clone https://github.com/numbpill3d/timekeeper.git
+cd timekeeper
+cp .env.example .env
+# Edit .env. Keep provider credentials in environment variables or secret files.
+docker compose up --build
+```
 
-The adapters use each provider's authenticated live session to produce frames
-for the same local CV pipeline. They do not store provider passwords or tokens
-in the database.
+The API is available at `http://127.0.0.1:8000`, the query engine at
+`http://127.0.0.1:8001`, and the web UI during development at
+`http://127.0.0.1:3000`.
 
-The first query is intentionally evidence-based: it reports recorded events
-and timestamps, includes supporting clips when available, and qualifies low
-confidence matches instead of inventing an identity or action.
+The UI can be run separately:
 
-For common item/person/time questions, the query engine also has a
-parameterized no-LLM fallback. For example, `did john pick up my keys today?`
-searches recorded object and person labels directly and still returns a
-timestamped evidence answer while the local model is unavailable.
+```bash
+cd apps/web
+npm ci
+npm run dev -- --host 127.0.0.1
+```
 
-## Development
-- **Dependencies**: Runtime dependencies are in `requirements.txt`; install
-  `requirements-dev.txt` for the complete local test environment.
-- **Architecture**:
-    - **API**: FastAPI
-    - **Frontend**: React + Vite
-    - **Mobile**: Expo (React Native)
-- **Testing**: Run `python -m pip install -r requirements-dev.txt`, then run
-  `pytest` from the project root. Use Docker Compose for integration tests.
+## Camera feeds
+
+Direct feeds use RTSP/RTSPS, HTTP(S), HLS, or a local file URL. Give every
+camera a stable location label such as `front door`, `garage`, or `kitchen`.
+
+Provider adapters accept `ring://device-id`, `nest://device-id`,
+`arlo://device-id`, and `wyze://device-id` when the corresponding authenticated
+session or local bridge is configured. Nest requires `NEST_PROJECT_ID`; Ring
+uses its authenticated WHEP live-video API; Arlo and Wyze can use a configured
+RTSP or WebRTC bridge. Provider secrets belong in environment variables or
+secret files, never in `provider_config`, URLs, commits, or screenshots.
+
+## Query behavior
+
+The evidence answer includes the timestamp, action, person/object label,
+location, confidence, and supporting clip references when available. If the
+LLM is unavailable, the query engine uses a safe parameterized planner for
+questions such as:
+
+```text
+Did John pick up my keys today?
+Where was the blue toolbox yesterday?
+What happened in the garage this afternoon?
+```
+
+An empty or low-confidence result is reported as uncertain rather than being
+presented as a fact. An Ollama model or configured OpenAI-compatible provider
+is required for richer natural-language synthesis; the structured fallback does
+not require either provider.
+
+## Verification
+
+From the repository root:
+
+```bash
+make PYTHON=.venv/bin/python test
+python -m compileall -q api services shared tests
+TIMEKEEPER_ENV_FILE=.env.example \
+  docker compose --env-file .env.example config --quiet
+```
+
+The complete local checklist is in
+[`docs/verification-runbook.md`](docs/verification-runbook.md). Live provider
+validation additionally requires an authorized camera session and hardware.
+
+## Repository layout
+
+- `api/` — FastAPI authentication, cameras, events, alerts, and query proxy.
+- `apps/web/` — React/Vite dashboard.
+- `apps/mobile/` — Expo/React Native client foundation.
+- `services/ingestion/` — camera/provider feed ingestion.
+- `services/vision/` — detection, tracking, face recognition, and ReID.
+- `services/event-processor/` — event aggregation and persistence.
+- `services/query-engine/` — RAG, safe SQL validation, fallback planning, and
+  evidence formatting.
+- `infra/db/` — TimescaleDB/pgvector image, schema, and migrations.
+- `docs/` — provider and verification runbooks.
+
+## Privacy and operational boundaries
+
+Run only on feeds you are authorized to monitor and retain. Configure retention
+periods, access controls, backups, and notice/consent requirements for your
+jurisdiction before using the system around other people. Timekeeper is an
+evidence retrieval system, not a guarantee of identity or intent.
 
 ## License
+
 MIT
