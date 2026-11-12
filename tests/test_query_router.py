@@ -22,3 +22,9 @@ def test_owner_scope_respects_an_alias():
 def test_owner_scope_without_alias_does_not_use_sql_keyword_as_alias():
     sql = _inject_owner_scope("SELECT events.id FROM events WHERE events.event_type = 'person_entered'")
     assert "events.camera_id IN" in sql
+
+
+def test_owner_scope_is_inserted_before_limit():
+    sql = _inject_owner_scope("SELECT e.id FROM events e ORDER BY e.timestamp DESC LIMIT 50")
+    assert sql.index("WHERE e.camera_id IN") < sql.index("ORDER BY")
+    assert sql.endswith("LIMIT 50")

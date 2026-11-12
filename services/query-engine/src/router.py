@@ -125,9 +125,16 @@ def _inject_owner_scope(sql: str) -> str:
     candidate = match.group(1) if match else None
     alias = candidate if candidate and candidate.upper() not in reserved else "events"
     scope = f"{alias}.camera_id IN (SELECT id FROM cameras WHERE owner_id = $1::uuid)"
-    if re.search(r"\bWHERE\b", sql, re.IGNORECASE):
-        return sql.rstrip(";") + f" AND {scope}"
-    return sql.rstrip(";") + f" WHERE {scope}"
+    statement = sql.rstrip(";").rstrip()
+    # Filters must be added before ORDER BY/GROUP BY/LIMIT/OFFSET. Appending
+    # after LIMIT produces invalid SQL and can make the caller mistake an
+    # execution failure for a legitimate empty result set.
+    clause = re.search(r"\b(?:ORDER\s+BY|GROUP\s+BY|LIMIT|OFFSET)\b", statement, re.IGNORECASE)
+    split_at = clause.start() if clause else len(statement)
+    head = statement[:split_at].rstrip()
+    tail = statement[split_at:].lstrip()
+    predicate = f" AND {scope}" if re.search(r"\bWHERE\b", head, re.IGNORECASE) else f" WHERE {scope}"
+    return f"{head}{predicate}{(' ' + tail) if tail else ''}"
 
 
 async def _execute(
