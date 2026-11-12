@@ -1,9 +1,9 @@
 """End-to-end synthetic attribution flow from detection to answer wording."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from aggregator import CameraAggregator, EXIT_TIMEOUT, STILL_TIMEOUT
+from aggregator import EXIT_TIMEOUT, STILL_TIMEOUT, CameraAggregator
 from llm import _format_evidence_response
 from omniscient_shared.models.entity import Detection, DetectionMessage
 from omniscient_shared.models.event import EventType
@@ -13,7 +13,7 @@ def test_named_person_item_pickup_survives_event_pipeline():
     camera_id = uuid4()
     person_id = uuid4()
     object_id = uuid4()
-    timestamp = datetime(2026, 11, 11, 16, 30, tzinfo=timezone.utc)
+    timestamp = datetime(2026, 11, 11, 16, 30, tzinfo=UTC)
     detection = Detection(
         camera_id=camera_id,
         timestamp=timestamp,

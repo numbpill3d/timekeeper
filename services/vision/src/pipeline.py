@@ -29,7 +29,6 @@ import asyncpg
 import cv2
 import numpy as np
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
-
 from omniscient_shared.kafka.topics import (
     DETECTIONS,
     FRAMES,
@@ -41,8 +40,8 @@ from omniscient_shared.models.entity import (
     FrameMessage,
 )
 
-from .detector import Detector
 from .association import PersonCandidate, associate_person
+from .detector import Detector
 from .face import FaceModel
 from .reid import ReIDModel
 from .tracker import Tracker
@@ -144,7 +143,7 @@ class VisionPipeline:
     async def _process(self, payload: dict) -> None:
         try:
             frame_msg = FrameMessage(**payload)
-        except Exception as exc:
+        except (TypeError, ValueError) as exc:
             log.warning("bad frame message: %s", exc)
             return
 

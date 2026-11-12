@@ -17,6 +17,7 @@ import os
 
 from aiokafka import AIOKafkaConsumer
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+
 from ..auth import decode_token
 
 log = logging.getLogger(__name__)

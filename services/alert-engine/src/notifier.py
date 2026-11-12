@@ -8,10 +8,10 @@ required credentials are not configured in the environment.
 
 from __future__ import annotations
 
-import logging
-import os
 import asyncio
 import json
+import logging
+import os
 import re
 
 import httpx
@@ -68,7 +68,7 @@ async def _send_fcm_v1(token: str, title: str, body: str) -> bool:
         return False
     try:
         access_token = await asyncio.to_thread(_fcm_access_token)
-    except Exception as exc:
+    except (OSError, TypeError, ValueError, RuntimeError) as exc:
         log.warning("FCM credential setup failed: %s", exc)
         return False
     payload = {
@@ -141,6 +141,6 @@ async def _send_sms(to: str, message: str) -> bool:
         client = Client(_TWILIO_SID, _TWILIO_TOKEN)
         client.messages.create(to=to, from_=_TWILIO_FROM, body=message)
         return True
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - provider SDK errors are not stable
         log.warning("sms delivery failed: %s", exc)
         return False

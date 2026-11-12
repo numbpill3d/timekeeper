@@ -40,7 +40,7 @@ export const login = (email: string, password: string) =>
 export const register = (email: string, password: string) =>
   api.post<{ access_token: string }>("/auth/register", { email, password });
 
-export const updateProfile = (data: { fcm_token?: string; phone?: string }) =>
+export const updateProfile = (data: { fcm_token?: string | null; phone?: string | null }) =>
   api.patch("/auth/me", data);
 
 // ── Query ─────────────────────────────────────────────────────────

@@ -96,7 +96,9 @@ class EmbedRequest(BaseModel):
 
 
 class EmbedResponse(BaseModel):
-    embedding: list[float]
+    # all-MiniLM-L6-v2 produces the 384 dimensions used by the pgvector
+    # column; accepting another size only defers failure to event persistence.
+    embedding: list[float] = Field(min_length=384, max_length=384)
 
 
 @app.post("/query", response_model=QueryResponse)

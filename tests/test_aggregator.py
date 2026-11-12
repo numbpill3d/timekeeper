@@ -1,12 +1,11 @@
 """Unit tests for CameraAggregator single-camera event detection."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+from aggregator import EXIT_TIMEOUT, STILL_TIMEOUT, CameraAggregator
 from omniscient_shared.models.entity import Detection, DetectionMessage
 from omniscient_shared.models.event import EventType
-from aggregator import EXIT_TIMEOUT, STILL_TIMEOUT, CameraAggregator
-
 
 _CAM = uuid4()
 
@@ -18,7 +17,7 @@ def _det(
 ) -> Detection:
     return Detection(
         camera_id=_CAM,
-        timestamp=ts or datetime.now(tz=timezone.utc),
+        timestamp=ts or datetime.now(tz=UTC),
         frame_id="f1",
         track_id=track_id,
         class_name=class_name,
@@ -46,7 +45,7 @@ def test_object_events_preserve_person_attribution():
 def test_object_pickup_event_preserves_person_attribution():
     person_id = uuid4()
     agg = CameraAggregator(camera_id=str(_CAM), location_label="kitchen")
-    t = datetime.now(tz=timezone.utc)
+    t = datetime.now(tz=UTC)
     detection = _det("keys", track_id=3, ts=t)
     detection.person_id = person_id
     assert agg.process(_msg([detection], ts=t)) == []
@@ -61,7 +60,7 @@ def test_object_pickup_event_preserves_person_attribution():
 def _msg(dets: list[Detection], ts: datetime | None = None) -> DetectionMessage:
     return DetectionMessage(
         camera_id=_CAM,
-        timestamp=ts or datetime.now(tz=timezone.utc),
+        timestamp=ts or datetime.now(tz=UTC),
         frame_id="f1",
         frame_path="/tmp/f1.jpg",
         detections=dets,
@@ -77,7 +76,7 @@ def test_person_entered_on_first_detection():
 
 def test_no_repeated_entered_event():
     agg = CameraAggregator(camera_id=str(_CAM), location_label=None)
-    t = datetime.now(tz=timezone.utc)
+    t = datetime.now(tz=UTC)
     agg.process(_msg([_det("person", track_id=1)], ts=t))
     events = agg.process(
         _msg([_det("person", track_id=1)], ts=t + timedelta(seconds=1))
@@ -87,7 +86,7 @@ def test_no_repeated_entered_event():
 
 def test_person_exited_after_timeout():
     agg = CameraAggregator(camera_id=str(_CAM), location_label=None)
-    t = datetime.now(tz=timezone.utc)
+    t = datetime.now(tz=UTC)
     agg.process(_msg([_det("person", track_id=1)], ts=t))
     events = agg.process(
         _msg([], ts=t + EXIT_TIMEOUT + timedelta(seconds=1))
@@ -97,7 +96,7 @@ def test_person_exited_after_timeout():
 
 def test_person_not_exited_before_timeout():
     agg = CameraAggregator(camera_id=str(_CAM), location_label=None)
-    t = datetime.now(tz=timezone.utc)
+    t = datetime.now(tz=UTC)
     agg.process(_msg([_det("person", track_id=1)], ts=t))
     events = agg.process(_msg([], ts=t + timedelta(seconds=1)))
     assert not any(e.event_type == EventType.person_exited for e in events)
@@ -118,7 +117,7 @@ def test_package_not_delivered_non_entrance():
 
 def test_object_placed_on_first_non_person():
     agg = CameraAggregator(camera_id=str(_CAM), location_label=None)
-    t = datetime.now(tz=timezone.utc)
+    t = datetime.now(tz=UTC)
     assert agg.process(_msg([_det("keys", track_id=3, ts=t)], ts=t)) == []
     events = agg.process(
         _msg(
@@ -131,7 +130,7 @@ def test_object_placed_on_first_non_person():
 
 def test_transient_object_does_not_emit_pickup():
     agg = CameraAggregator(camera_id=str(_CAM), location_label=None)
-    t = datetime.now(tz=timezone.utc)
+    t = datetime.now(tz=UTC)
     agg.process(_msg([_det("keys", track_id=3, ts=t)], ts=t))
     events = agg.process(_msg([], ts=t + EXIT_TIMEOUT + timedelta(seconds=1)))
     assert events == []
@@ -139,7 +138,7 @@ def test_transient_object_does_not_emit_pickup():
 
 def test_multiple_tracks_emit_independent_entered_events():
     agg = CameraAggregator(camera_id=str(_CAM), location_label=None)
-    t = datetime.now(tz=timezone.utc)
+    t = datetime.now(tz=UTC)
     events = agg.process(
         _msg([_det("person", track_id=1), _det("person", track_id=2)], ts=t)
     )
@@ -149,7 +148,7 @@ def test_multiple_tracks_emit_independent_entered_events():
 
 def test_person_and_object_can_share_tracker_id_without_state_collision():
     agg = CameraAggregator(camera_id=str(_CAM), location_label=None)
-    t = datetime.now(tz=timezone.utc)
+    t = datetime.now(tz=UTC)
     events = agg.process(
         _msg(
             [_det("person", track_id=1, ts=t), _det("keys", track_id=1, ts=t)],

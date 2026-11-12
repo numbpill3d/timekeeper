@@ -79,8 +79,8 @@ export function Settings() {
   const save = useMutation({
     mutationFn: () =>
       updateProfile({
-        fcm_token: fcmToken || undefined,
-        phone: phone || undefined,
+        fcm_token: fcmToken || null,
+        phone: phone || null,
       }),
     onSuccess: () => {
       setSaved(true);

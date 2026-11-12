@@ -135,9 +135,11 @@ async def update_profile(
 ) -> dict:
     _ALLOWED = {"fcm_token", "phone"}
     updates: dict = {}
-    if req.fcm_token is not None:
+    # `model_fields_set` distinguishes an omitted field (leave it unchanged)
+    # from an explicit null (clear the stored notification destination).
+    if "fcm_token" in req.model_fields_set:
         updates["fcm_token"] = req.fcm_token
-    if req.phone is not None:
+    if "phone" in req.model_fields_set:
         updates["phone"] = req.phone
     if not updates:
         return {"user_id": user["sub"]}

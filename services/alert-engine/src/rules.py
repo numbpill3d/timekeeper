@@ -143,7 +143,7 @@ async def compile_rule_llm(rule_text: str) -> dict:
             parts = raw.split("```")
             raw = parts[1].lstrip("json").strip() if len(parts) > 1 else raw
         return normalize_rule(json.loads(raw))
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - optional LLM failures must not block alerts
         log.warning("llm rule compilation failed: %s", exc)
         return {}
 
@@ -204,4 +204,4 @@ def event_matches(
     if event.confidence < min_conf:
         return False
 
-    return True
+    return event.confidence >= min_conf

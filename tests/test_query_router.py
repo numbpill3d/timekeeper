@@ -1,7 +1,6 @@
 """Safety and ownership tests for generated surveillance queries."""
 
 import pytest
-
 from router import _inject_owner_scope, _safe_sql
 
 

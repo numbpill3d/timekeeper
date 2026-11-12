@@ -22,7 +22,7 @@ class FaceModel:
         self._model = None
         try:
             import torch
-            from facenet_pytorch import InceptionResnetV1, MTCNN
+            from facenet_pytorch import MTCNN, InceptionResnetV1
 
             target = device or ("cuda" if torch.cuda.is_available() else "cpu")
             self._detector = MTCNN(
@@ -36,14 +36,14 @@ class FaceModel:
                 pretrained="vggface2", classify=False
             ).eval().to(target)
             log.info("FaceNet recognition enabled on %s", target)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - optional model initialization
             log.warning("FaceNet unavailable; using appearance ReID only: %s", exc)
 
     def extract(self, crop: np.ndarray) -> np.ndarray | None:
         if self._detector is None or self._model is None or crop.size == 0:
             return None
-        from PIL import Image
         import torch
+        from PIL import Image
 
         face = self._detector(Image.fromarray(crop[..., ::-1]))
         if face is None:

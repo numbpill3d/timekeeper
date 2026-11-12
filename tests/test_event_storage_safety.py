@@ -1,7 +1,6 @@
 """Boundary tests for event-processor frame and object paths."""
 
 import pytest
-
 from storage import cleanup_frame, object_key
 
 

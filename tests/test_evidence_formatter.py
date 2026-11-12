@@ -1,7 +1,7 @@
 """Evidence-only answer formatting tests."""
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import llm
 
@@ -10,7 +10,7 @@ def test_evidence_formatter_names_person_item_and_time():
     answer = llm._format_evidence_response([
         {
             "event_type": "object_picked_up",
-            "timestamp": datetime(2026, 11, 11, 16, 30, tzinfo=timezone.utc),
+            "timestamp": datetime(2026, 11, 11, 16, 30, tzinfo=UTC),
             "person_label": "John",
             "object_category": "keys",
             "location_label": "kitchen",
@@ -29,7 +29,7 @@ def test_synthesis_falls_back_to_recorded_evidence(monkeypatch):
             "who picked up my keys?",
             [{
                 "event_type": "object_picked_up",
-                "timestamp": datetime(2026, 11, 11, 16, 30, tzinfo=timezone.utc),
+                "timestamp": datetime(2026, 11, 11, 16, 30, tzinfo=UTC),
                 "person_label": "John",
                 "object_label": "blue keys",
                 "location_label": "kitchen",

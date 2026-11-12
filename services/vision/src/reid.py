@@ -8,10 +8,10 @@ Enables cross-camera identity persistence ("same person, different camera").
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import torch
-
-import logging as _logging
 
 try:
     import torchreid
@@ -19,12 +19,13 @@ try:
     _TORCHREID_AVAILABLE = True
 except ImportError:
     _TORCHREID_AVAILABLE = False
-    _logging.getLogger(__name__).warning(
+    logging.getLogger(__name__).warning(
         "torchreid not available — ReID disabled; "
         "persons will not be matched across cameras"
     )
 
 REID_THRESHOLD = 0.7  # cosine similarity threshold for a positive match
+log = logging.getLogger(__name__)
 
 
 class ReIDModel:
@@ -37,13 +38,19 @@ class ReIDModel:
         self._model = None
 
         if _TORCHREID_AVAILABLE:
-            self._model = torchreid.models.build_model(
-                name=model_name,
-                num_classes=1000,
-                pretrained=True,
-            )
-            self._model.eval()
-            self._model.to(self.device)
+            try:
+                self._model = torchreid.models.build_model(
+                    name=model_name,
+                    num_classes=1000,
+                    pretrained=True,
+                )
+                self._model.eval()
+                self._model.to(self.device)
+            except Exception:
+                # ReID is an optional enhancement. A missing or unavailable
+                # weight file must not take the entire vision worker down.
+                log.exception("ReID model unavailable; disabling cross-camera matching")
+                self._model = None
 
     def extract(self, crop: np.ndarray) -> np.ndarray | None:
         """Extract a 512-dim L2-normalized embedding from a person crop (BGR)."""

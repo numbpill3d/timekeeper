@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
-from typing import Literal
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query

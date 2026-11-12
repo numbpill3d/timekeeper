@@ -6,7 +6,6 @@ import json
 import os
 
 from aiokafka import AIOKafkaProducer
-
 from omniscient_shared.kafka.topics import FRAMES
 from omniscient_shared.models.entity import FrameMessage
 

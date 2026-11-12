@@ -1,8 +1,7 @@
 """Face matching behavior does not require downloading model weights."""
 
 import numpy as np
-
-from face import FaceModel, FACE_THRESHOLD
+from face import FACE_THRESHOLD, FaceModel
 
 
 def test_face_gallery_uses_cosine_threshold():

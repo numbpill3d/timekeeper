@@ -5,7 +5,7 @@ import os
 os.environ.setdefault("JWT_SECRET", "unit-test-secret-012345678901234567890123")
 
 import pytest
-from main import EmbedRequest
+from main import EmbedRequest, EmbedResponse
 from main import QueryRequest as EngineQueryRequest
 
 from api.src.routes.query import QueryRequest, QueryResponse
@@ -53,6 +53,19 @@ def test_query_engine_contract_bounds_owner_and_embedding_input():
     )
     assert str(request.owner_id) == "00000000-0000-0000-0000-000000000001"
     assert EmbedRequest(text="  event text  ").text == "event text"
+
+
+def test_embedding_response_requires_database_vector_dimension():
+    assert len(EmbedResponse(embedding=[0.0] * 384).embedding) == 384
+    with pytest.raises(ValueError):
+        EmbedResponse(embedding=[0.0] * 383)
+    with pytest.raises(ValueError):
+        EmbedResponse(embedding=[0.0] * 385)
+
+
+def test_notification_profile_explicit_nulls_are_preserved_for_clear():
+    profile = ProfileUpdate(fcm_token=None, phone=None)
+    assert profile.model_fields_set == {"fcm_token", "phone"}
 
 
 @pytest.mark.parametrize(

@@ -1,6 +1,6 @@
 """Unit tests for alert rule compilation and event matching."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from omniscient_shared.models.event import Event, EventType
@@ -16,7 +16,7 @@ def _event(
     return Event(
         camera_id=uuid4(),
         event_type=event_type,
-        timestamp=datetime(2024, 1, 15, hour, 0, tzinfo=timezone.utc),
+        timestamp=datetime(2024, 1, 15, hour, 0, tzinfo=UTC),
         action_label="test event",
         location_label=location_label,
         confidence=confidence,

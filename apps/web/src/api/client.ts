@@ -95,7 +95,7 @@ export const register = (email: string, password: string) =>
 
 export const getProfile = () => api.get<UserProfile>("/auth/me");
 
-export const updateProfile = (data: { fcm_token?: string; phone?: string }) =>
+export const updateProfile = (data: { fcm_token?: string | null; phone?: string | null }) =>
   api.patch<UserProfile>("/auth/me", data);
 
 // ── Events ────────────────────────────────────────────────────────

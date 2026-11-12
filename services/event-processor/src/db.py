@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import os
 from pathlib import Path
 from uuid import UUID
@@ -181,6 +182,15 @@ async def _get_embedding(event: Event) -> str | None:
             )
             resp.raise_for_status()
             vec = resp.json()["embedding"]
+            if (
+                not isinstance(vec, list)
+                or len(vec) != 384
+                or not all(
+                    isinstance(value, (int, float)) and math.isfinite(value)
+                    for value in vec
+                )
+            ):
+                raise ValueError("embedding must contain 384 finite numbers")
             return "[" + ",".join(f"{v:.6f}" for v in vec) + "]"
     except (httpx.HTTPError, KeyError, TypeError, ValueError, RuntimeError) as exc:
         log.warning("embedding skipped for event %s: %s", event.id, exc)

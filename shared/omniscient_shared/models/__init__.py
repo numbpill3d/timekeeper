@@ -1,5 +1,5 @@
 from .camera import Camera, CameraProtocol
-from .entity import Detection, Person, TrackedObject, FrameMessage, DetectionMessage
+from .entity import Detection, DetectionMessage, FrameMessage, Person, TrackedObject
 from .event import Event, EventType
 
 __all__ = [
