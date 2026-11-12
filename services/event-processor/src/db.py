@@ -113,11 +113,11 @@ async def purge_expired_events(conn: asyncpg.Connection) -> int:
         """
         DELETE FROM events e
         USING cameras c
-        LEFT JOIN persons p ON p.id = e.person_id
         WHERE e.camera_id = c.id
-          AND e.timestamp < NOW() - make_interval(
-              days => COALESCE(p.retention_days, $1)
-          )
+          AND e.timestamp < NOW() - make_interval(days => COALESCE(
+              (SELECT p.retention_days FROM persons p WHERE p.id = e.person_id),
+              $1
+          ))
         RETURNING e.clip_path
         """,
         _DEFAULT_RETENTION_DAYS,

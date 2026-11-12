@@ -21,7 +21,7 @@ class Tracker:
         minimum_matching_threshold: float = 0.8,
         frame_rate: int = 30,
     ) -> None:
-        self._bt = sv.ByteTracker(
+        self._bt = sv.ByteTrack(
             track_activation_threshold=track_activation_threshold,
             lost_track_buffer=lost_track_buffer,
             minimum_matching_threshold=minimum_matching_threshold,

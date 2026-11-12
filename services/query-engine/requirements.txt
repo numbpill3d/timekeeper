@@ -8,6 +8,7 @@ langchain-community>=0.0.13
 langchain-openai>=0.0.5
 ollama>=0.1.6
 openai>=1.10.0
-sentence-transformers>=2.3.0
+sentence-transformers==3.4.1
+transformers==4.46.3
 numpy>=1.26.0,<2.0
 python-dotenv>=1.0.0

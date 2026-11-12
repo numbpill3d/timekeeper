@@ -1,7 +1,12 @@
 import axios from "axios";
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
+const BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ??
+  // Android's emulator maps the host machine to 10.0.2.2. Physical devices
+  // must set EXPO_PUBLIC_API_URL to a LAN-reachable URL.
+  (Platform.OS === "android" ? "http://10.0.2.2:8000" : "http://localhost:8000");
 
 export const api = axios.create({ baseURL: BASE_URL });
 
@@ -81,8 +86,15 @@ export const openEventStream = async (
   onEvent: (e: OmniscientEvent) => void
 ): Promise<WebSocket> => {
   const token = await SecureStore.getItemAsync("access_token");
+  if (!token) throw new Error("not authenticated");
   const wsBase = BASE_URL.replace(/^http/, "ws");
-  const ws = new WebSocket(`${wsBase}/ws/events?token=${token}`);
-  ws.onmessage = (msg) => onEvent(JSON.parse(msg.data));
+  const ws = new WebSocket(`${wsBase}/ws/events`, ["timekeeper-auth", token]);
+  ws.onmessage = (msg) => {
+    try {
+      onEvent(JSON.parse(msg.data) as OmniscientEvent);
+    } catch {
+      // Ignore malformed messages so one bad event does not kill the stream.
+    }
+  };
   return ws;
 };

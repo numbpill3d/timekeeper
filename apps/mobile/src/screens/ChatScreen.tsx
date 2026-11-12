@@ -31,7 +31,7 @@ export function ChatScreen() {
   const [loading, setLoading] = useState(false);
   const listRef = useRef<FlatList>(null);
 
-  const history = messages.map((m) => ({
+  const history = messages.slice(-6).map((m) => ({
     role: m.role,
     content: m.content,
   }));
@@ -109,6 +109,8 @@ export function ChatScreen() {
           onChangeText={setInput}
           placeholder="ask about your home..."
           placeholderTextColor="#555"
+          maxLength={1000}
+          accessibilityLabel="Ask about camera history"
           onSubmitEditing={send}
           returnKeyType="send"
           editable={!loading}

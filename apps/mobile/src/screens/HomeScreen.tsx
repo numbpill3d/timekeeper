@@ -15,15 +15,25 @@ export function HomeScreen() {
   });
 
   useEffect(() => {
+    let disposed = false;
     openEventStream((e) => {
-      setLiveEvents((prev) => [e, ...prev].slice(0, 5));
+      if (!disposed) setLiveEvents((prev) => [e, ...prev.filter((item) => item.id !== e.id)].slice(0, 5));
     }).then((ws) => {
-      wsRef.current = ws;
+      if (disposed) ws.close();
+      else wsRef.current = ws;
+    }).catch(() => {
+      // REST polling remains available when the live stream is unavailable.
     });
-    return () => wsRef.current?.close();
+    return () => {
+      disposed = true;
+      wsRef.current?.close();
+      wsRef.current = null;
+    };
   }, []);
 
-  const allEvents = [...liveEvents, ...(recentEvents ?? [])].slice(0, 20);
+  const allEvents = Array.from(
+    new Map([...liveEvents, ...(recentEvents ?? [])].map((event) => [event.id, event])).values()
+  ).slice(0, 20);
 
   return (
     <View style={styles.container}>
