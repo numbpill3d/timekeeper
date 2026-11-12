@@ -2,7 +2,7 @@
 
 import pytest
 
-from api.src.media import object_key
+from api.src.media import object_key, safe_signed_clip_url
 
 
 def test_object_key_normalizes_legacy_bucket_urls():
@@ -18,3 +18,7 @@ def test_object_key_rejects_traversal(value):
 def test_object_key_rejects_foreign_urls():
     with pytest.raises(ValueError):
         object_key("https://example.test/omniscient-media/clips/a.jpg")
+
+
+def test_safe_signed_clip_url_omits_invalid_legacy_keys():
+    assert safe_signed_clip_url("https://example.test/foreign/clip.jpg") is None

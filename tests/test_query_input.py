@@ -71,7 +71,7 @@ def test_notification_profile_explicit_nulls_are_preserved_for_clear():
 
 
 def test_live_event_payload_validates_and_strips_internal_metadata(monkeypatch):
-    monkeypatch.setattr("api.src.ws.payload.signed_clip_url", lambda value: "signed" if value else None)
+    monkeypatch.setattr("api.src.media.signed_clip_url", lambda value: "signed" if value else None)
     payload = public_event_payload(
         {
             "camera_id": "00000000-0000-0000-0000-000000000001",

@@ -91,7 +91,7 @@ async def events_stream(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         pass
     except asyncio.CancelledError:
-        pass
+        raise
     finally:
         if consumer_started:
             await consumer.stop()

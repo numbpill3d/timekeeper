@@ -5,7 +5,7 @@ from __future__ import annotations
 from omniscient_shared.models.event import Event
 from pydantic import ValidationError
 
-from ..media import signed_clip_url
+from ..media import safe_signed_clip_url
 
 
 def public_event_payload(value: object) -> dict | None:
@@ -14,10 +14,7 @@ def public_event_payload(value: object) -> dict | None:
         event = Event.model_validate(value)
     except (TypeError, ValueError, ValidationError):
         return None
-    try:
-        clip_path = signed_clip_url(event.clip_path)
-    except Exception:  # noqa: BLE001 - storage SDK failures must not kill the stream
-        clip_path = None
+    clip_path = safe_signed_clip_url(event.clip_path)
     serialized = event.model_dump(mode="json")
     return {
         "id": serialized["id"],

@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from ..auth import CurrentUser
 from ..db import get_db
-from ..media import signed_clip_url
+from ..media import safe_signed_clip_url
 
 router = APIRouter()
 
@@ -85,7 +85,7 @@ async def list_events(
         *params,
     )
     return [
-        EventOut(**{**dict(r), "clip_path": signed_clip_url(r["clip_path"])})
+        EventOut(**{**dict(r), "clip_path": safe_signed_clip_url(r["clip_path"])})
         for r in rows
     ]
 
@@ -109,5 +109,5 @@ async def get_event(
     if not row:
         raise HTTPException(status_code=404, detail="event not found")
     return EventOut(
-        **{**dict(row), "clip_path": signed_clip_url(row["clip_path"])}
+        **{**dict(row), "clip_path": safe_signed_clip_url(row["clip_path"])}
     )

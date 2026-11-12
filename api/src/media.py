@@ -62,3 +62,11 @@ def signed_clip_url(value: str | None) -> str | None:
         Params={"Bucket": _BUCKET, "Key": key},
         ExpiresIn=_TTL,
     )
+
+
+def safe_signed_clip_url(value: str | None) -> str | None:
+    """Return a clip URL when storage accepts the key; otherwise omit it."""
+    try:
+        return signed_clip_url(value)
+    except Exception:  # noqa: BLE001 - storage SDK failures are non-fatal
+        return None
