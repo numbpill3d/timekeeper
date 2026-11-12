@@ -8,10 +8,11 @@ Phase 1 tracks 10 high-value household categories + persons.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import numpy as np
 import torch
 from ultralytics import YOLO
+
+from .tracker import RawDetection
 
 # Phase 1 category set — maps COCO class names to canonical labels
 _COCO_TO_CANONICAL: dict[str, str] = {
@@ -33,14 +34,6 @@ _COCO_TO_CANONICAL: dict[str, str] = {
 
 # Custom fine-tuned classes added on top of COCO
 _CUSTOM_CLASSES: set[str] = {"keys", "wallet", "medication", "package"}
-
-
-@dataclass
-class RawDetection:
-    track_id: int
-    class_name: str
-    confidence: float
-    bbox: tuple[float, float, float, float]  # x1,y1,x2,y2 normalized
 
 
 class Detector:

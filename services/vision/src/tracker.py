@@ -7,10 +7,22 @@ object retains identity even through brief occlusions.
 
 from __future__ import annotations
 
-import numpy as np
-import supervision as sv
+from dataclasses import dataclass
 
-from .detector import RawDetection
+import numpy as np
+
+try:
+    import supervision as sv
+except ImportError:  # Keep the lightweight tracking contract importable in CI.
+    sv = None
+
+
+@dataclass
+class RawDetection:
+    track_id: int
+    class_name: str
+    confidence: float
+    bbox: tuple[float, float, float, float]
 
 
 class Tracker:
@@ -33,6 +45,8 @@ class Tracker:
         self._trackers: dict[str, sv.ByteTrack] = {}
 
     def _tracker_for(self, class_name: str) -> sv.ByteTrack:
+        if sv is None:
+            raise RuntimeError("vision tracking requires the supervision package")
         if class_name not in self._trackers:
             self._trackers[class_name] = sv.ByteTrack(**self._tracker_config)
         return self._trackers[class_name]
@@ -108,7 +122,10 @@ class Tracker:
                     bbox=det.bbox,
                 )
 
-        return updated
+        # A detector box without a ByteTrack assignment is not safe to emit:
+        # downstream aggregation treats track IDs as stable identities. Drop
+        # those boxes instead of publishing the sentinel -1.
+        return [detection for detection in updated if detection.track_id >= 0]
 
 
 def _iou(left: np.ndarray, right: np.ndarray) -> float:
