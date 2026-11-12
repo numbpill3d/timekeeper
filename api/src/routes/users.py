@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from typing import Annotated
+import re
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from ..auth import (
     CurrentUser,
@@ -99,8 +100,28 @@ async def me(user: CurrentUser, db: DB) -> dict:
 
 
 class ProfileUpdate(BaseModel):
-    fcm_token: str | None = None
-    phone: str | None = None
+    fcm_token: str | None = Field(default=None, max_length=4096)
+    phone: str | None = Field(default=None, max_length=16)
+
+    @field_validator("fcm_token")
+    @classmethod
+    def _trim_fcm_token(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("fcm_token cannot be empty")
+        return value
+
+    @field_validator("phone")
+    @classmethod
+    def _validate_phone(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not re.fullmatch(r"\+[1-9]\d{7,14}", value):
+            raise ValueError("phone must be an E.164 number")
+        return value
 
 
 @router.patch("/me")

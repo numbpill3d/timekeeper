@@ -135,31 +135,38 @@ async def list_cameras(user: CurrentUser, db: DB) -> list[CameraOut]:
 async def add_camera(
     req: CameraCreate, user: CurrentUser, db: DB
 ) -> CameraOut:
-    count = await db.fetchval(
-        "SELECT COUNT(*) FROM cameras WHERE owner_id = $1", user["sub"]
-    )
-    limit = _TIER_LIMITS.get(user.get("tier", "free"), 2)
-    if count >= limit:
-        raise HTTPException(
-            status_code=403,
-            detail=f"camera limit ({limit}) reached for your plan",
+    # Serialize quota check + insert per owner so concurrent requests cannot
+    # create more cameras than the subscription allows.
+    async with db.transaction():
+        await db.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))",
+            user["sub"],
         )
+        count = await db.fetchval(
+            "SELECT COUNT(*) FROM cameras WHERE owner_id = $1", user["sub"]
+        )
+        limit = _TIER_LIMITS.get(user.get("tier", "free"), 2)
+        if count >= limit:
+            raise HTTPException(
+                status_code=403,
+                detail=f"camera limit ({limit}) reached for your plan",
+            )
 
-    row = await db.fetchrow(
-        """
-        INSERT INTO cameras
-            (owner_id, name, stream_url, protocol, location_label, is_edge_only, provider_config)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING *
-        """,
-        user["sub"],
-        req.name,
-        req.stream_url,
-        req.protocol,
-        req.location_label,
-        req.is_edge_only,
-        req.provider_config,
-    )
+        row = await db.fetchrow(
+            """
+            INSERT INTO cameras
+                (owner_id, name, stream_url, protocol, location_label, is_edge_only, provider_config)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING *
+            """,
+            user["sub"],
+            req.name,
+            req.stream_url,
+            req.protocol,
+            req.location_label,
+            req.is_edge_only,
+            req.provider_config,
+        )
     return CameraOut(**dict(row))
 
 
