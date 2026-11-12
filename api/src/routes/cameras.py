@@ -23,12 +23,18 @@ _UPDATE_ALLOWED = {"name", "location_label", "is_active", "provider_config"}
 
 
 def _validate_provider_config(v: dict) -> dict:
-    forbidden = {"access_token", "token", "password", "secret", "client_secret"}
+    forbidden = {
+        "accesstoken", "clientsecret", "password", "secret", "token",
+    }
+
+    def is_secret_key(key: object) -> bool:
+        normalized = "".join(char for char in str(key).lower() if char.isalnum())
+        return normalized in forbidden or normalized.endswith("token")
 
     def contains_secret(value: object) -> bool:
         if isinstance(value, dict):
             return any(
-                key.lower() in forbidden or contains_secret(child)
+                is_secret_key(key) or contains_secret(child)
                 for key, child in value.items()
             )
         if isinstance(value, list):
@@ -81,6 +87,10 @@ class CameraCreate(BaseModel):
             )
         if parsed.scheme != "file" and not parsed.netloc:
             raise ValueError("stream_url must include a host")
+        if parsed.username or parsed.password:
+            raise ValueError(
+                "stream_url must not contain embedded credentials; use secret files"
+            )
         return v
 
     @field_validator("provider_config")
