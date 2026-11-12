@@ -13,7 +13,6 @@ import logging
 import os
 
 import asyncpg
-
 from omniscient_shared.models.camera import Camera, CameraProtocol
 
 from .frame_publisher import FramePublisher
@@ -23,7 +22,10 @@ log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 _DB_URL = os.getenv("DATABASE_URL", "")
-_RELOAD_INTERVAL = int(os.getenv("CAMERA_RELOAD_INTERVAL_S", "30"))
+try:
+    _RELOAD_INTERVAL = max(1, int(os.getenv("CAMERA_RELOAD_INTERVAL_S", "30")))
+except ValueError as exc:
+    raise RuntimeError("CAMERA_RELOAD_INTERVAL_S must be an integer") from exc
 
 
 async def _load_cameras(conn: asyncpg.Connection) -> list[Camera]:
@@ -55,20 +57,39 @@ async def main() -> None:
     tasks: dict[str, asyncio.Task] = {}
 
     try:
+        reload_backoff = 1.0
         while True:
-            conn = await asyncpg.connect(_DB_URL)
-            cameras = await _load_cameras(conn)
-            await conn.close()
+            try:
+                conn = await asyncpg.connect(_DB_URL)
+                try:
+                    cameras = await _load_cameras(conn)
+                finally:
+                    await conn.close()
+                reload_backoff = 1.0
+            except (OSError, asyncpg.PostgresError) as exc:
+                log.warning(
+                    "camera reload failed: %s — retrying in %.0fs",
+                    exc,
+                    reload_backoff,
+                )
+                await asyncio.sleep(reload_backoff)
+                reload_backoff = min(reload_backoff * 2, 60.0)
+                continue
 
             active_ids = {str(cam.id) for cam in cameras}
 
             # Cancel tasks for cameras that disappeared or were deactivated
             for cid in list(tasks):
                 if cid not in active_ids or tasks[cid].done():
+                    task = tasks[cid]
+                    if task.done() and not task.cancelled():
+                        error = task.exception()
+                        if error:
+                            log.warning("stream task failed for camera %s: %s", cid, error)
                     if cid not in active_ids:
-                        tasks[cid].cancel()
+                        task.cancel()
                         try:
-                            await tasks[cid]
+                            await task
                         except asyncio.CancelledError:
                             pass
                         log.info("stopped stream for removed camera %s", cid)
