@@ -91,21 +91,35 @@ class VisionPipeline:
         )
 
     async def start(self) -> None:
-        if _DB_URL:
-            self._db = await asyncpg.connect(_DB_URL)
-            await self._load_gallery()
-        else:
-            log.warning("DATABASE_URL not set; person identity disabled")
-
-        await self._consumer.start()
-        await self._producer.start()
-        log.info("vision pipeline started")
+        consumer_started = False
+        producer_started = False
         try:
+            if _DB_URL:
+                self._db = await asyncpg.connect(_DB_URL)
+                await self._load_gallery()
+            else:
+                log.warning("DATABASE_URL not set; person identity disabled")
+
+            await self._consumer.start()
+            consumer_started = True
+            await self._producer.start()
+            producer_started = True
+            log.info("vision pipeline started")
+
             async for msg in self._consumer:
-                await self._process(msg.value)
+                try:
+                    await self._process(msg.value)
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    # A corrupt frame or transient per-camera/database error
+                    # must not stop processing every other camera.
+                    log.exception("frame processing failed; continuing")
         finally:
-            await self._consumer.stop()
-            await self._producer.stop()
+            if producer_started:
+                await self._producer.stop()
+            if consumer_started:
+                await self._consumer.stop()
             if self._db:
                 await self._db.close()
 
@@ -246,7 +260,10 @@ class VisionPipeline:
         async with aiofiles.open(p, "rb") as f:
             data = await f.read()
         arr = np.frombuffer(data, dtype=np.uint8)
-        return cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if frame is None:
+            log.warning("could not decode frame: %s", path)
+        return frame
 
     async def _reid_person(
         self,
@@ -268,7 +285,14 @@ class VisionPipeline:
         face_emb, reid_emb = await asyncio.gather(
             loop.run_in_executor(None, self.face.extract, crop),
             loop.run_in_executor(None, self.reid.extract, crop),
+            return_exceptions=True,
         )
+        if isinstance(face_emb, Exception):
+            log.warning("face extraction failed for camera %s: %s", camera_id, face_emb)
+            face_emb = None
+        if isinstance(reid_emb, Exception):
+            log.warning("ReID extraction failed for camera %s: %s", camera_id, reid_emb)
+            reid_emb = None
         if face_emb is None and reid_emb is None:
             return None
 
