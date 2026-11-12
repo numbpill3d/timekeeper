@@ -179,7 +179,9 @@ export const openEventStream = (
 
   const connect = () => {
     if (closed) return;
-    ws = new WebSocket(`${wsBase}/ws/events?token=${token}`);
+    if (!token) return;
+    // Keep the JWT out of the URL so reverse-proxy/access logs cannot retain it.
+    ws = new WebSocket(`${wsBase}/ws/events`, ["timekeeper-auth", token]);
     ws.onopen = () => {
       retryMs = 1_000;
       onStatus?.(true);
