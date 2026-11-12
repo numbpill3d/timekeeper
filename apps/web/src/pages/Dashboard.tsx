@@ -34,6 +34,14 @@ export function Dashboard() {
     refetchInterval: 30_000,
   });
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const { data: todayEvents = [] } = useQuery({
+    queryKey: ["events", "today"],
+    queryFn: () => listEvents({ limit: 1000, since: today.toISOString() }).then((r) => r.data),
+    refetchInterval: 30_000,
+  });
+
   const { data: cameras = [] } = useQuery({
     queryKey: ["cameras"],
     queryFn: () => listCameras().then((r) => r.data),
@@ -51,9 +59,7 @@ export function Dashboard() {
 
   const events = [...live, ...recent].slice(0, 14);
   const now = new Date();
-  const todayCount = events.filter(
-    (e) => new Date(e.timestamp).toDateString() === now.toDateString()
-  ).length;
+  const todayCount = todayEvents.length;
   const activeCams = cameras.filter((c) => c.is_active).length;
   const alertCount = events.filter((e) =>
     ["intrusion_detected", "unknown_person"].includes(e.event_type)
@@ -90,7 +96,7 @@ export function Dashboard() {
       <div className="dashboard-grid">
         <div className="feed-panel">
           <div className="panel-heading">
-            <span style={{ color: "var(--accent)", fontSize: 9 }}>◆</span>
+            <span aria-hidden="true" style={{ color: "var(--accent)", fontSize: 9 }}>◆</span>
             <span className="section-title">live activity</span>
             {live.length > 0 && (
               <span className="badge badge-green" style={{ marginLeft: "auto" }}>

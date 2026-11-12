@@ -121,6 +121,8 @@ TIMEKEEPER_ENV_FILE=.env.example \
 The complete local checklist is in
 [`docs/verification-runbook.md`](docs/verification-runbook.md). Live provider
 validation additionally requires an authorized camera session and hardware.
+The prioritized product improvement backlog is in
+[`docs/ux-improvement-plan.md`](docs/ux-improvement-plan.md).
 
 ## Repository layout
 

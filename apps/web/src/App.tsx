@@ -23,14 +23,18 @@ const NAV = [
   { to: "/settings", label: "settings",   icon: "▤" },
 ] as const;
 
-function Sidebar() {
+function Sidebar({ open, onNavigate }: { open: boolean; onNavigate: () => void }) {
   function logout() {
     localStorage.removeItem("access_token");
     window.location.reload();
   }
 
   return (
-    <nav className="sidebar">
+    <nav
+      id="primary-navigation"
+      className={`sidebar${open ? " open" : ""}`}
+      aria-label="Primary navigation"
+    >
       {/* Logo */}
       <div className="brand-lockup">
         <div className="brand-mark">O</div>
@@ -48,8 +52,10 @@ function Sidebar() {
               to={to}
               end={to === "/"}
               className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
+              onClick={onNavigate}
+              title={label}
             >
-              <span className="nav-icon">{icon}</span><span>{label}</span>
+              <span className="nav-icon" aria-hidden="true">{icon}</span><span>{label}</span>
             </NavLink>
           </li>
         ))}
@@ -74,6 +80,7 @@ export default function App() {
   const [authed, setAuthed] = useState(
     () => Boolean(localStorage.getItem("access_token"))
   );
+  const [navOpen, setNavOpen] = useState(false);
 
   if (!authed) {
     return <Login onAuth={() => setAuthed(true)} />;
@@ -82,7 +89,17 @@ export default function App() {
   return (
     <BrowserRouter>
       <div className="app-shell">
-        <Sidebar />
+        <button
+          className="mobile-nav-toggle btn btn-ghost"
+          type="button"
+          aria-label={navOpen ? "Close navigation" : "Open navigation"}
+          aria-expanded={navOpen}
+          aria-controls="primary-navigation"
+          onClick={() => setNavOpen((open) => !open)}
+        >
+          {navOpen ? "close" : "menu"}
+        </button>
+        <Sidebar open={navOpen} onNavigate={() => setNavOpen(false)} />
         <main className="main-pane">
           <Routes>
             <Route path="/"         element={<Dashboard />} />

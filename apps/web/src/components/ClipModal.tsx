@@ -21,6 +21,7 @@ export function ClipModal({ event, onClose }: Props) {
   return (
     <div
       onClick={onClose}
+      role="presentation"
       style={{
         position: "fixed",
         inset: 0,
@@ -34,6 +35,9 @@ export function ClipModal({ event, onClose }: Props) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Event evidence"
         style={{
           background: "var(--surface)",
           border: "1px solid var(--border-hi)",

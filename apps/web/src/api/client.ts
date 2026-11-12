@@ -1,8 +1,10 @@
 import axios from "axios";
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+// Relative API URLs keep the dashboard working when it is opened through a
+// LAN hostname, 127.0.0.1, HTTPS, or the Vite development proxy.
+const BASE_URL = import.meta.env.VITE_API_URL ?? "/api";
 
-export const api = axios.create({ baseURL: BASE_URL });
+export const api = axios.create({ baseURL: BASE_URL, timeout: 15_000 });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("access_token");
@@ -168,7 +170,9 @@ export const openEventStream = (
   onStatus?: (connected: boolean) => void,
 ): EventStream => {
   const token = localStorage.getItem("access_token");
-  const wsBase = BASE_URL.replace(/^http/, "ws");
+  const wsBase = BASE_URL.startsWith("http")
+    ? BASE_URL.replace(/^http/, "ws")
+    : `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}${BASE_URL}`;
   let ws: WebSocket | null = null;
   let closed = false;
   let retryMs = 1_000;
@@ -180,7 +184,14 @@ export const openEventStream = (
       retryMs = 1_000;
       onStatus?.(true);
     };
-    ws.onmessage = (msg) => onEvent(JSON.parse(msg.data) as OmniscientEvent);
+    ws.onmessage = (msg) => {
+      try {
+        onEvent(JSON.parse(msg.data) as OmniscientEvent);
+      } catch {
+        // Ignore malformed messages; the connection can continue serving
+        // subsequent events without taking down the dashboard.
+      }
+    };
     ws.onerror = () => {};
     ws.onclose = () => {
       onStatus?.(false);

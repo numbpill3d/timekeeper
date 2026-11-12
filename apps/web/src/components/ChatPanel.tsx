@@ -20,6 +20,7 @@ export function ChatPanel() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const history = messages.slice(1).map((m) => ({
@@ -27,10 +28,11 @@ export function ChatPanel() {
     content: m.content,
   }));
 
-  async function send() {
-    const q = input.trim();
+  async function send(question = input) {
+    const q = question.trim();
     if (!q || loading) return;
     setInput("");
+    setError("");
 
     const uid = Date.now();
     setMessages((p) => [...p, { id: uid, role: "user", content: q }]);
@@ -49,14 +51,7 @@ export function ChatPanel() {
         },
       ]);
     } catch {
-      setMessages((p) => [
-        ...p,
-        {
-          id: uid + 1,
-          role: "assistant",
-          content: "error — could not reach query engine.",
-        },
-      ]);
+      setError("query unavailable — check that the API and query engine are running.");
     } finally {
       setLoading(false);
       setTimeout(
@@ -86,8 +81,17 @@ export function ChatPanel() {
           flexShrink: 0,
         }}
       >
-        <span style={{ color: "var(--accent)", fontSize: 9 }}>◆</span>
+        <span aria-hidden="true" style={{ color: "var(--accent)", fontSize: 9 }}>◆</span>
         <span className="section-title">query interface</span>
+        {messages.length > 1 && (
+          <button
+            className="btn btn-ghost chat-clear"
+            type="button"
+            onClick={() => setMessages((p) => p.slice(0, 1))}
+          >
+            clear
+          </button>
+        )}
       </div>
 
       <div
@@ -100,6 +104,7 @@ export function ChatPanel() {
           gap: 8,
         }}
       >
+        <div aria-live="polite" aria-busy={loading}>
         {messages.map((m) => (
           <div
             key={m.id}
@@ -132,7 +137,7 @@ export function ChatPanel() {
                   textTransform: "uppercase",
                 }}
               >
-                ▸ system
+                ▸ evidence answer
               </span>
             )}
             <span style={{ color: "var(--text)" }}>{m.content}</span>
@@ -173,6 +178,21 @@ export function ChatPanel() {
             )}
           </div>
         ))}
+        </div>
+        {messages.length === 1 && !loading && (
+          <div className="chat-suggestions" role="group" aria-label="Suggested questions">
+            {["what happened today?", "did any packages arrive?", "who was in the garage?"] .map((suggestion) => (
+              <button
+                key={suggestion}
+                className="btn btn-ghost"
+                type="button"
+                onClick={() => send(suggestion)}
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        )}
         {loading && (
           <div
             style={{
@@ -184,10 +204,15 @@ export function ChatPanel() {
             processing...
           </div>
         )}
+        {error && <div className="chat-error" role="alert">{error}</div>}
         <div ref={bottomRef} />
       </div>
 
-      <div
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void send();
+        }}
         style={{
           padding: "10px 12px",
           borderTop: "1px solid var(--border)",
@@ -197,9 +222,11 @@ export function ChatPanel() {
         }}
       >
         <input
+          aria-label="Ask about camera history"
+          maxLength={1000}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
+          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && e.preventDefault()}
           placeholder="where are my keys?"
           disabled={loading}
           style={{
@@ -213,13 +240,13 @@ export function ChatPanel() {
         />
         <button
           className="btn btn-primary"
-          onClick={send}
+          onClick={() => void send()}
           disabled={loading || !input.trim()}
           style={{ padding: "7px 14px" }}
         >
           {loading ? "..." : "ask"}
         </button>
-      </div>
+      </form>
     </div>
   );
 }
