@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-from aggregator import CameraAggregator, EXIT_TIMEOUT
+from aggregator import CameraAggregator, EXIT_TIMEOUT, STILL_TIMEOUT
 from llm import _format_evidence_response
 from omniscient_shared.models.entity import Detection, DetectionMessage
 from omniscient_shared.models.event import EventType
@@ -36,10 +36,18 @@ def test_named_person_item_pickup_survives_event_pipeline():
             detections=[detection],
         )
     )
+    aggregator.process(
+        DetectionMessage(
+            camera_id=camera_id,
+            timestamp=timestamp + STILL_TIMEOUT,
+            frame_id="frame-1b",
+            detections=[detection.model_copy(update={"timestamp": timestamp + STILL_TIMEOUT})],
+        )
+    )
     events = aggregator.process(
         DetectionMessage(
             camera_id=camera_id,
-            timestamp=timestamp + EXIT_TIMEOUT + timedelta(seconds=1),
+            timestamp=timestamp + STILL_TIMEOUT + EXIT_TIMEOUT + timedelta(seconds=1),
             frame_id="frame-2",
             detections=[],
         )

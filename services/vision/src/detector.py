@@ -9,8 +9,6 @@ Phase 1 tracks 10 high-value household categories + persons.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
-
 import numpy as np
 import torch
 from ultralytics import YOLO
@@ -58,13 +56,6 @@ class Detector:
         self.iou = iou_threshold
         self.model = YOLO(model_path)
         self.model.to(self.device)
-
-        # If a custom weights path is given, merge custom class names
-        custom_path = Path(model_path)
-        if custom_path.exists() and "custom" in custom_path.stem:
-            self._classes = _CUSTOM_CLASSES | set(_COCO_TO_CANONICAL.values())
-        else:
-            self._classes = set(_COCO_TO_CANONICAL.keys())
 
     def detect(
         self, frame: np.ndarray

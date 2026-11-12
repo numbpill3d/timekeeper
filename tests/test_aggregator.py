@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from omniscient_shared.models.entity import Detection, DetectionMessage
 from omniscient_shared.models.event import EventType
-from aggregator import EXIT_TIMEOUT, CameraAggregator
+from aggregator import EXIT_TIMEOUT, STILL_TIMEOUT, CameraAggregator
 
 
 _CAM = uuid4()
@@ -35,7 +35,9 @@ def test_object_events_preserve_person_attribution():
     detection.association_confidence = 0.87
     detection.association_method = "person_object_proximity"
 
-    events = agg.process(_msg([detection]))
+    t = detection.timestamp
+    assert agg.process(_msg([detection], ts=t)) == []
+    events = agg.process(_msg([detection.model_copy(update={"timestamp": t + STILL_TIMEOUT})], ts=t + STILL_TIMEOUT))
     event = next(e for e in events if e.event_type == EventType.object_placed)
     assert event.person_id == person_id
     assert event.metadata["attribution"]["confidence"] == 0.87
@@ -47,8 +49,11 @@ def test_object_pickup_event_preserves_person_attribution():
     t = datetime.now(tz=timezone.utc)
     detection = _det("keys", track_id=3, ts=t)
     detection.person_id = person_id
-    agg.process(_msg([detection], ts=t))
-    events = agg.process(_msg([], ts=t + EXIT_TIMEOUT + timedelta(seconds=1)))
+    assert agg.process(_msg([detection], ts=t)) == []
+    agg.process(_msg([detection.model_copy(update={"timestamp": t + STILL_TIMEOUT})], ts=t + STILL_TIMEOUT))
+    events = agg.process(
+        _msg([], ts=t + STILL_TIMEOUT + EXIT_TIMEOUT + timedelta(seconds=1))
+    )
     event = next(e for e in events if e.event_type == EventType.object_picked_up)
     assert event.person_id == person_id
 
@@ -108,13 +113,28 @@ def test_package_not_delivered_non_entrance():
     agg = CameraAggregator(camera_id=str(_CAM), location_label="kitchen")
     events = agg.process(_msg([_det("package", track_id=5)]))
     assert not any(e.event_type == EventType.package_delivered for e in events)
-    assert any(e.event_type == EventType.object_placed for e in events)
+    assert not any(e.event_type == EventType.object_placed for e in events)
 
 
 def test_object_placed_on_first_non_person():
     agg = CameraAggregator(camera_id=str(_CAM), location_label=None)
-    events = agg.process(_msg([_det("keys", track_id=3)]))
+    t = datetime.now(tz=timezone.utc)
+    assert agg.process(_msg([_det("keys", track_id=3, ts=t)], ts=t)) == []
+    events = agg.process(
+        _msg(
+            [_det("keys", track_id=3, ts=t + STILL_TIMEOUT)],
+            ts=t + STILL_TIMEOUT,
+        )
+    )
     assert any(e.event_type == EventType.object_placed for e in events)
+
+
+def test_transient_object_does_not_emit_pickup():
+    agg = CameraAggregator(camera_id=str(_CAM), location_label=None)
+    t = datetime.now(tz=timezone.utc)
+    agg.process(_msg([_det("keys", track_id=3, ts=t)], ts=t))
+    events = agg.process(_msg([], ts=t + EXIT_TIMEOUT + timedelta(seconds=1)))
+    assert events == []
 
 
 def test_multiple_tracks_emit_independent_entered_events():
@@ -136,12 +156,16 @@ def test_person_and_object_can_share_tracker_id_without_state_collision():
             ts=t,
         )
     )
-    assert {event.event_type for event in events} == {
-        EventType.person_entered,
-        EventType.object_placed,
-    }
+    assert {event.event_type for event in events} == {EventType.person_entered}
+    events = agg.process(
+        _msg(
+            [_det("person", track_id=1, ts=t + STILL_TIMEOUT), _det("keys", track_id=1, ts=t + STILL_TIMEOUT)],
+            ts=t + STILL_TIMEOUT,
+        )
+    )
+    assert {event.event_type for event in events} == {EventType.object_placed}
 
-    later = t + EXIT_TIMEOUT + timedelta(seconds=1)
+    later = t + STILL_TIMEOUT + EXIT_TIMEOUT + timedelta(seconds=1)
     events = agg.process(_msg([], ts=later))
     assert {event.event_type for event in events} == {
         EventType.person_exited,
