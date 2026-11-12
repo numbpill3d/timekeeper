@@ -11,7 +11,6 @@ import os
 
 import asyncpg
 from aiokafka import AIOKafkaConsumer
-
 from omniscient_shared.kafka.topics import EVENTS, GROUP_ALERT_ENGINE
 from omniscient_shared.models.event import Event
 
@@ -32,21 +31,25 @@ async def main() -> None:
         group_id=GROUP_ALERT_ENGINE,
         value_deserializer=lambda v: json.loads(v.decode()),
     )
-    await consumer.start()
-    db = await asyncpg.connect(_DB_URL)
-    log.info("alert engine started")
-
+    consumer_started = False
+    db: asyncpg.Connection | None = None
     try:
+        await consumer.start()
+        consumer_started = True
+        db = await asyncpg.connect(_DB_URL)
+        log.info("alert engine started")
         async for msg in consumer:
             try:
                 event = Event(**msg.value)
-            except Exception as exc:
+            except (TypeError, ValueError) as exc:
                 log.warning("dropping malformed event message: %s", exc)
                 continue
             await _evaluate(event, db)
     finally:
-        await consumer.stop()
-        await db.close()
+        if consumer_started:
+            await consumer.stop()
+        if db:
+            await db.close()
 
 
 async def _evaluate(event: Event, db: asyncpg.Connection) -> None:

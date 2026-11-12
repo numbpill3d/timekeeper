@@ -11,7 +11,6 @@ import os
 
 import asyncpg
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
-
 from omniscient_shared.kafka.topics import (
     DETECTIONS,
     EVENTS,
@@ -46,26 +45,30 @@ async def main() -> None:
         value_serializer=lambda v: json.dumps(v).encode(),
     )
 
-    await consumer.start()
-    await producer.start()
-    db = await asyncpg.connect(_DB_URL)
-
     aggregators: dict[str, CameraAggregator] = {}
     correlator = Correlator()
-
-    cam_rows = await db.fetch(
-        "SELECT id, location_label, owner_id FROM cameras"
-    )
-    cam_locations = {str(r["id"]): r["location_label"] for r in cam_rows}
-    cam_owners = {str(r["id"]): str(r["owner_id"]) for r in cam_rows}
-
-    log.info("event processor started")
-    retention_task = asyncio.create_task(_retention_loop(db))
+    consumer_started = False
+    producer_started = False
+    db: asyncpg.Connection | None = None
+    retention_task: asyncio.Task | None = None
     try:
+        await consumer.start()
+        consumer_started = True
+        await producer.start()
+        producer_started = True
+        db = await asyncpg.connect(_DB_URL)
+        cam_rows = await db.fetch(
+            "SELECT id, location_label, owner_id FROM cameras"
+        )
+        cam_locations = {str(r["id"]): r["location_label"] for r in cam_rows}
+        cam_owners = {str(r["id"]): str(r["owner_id"]) for r in cam_rows}
+
+        log.info("event processor started")
+        retention_task = asyncio.create_task(_retention_loop(db))
         async for msg in consumer:
             try:
                 det_msg = DetectionMessage(**msg.value)
-            except Exception as exc:
+            except (TypeError, ValueError) as exc:
                 log.warning("dropping malformed detection message: %s", exc)
                 continue
             cam_key = str(det_msg.camera_id)
@@ -110,11 +113,15 @@ async def main() -> None:
             finally:
                 cleanup_frame(det_msg.frame_path)
     finally:
-        retention_task.cancel()
-        await asyncio.gather(retention_task, return_exceptions=True)
-        await consumer.stop()
-        await producer.stop()
-        await db.close()
+        if retention_task:
+            retention_task.cancel()
+            await asyncio.gather(retention_task, return_exceptions=True)
+        if consumer_started:
+            await consumer.stop()
+        if producer_started:
+            await producer.stop()
+        if db:
+            await db.close()
 
 
 async def _retention_loop(db: asyncpg.Connection) -> None:
