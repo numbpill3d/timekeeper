@@ -15,6 +15,18 @@ def test_stream_url_rejects_embedded_credentials():
         )
 
 
+@pytest.mark.parametrize(
+    "stream_url",
+    [
+        "rtsp://camera.example/live?access_token=secret",
+        "https://camera.example/live#secret",
+    ],
+)
+def test_stream_url_rejects_credential_like_query_or_fragment(stream_url):
+    with pytest.raises(ValidationError, match="credential"):
+        CameraCreate(name="front door", stream_url=stream_url)
+
+
 def test_provider_config_rejects_camel_case_token_key():
     with pytest.raises(ValidationError, match="provider_config"):
         CameraCreate(

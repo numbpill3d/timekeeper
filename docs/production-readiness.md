@@ -12,8 +12,9 @@
 5. Confirm the frontend can open an event clip. The API should return a
    short-lived signed URL, never an internal MinIO hostname or raw credential.
 
-This workstation currently has Docker Engine but not the Docker Compose
-plugin, so steps 3–5 need to be run on a host with Compose installed.
+Use a host with Docker Compose available for steps 3–5. The repository's CI
+workflow validates the rendered Compose configuration, while a complete local
+stack still requires Docker Engine and its runtime images.
 
 ## Provider credentials
 

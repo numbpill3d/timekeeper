@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from typing import Annotated
+from urllib.parse import parse_qsl, urlparse
 from uuid import UUID
-from urllib.parse import urlparse
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException
@@ -20,6 +20,10 @@ DB = Annotated[asyncpg.Connection, Depends(get_db)]
 _TIER_LIMITS = {"free": 2, "home": 5, "family": 10, "pro": 9999}
 _PROTOCOLS = {"rtsp", "http", "https", "hls", "file", "onvif", "ring", "nest", "arlo", "wyze"}
 _UPDATE_ALLOWED = {"name", "location_label", "is_active", "provider_config"}
+_SECRET_URL_KEYS = {
+    "accesstoken", "apikey", "auth", "authorization", "password", "secret",
+    "signature", "token",
+}
 
 
 def _validate_provider_config(v: dict) -> dict:
@@ -90,6 +94,13 @@ class CameraCreate(BaseModel):
         if parsed.username or parsed.password:
             raise ValueError(
                 "stream_url must not contain embedded credentials; use secret files"
+            )
+        if parsed.fragment or any(
+            "".join(char for char in key.lower() if char.isalnum()) in _SECRET_URL_KEYS
+            for key, _ in parse_qsl(parsed.query, keep_blank_values=True)
+        ):
+            raise ValueError(
+                "stream_url must not contain credential-like query parameters"
             )
         return v
 

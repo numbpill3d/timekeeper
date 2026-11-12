@@ -5,13 +5,6 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, model_validator
 
-# Phase 1 object detection categories (expandable in later phases)
-TRACKABLE_OBJECTS = frozenset({
-    "keys", "wallet", "phone", "bag", "backpack", "package",
-    "laptop", "tablet", "glasses", "medication", "bottle",
-    "person", "dog", "cat", "car", "bicycle",
-})
-
 
 class Detection(BaseModel):
     """Single detection from the CV pipeline for one frame."""
