@@ -7,9 +7,11 @@ os.environ.setdefault("JWT_SECRET", "unit-test-secret-012345678901234567890123")
 import pytest
 from main import EmbedRequest, EmbedResponse
 from main import QueryRequest as EngineQueryRequest
+from omniscient_shared.models.event import EventType
 
 from api.src.routes.query import QueryRequest, QueryResponse
 from api.src.routes.users import ProfileUpdate
+from api.src.ws.payload import public_event_payload
 
 
 def test_query_history_accepts_only_bounded_conversation_turns():
@@ -66,6 +68,27 @@ def test_embedding_response_requires_database_vector_dimension():
 def test_notification_profile_explicit_nulls_are_preserved_for_clear():
     profile = ProfileUpdate(fcm_token=None, phone=None)
     assert profile.model_fields_set == {"fcm_token", "phone"}
+
+
+def test_live_event_payload_validates_and_strips_internal_metadata(monkeypatch):
+    monkeypatch.setattr("api.src.ws.payload.signed_clip_url", lambda value: "signed" if value else None)
+    payload = public_event_payload(
+        {
+            "camera_id": "00000000-0000-0000-0000-000000000001",
+            "event_type": EventType.object_picked_up,
+            "timestamp": "2026-01-01T00:00:00Z",
+            "action_label": "picked up keys",
+            "metadata": {"owner_id": "private", "internal": "secret"},
+            "clip_path": "clips/event.jpg",
+        }
+    )
+    assert payload is not None
+    assert payload["clip_path"] == "signed"
+    assert isinstance(payload["id"], str)
+    assert isinstance(payload["timestamp"], str)
+    assert "metadata" not in payload
+    assert payload["person_label"] is None
+    assert public_event_payload({"event_type": "not-valid"}) is None
 
 
 @pytest.mark.parametrize(

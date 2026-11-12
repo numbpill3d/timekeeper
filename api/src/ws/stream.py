@@ -17,8 +17,10 @@ import os
 
 from aiokafka import AIOKafkaConsumer
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from omniscient_shared.models.event import Event
 
 from ..auth import decode_token
+from .payload import public_event_payload
 
 log = logging.getLogger(__name__)
 
@@ -61,7 +63,11 @@ async def events_stream(websocket: WebSocket) -> None:
 
     try:
         async for msg in consumer:
-            event = msg.value
+            try:
+                event = Event.model_validate(msg.value)
+            except (TypeError, ValueError) as exc:
+                log.warning("dropping malformed live event: %s", exc)
+                continue
             # Filter to this user's cameras on the fly.
             # The event-processor already scoped events to real cameras;
             # ownership check here is the security gate.
@@ -70,7 +76,9 @@ async def events_stream(websocket: WebSocket) -> None:
                 continue
 
             try:
-                await websocket.send_json(event)
+                payload = public_event_payload(event)
+                if payload is not None:
+                    await websocket.send_json(payload)
             except WebSocketDisconnect:
                 break
     except WebSocketDisconnect:
