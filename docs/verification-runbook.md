@@ -4,6 +4,7 @@ Run these checks from the repository root after starting the stack:
 
 ```bash
 make PYTHON=.venv/bin/python test
+make mobile-typecheck
 TIMEKEEPER_ENV_FILE=.env.example \
   /home/scorn/.local/bin/docker-compose --env-file .env.example config --quiet
 curl -fsS http://localhost:8000/health

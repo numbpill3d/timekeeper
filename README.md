@@ -54,6 +54,8 @@ backup, and access-control policy.
 - At least 8 GB free disk for the CPU images; model downloads require more.
 - Python 3.10+ for local tests.
 - Node.js/npm for the web application.
+- Node.js/npm for the mobile typecheck (an Android/iOS SDK is only required for
+  device builds).
 
 ### Start the stack
 
@@ -113,6 +115,7 @@ From the repository root:
 
 ```bash
 make PYTHON=.venv/bin/python test
+make mobile-typecheck
 python -m compileall -q api services shared tests
 TIMEKEEPER_ENV_FILE=.env.example \
   docker compose --env-file .env.example config --quiet
