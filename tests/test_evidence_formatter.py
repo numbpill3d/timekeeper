@@ -37,3 +37,22 @@ def test_synthesis_falls_back_to_recorded_evidence(monkeypatch):
         )
     )
     assert "John picked up blue keys" in answer
+
+
+def test_completion_fails_closed_without_available_provider(monkeypatch):
+    async def unavailable(system: str, user: str) -> str:
+        raise RuntimeError("ollama unavailable")
+
+    async def openai_unavailable(system: str, user: str) -> str:
+        raise RuntimeError("openai unavailable")
+
+    monkeypatch.setattr(llm, "_ollama_complete", unavailable)
+    monkeypatch.setattr(llm, "_openai_complete", openai_unavailable)
+    monkeypatch.setattr(llm, "_OPENAI_KEY", "# fallback disabled")
+
+    try:
+        asyncio.run(llm._complete("system", "user"))
+    except RuntimeError as exc:
+        assert "Ollama unavailable" in str(exc)
+    else:
+        raise AssertionError("completion should fail closed")

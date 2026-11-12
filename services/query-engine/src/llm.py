@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 _OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 _OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "mistral")
-_OPENAI_KEY = os.getenv("OPENAI_API_KEY", "")
+_OPENAI_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 
 _SQL_SYSTEM = """
 You are a SQL expert for a home surveillance database.
@@ -91,7 +91,7 @@ async def _complete(system: str, user: str) -> str:
     try:
         return await _ollama_complete(system, user)
     except Exception as exc:
-        if not _OPENAI_KEY:
+        if not _OPENAI_KEY or _OPENAI_KEY.startswith("#"):
             raise RuntimeError(
                 "Ollama unavailable and OPENAI_API_KEY not set"
             ) from exc
