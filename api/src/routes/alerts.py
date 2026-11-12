@@ -17,7 +17,7 @@ router = APIRouter()
 
 DB = Annotated[asyncpg.Connection, Depends(get_db)]
 
-_ALLOWED = {"is_active", "name", "rule_text", "priority", "channels"}
+_ALLOWED = {"is_active", "name", "rule_text", "priority", "channels", "compiled_rule"}
 
 
 class AlertRuleCreate(BaseModel):
@@ -108,6 +108,11 @@ async def update_rule(
     }
     if not updates:
         raise HTTPException(status_code=422, detail="no fields to update")
+    if "rule_text" in updates:
+        # The compiled predicate is derived from rule_text and must never
+        # survive a text edit, otherwise the UI appears to save a new rule
+        # while the worker continues evaluating the previous one.
+        updates["compiled_rule"] = None
     sets = ", ".join(f"{col} = ${i + 3}" for i, col in enumerate(updates))
     result = await db.execute(
         f"UPDATE alert_rules SET {sets} WHERE id = $1 AND owner_id = $2",

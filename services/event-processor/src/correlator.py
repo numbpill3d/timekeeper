@@ -106,6 +106,7 @@ class Correlator:
             (key, *pickup)
             for key, pickup in self._pending_pickups.items()
             if pickup[0] != str(event.camera_id)
+            and pickup[1].metadata.get("owner_id") == event.metadata.get("owner_id")
             and pickup[1].metadata.get("object_category") == category
         ]
         if len(candidates) != 1:

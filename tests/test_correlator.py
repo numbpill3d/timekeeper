@@ -14,6 +14,7 @@ def _event(
     ts: datetime | None = None,
     location_label: str | None = None,
     category: str | None = None,
+    owner_id: str | None = None,
 ) -> Event:
     return Event(
         camera_id=camera_id or uuid4(),
@@ -22,7 +23,10 @@ def _event(
         object_id=object_id,
         location_label=location_label,
         action_label="test",
-        metadata={"object_category": category} if category else {},
+        metadata={
+            **({"object_category": category} if category else {}),
+            **({"owner_id": owner_id} if owner_id else {}),
+        },
     )
 
 
@@ -145,5 +149,33 @@ def test_ambiguous_category_does_not_claim_a_move():
         )
     extra = correlator.process(
         _event(EventType.object_placed, cam_b, uuid4(), ts=t + timedelta(seconds=5), category="keys")
+    )
+    assert extra == []
+
+
+def test_category_fallback_never_crosses_account_boundaries():
+    correlator = Correlator()
+    cam_a, cam_b = uuid4(), uuid4()
+    t = datetime.now(tz=UTC)
+
+    correlator.process(
+        _event(
+            EventType.object_picked_up,
+            cam_a,
+            uuid4(),
+            ts=t,
+            category="keys",
+            owner_id="owner-a",
+        )
+    )
+    extra = correlator.process(
+        _event(
+            EventType.object_placed,
+            cam_b,
+            uuid4(),
+            ts=t + timedelta(seconds=5),
+            category="keys",
+            owner_id="owner-b",
+        )
     )
     assert extra == []

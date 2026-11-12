@@ -92,14 +92,15 @@ async def main() -> None:
                     )
 
                 events = aggregators[cam_key].process(det_msg)
+                owner_id = cam_owners.get(cam_key, "")
 
                 # cross-camera correlation may produce additional events
                 extra: list = []
                 for evt in events:
+                    evt.metadata["owner_id"] = owner_id
                     extra.extend(correlator.process(evt))
                 events.extend(extra)
 
-                owner_id = cam_owners.get(cam_key, "")
                 for event in events:
                     event.metadata["owner_id"] = owner_id
                     if det_msg.frame_path and not event.clip_path:
