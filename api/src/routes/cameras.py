@@ -82,10 +82,10 @@ def _validate_provider_config(v: dict) -> dict:
 
 
 class CameraCreate(BaseModel):
-    name: str
-    stream_url: str
+    name: str = Field(max_length=120)
+    stream_url: str = Field(max_length=2048)
     protocol: str = "rtsp"
-    location_label: str | None = None
+    location_label: str | None = Field(default=None, max_length=120)
     is_edge_only: bool = False
     provider_config: dict = Field(default_factory=dict)
 
@@ -140,8 +140,8 @@ class CameraCreate(BaseModel):
 
 
 class CameraUpdate(BaseModel):
-    name: str | None = None
-    location_label: str | None = None
+    name: str | None = Field(default=None, max_length=120)
+    location_label: str | None = Field(default=None, max_length=120)
     is_active: bool | None = None
     provider_config: dict | None = None
 

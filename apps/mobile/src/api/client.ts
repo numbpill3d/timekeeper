@@ -82,19 +82,50 @@ export const listEvents = (params?: {
 
 // ── WebSocket ─────────────────────────────────────────────────────
 
+export interface EventStream {
+  close: () => void;
+}
+
 export const openEventStream = async (
   onEvent: (e: OmniscientEvent) => void
-): Promise<WebSocket> => {
+): Promise<EventStream> => {
   const token = await SecureStore.getItemAsync("access_token");
   if (!token) throw new Error("not authenticated");
   const wsBase = BASE_URL.replace(/^http/, "ws");
-  const ws = new WebSocket(`${wsBase}/ws/events`, ["timekeeper-auth", token]);
-  ws.onmessage = (msg) => {
-    try {
-      onEvent(JSON.parse(msg.data) as OmniscientEvent);
-    } catch {
-      // Ignore malformed messages so one bad event does not kill the stream.
-    }
+  let ws: WebSocket | null = null;
+  let closed = false;
+  let retryMs = 1_000;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const connect = () => {
+    if (closed) return;
+    ws = new WebSocket(`${wsBase}/ws/events`, ["timekeeper-auth", token]);
+    ws.onopen = () => {
+      retryMs = 1_000;
+    };
+    ws.onmessage = (msg) => {
+      try {
+        onEvent(JSON.parse(msg.data) as OmniscientEvent);
+      } catch {
+        // Ignore malformed messages so one bad event does not kill the stream.
+      }
+    };
+    ws.onerror = () => {};
+    ws.onclose = () => {
+      ws = null;
+      if (closed) return;
+      retryTimer = setTimeout(connect, retryMs);
+      retryMs = Math.min(retryMs * 2, 30_000);
+    };
   };
-  return ws;
+
+  connect();
+  return {
+    close: () => {
+      closed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      ws?.close();
+      ws = null;
+    },
+  };
 };

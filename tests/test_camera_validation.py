@@ -45,6 +45,19 @@ def test_provider_config_rejects_credentials_in_nested_endpoint():
         )
 
 
+def test_camera_metadata_is_bounded():
+    with pytest.raises(ValidationError):
+        CameraCreate(name="x" * 121, stream_url="rtsp://camera/stream")
+    with pytest.raises(ValidationError):
+        CameraCreate(name="front", stream_url="rtsp://camera/" + "x" * 2040)
+    with pytest.raises(ValidationError):
+        CameraCreate(
+            name="front",
+            stream_url="rtsp://camera/stream",
+            location_label="x" * 121,
+        )
+
+
 def test_detection_contract_rejects_invalid_bounds():
     with pytest.raises(ValidationError):
         Detection(

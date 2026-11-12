@@ -15,6 +15,7 @@ import os
 import re
 
 import asyncpg
+from omniscient_shared.time import LOCAL_TIMEZONE
 
 try:
     from .db import get_pool
@@ -160,6 +161,10 @@ async def _execute(
             bounded_sql = f"SELECT * FROM ({sql}) AS timekeeper_result LIMIT 50"
             async with conn.transaction():
                 await conn.execute("SET TRANSACTION READ ONLY")
+                await conn.execute(
+                    "SELECT set_config('TimeZone', $1, true)",
+                    LOCAL_TIMEZONE.key,
+                )
                 await conn.execute("SET LOCAL statement_timeout = '5000ms'")
                 rows = await conn.fetch(
                     bounded_sql, owner_id, *(extra_params or [])

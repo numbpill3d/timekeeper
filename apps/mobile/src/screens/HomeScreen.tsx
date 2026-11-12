@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import { listEvents, openEventStream, OmniscientEvent } from "../api/client";
+import {
+  EventStream,
+  listEvents,
+  openEventStream,
+  OmniscientEvent,
+} from "../api/client";
 import { EventCard } from "../components/EventCard";
 
 export function HomeScreen() {
   const [liveEvents, setLiveEvents] = useState<OmniscientEvent[]>([]);
-  const wsRef = useRef<WebSocket | null>(null);
+  const wsRef = useRef<EventStream | null>(null);
 
   const { data: recentEvents, isLoading, isError } = useQuery({
     queryKey: ["events"],
@@ -18,9 +23,9 @@ export function HomeScreen() {
     let disposed = false;
     openEventStream((e) => {
       if (!disposed) setLiveEvents((prev) => [e, ...prev.filter((item) => item.id !== e.id)].slice(0, 5));
-    }).then((ws) => {
-      if (disposed) ws.close();
-      else wsRef.current = ws;
+    }).then((stream) => {
+      if (disposed) stream.close();
+      else wsRef.current = stream;
     }).catch(() => {
       // REST polling remains available when the live stream is unavailable.
     });
