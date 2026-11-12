@@ -30,8 +30,8 @@ class Event(BaseModel):
     person_id: UUID | None = None
     object_id: UUID | None = None
     location_label: str | None = None
-    action_label: str
-    confidence: float = 1.0
+    action_label: str = Field(min_length=1, max_length=500)
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
     metadata: dict = Field(default_factory=dict)
     clip_path: str | None = None
 

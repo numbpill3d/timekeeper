@@ -10,12 +10,11 @@ from __future__ import annotations
 import calendar
 import datetime
 import os
+from typing import Literal
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
-from typing import Literal
-
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from ..auth import CurrentUser
 from ..media import signed_clip_url
@@ -57,9 +56,9 @@ class QueryRequest(BaseModel):
 
 
 class QueryResponse(BaseModel):
-    answer: str
+    answer: str = Field(min_length=1, max_length=10000)
     clips: list[str]
-    confidence: float
+    confidence: float = Field(ge=0.0, le=1.0)
 
 
 async def _check_rate_limit(user: dict, request: Request) -> None:
@@ -123,14 +122,19 @@ async def query(
             status_code=503, detail="query engine unavailable"
         ) from exc
 
-    data = resp.json()
+    try:
+        data = QueryResponse.model_validate(resp.json())
+    except (TypeError, ValueError, ValidationError) as exc:
+        raise HTTPException(
+            status_code=503, detail="query engine returned an invalid response"
+        ) from exc
     clips = [
         url
-        for clip in data["clips"]
+        for clip in data.clips
         if (url := signed_clip_url(clip)) is not None
     ]
     return QueryResponse(
-        answer=data["answer"],
+        answer=data.answer,
         clips=clips,
-        confidence=data["confidence"],
+        confidence=data.confidence,
     )

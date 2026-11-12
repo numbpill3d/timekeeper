@@ -1,6 +1,7 @@
 """Camera input validation must not persist credentials."""
 
 import pytest
+from omniscient_shared.models.entity import Detection, FrameMessage
 from pydantic import ValidationError
 
 from api.src.routes.cameras import CameraCreate
@@ -20,4 +21,26 @@ def test_provider_config_rejects_camel_case_token_key():
             name="front door",
             stream_url="ring://camera-1",
             provider_config={"accessToken": "should-not-be-stored"},
+        )
+
+
+def test_detection_contract_rejects_invalid_bounds():
+    with pytest.raises(ValidationError):
+        Detection(
+            camera_id="00000000-0000-0000-0000-000000000001",
+            timestamp="2026-01-01T00:00:00Z",
+            frame_id="frame",
+            track_id=1,
+            class_name="keys",
+            confidence=1.1,
+            bbox=(0.1, 0.1, 0.5, 0.5),
+        )
+    with pytest.raises(ValidationError):
+        FrameMessage(
+            camera_id="00000000-0000-0000-0000-000000000001",
+            timestamp="2026-01-01T00:00:00Z",
+            frame_id="frame",
+            frame_path="/tmp/frame.jpg",
+            width=0,
+            height=100,
         )

@@ -8,7 +8,7 @@ import pytest
 from main import EmbedRequest
 from main import QueryRequest as EngineQueryRequest
 
-from api.src.routes.query import QueryRequest
+from api.src.routes.query import QueryRequest, QueryResponse
 from api.src.routes.users import ProfileUpdate
 
 
@@ -53,6 +53,18 @@ def test_query_engine_contract_bounds_owner_and_embedding_input():
     )
     assert str(request.owner_id) == "00000000-0000-0000-0000-000000000001"
     assert EmbedRequest(text="  event text  ").text == "event text"
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        {"answer": "", "clips": [], "confidence": 0.5},
+        {"answer": "ok", "clips": [], "confidence": 1.5},
+    ],
+)
+def test_query_response_rejects_invalid_upstream_payload(response):
+    with pytest.raises(ValueError):
+        QueryResponse(**response)
 
 
 @pytest.mark.parametrize(
