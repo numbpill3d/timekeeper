@@ -15,3 +15,6 @@ done
 fields. If an older database has 768-dimensional event embeddings, it retains
 them as `embedding_legacy_768` and creates the current 384-dimensional column;
 new events populate the current column without deleting historical events.
+
+`002_alert_delivery_idempotency.sql` removes duplicate historical delivery
+rows before adding the uniqueness boundary used by the alert worker.

@@ -38,7 +38,11 @@ async def main() -> None:
 
     try:
         async for msg in consumer:
-            event = Event(**msg.value)
+            try:
+                event = Event(**msg.value)
+            except Exception as exc:
+                log.warning("dropping malformed event message: %s", exc)
+                continue
             await _evaluate(event, db)
     finally:
         await consumer.stop()
@@ -116,6 +120,25 @@ async def _evaluate(event: Event, db: asyncpg.Connection) -> None:
         title = _title(priority, event)
         body = event.action_label
 
+        delivery_id = await db.fetchval(
+            """
+            INSERT INTO alert_deliveries (rule_id, event_id, channels_sent)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (rule_id, event_id) DO NOTHING
+            RETURNING id
+            """,
+            rule_row["id"],
+            event.id,
+            [],
+        )
+        if delivery_id is None:
+            log.info(
+                "skipping duplicate alert delivery for rule %s/event %s",
+                rule_row["id"],
+                event.id,
+            )
+            continue
+
         sent = await deliver(
             channels=list(rule_row["channels"]),
             title=title,
@@ -125,13 +148,9 @@ async def _evaluate(event: Event, db: asyncpg.Connection) -> None:
         )
 
         await db.execute(
-            """
-            INSERT INTO alert_deliveries (rule_id, event_id, channels_sent)
-            VALUES ($1, $2, $3)
-            """,
-            rule_row["id"],
-            event.id,
+            "UPDATE alert_deliveries SET channels_sent = $1 WHERE id = $2",
             sent,
+            delivery_id,
         )
 
 
