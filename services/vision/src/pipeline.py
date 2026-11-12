@@ -59,7 +59,6 @@ class VisionPipeline:
         model = os.getenv("YOLO_MODEL", "yolov8n.pt")
 
         self.detector = Detector(model_path=model, device=device)
-        self.tracker = Tracker()
         self.reid = ReIDModel(device=device)
         self.face = FaceModel(device=device)
 
@@ -154,6 +153,15 @@ class VisionPipeline:
             return
 
         camera_key = str(frame_msg.camera_id)
+        if camera_key not in self._cam_owners and self._db:
+            row = await self._db.fetchrow(
+                "SELECT owner_id FROM cameras WHERE id = $1 AND is_active = TRUE",
+                frame_msg.camera_id,
+            )
+            if not row:
+                log.warning("dropping frame for unknown/inactive camera %s", camera_key)
+                return
+            self._cam_owners[camera_key] = str(row["owner_id"])
         tracker = self._trackers.setdefault(camera_key, Tracker())
 
         raw = self.detector.detect(frame)
@@ -175,7 +183,12 @@ class VisionPipeline:
 
         detections: list[Detection] = []
         for rd in tracked:
-            person_id: UUID | None = person_ids.get(rd.track_id)
+            # Only person detections may use the ReID identity map. Object
+            # attribution must come from the geometric association below;
+            # numeric tracker IDs can overlap between classes.
+            person_id: UUID | None = (
+                person_ids.get(rd.track_id) if rd.class_name == "person" else None
+            )
             object_id: UUID | None = None
             association_confidence: float | None = None
             association_method: str | None = None
@@ -333,11 +346,17 @@ class VisionPipeline:
     ) -> UUID | None:
         """Return stable UUID for this tracked object within the session."""
         key = f"{camera_id}:{track_id}:{class_name}"
-        if key in self._obj_map:
-            return self._obj_map[key]
-
         if self._db is None:
             return None
+        if key in self._obj_map:
+            obj_id = self._obj_map[key]
+            await self._db.execute(
+                "UPDATE tracked_objects SET last_camera_id = $1, "
+                "last_seen_at = NOW() WHERE id = $2",
+                camera_id,
+                obj_id,
+            )
+            return obj_id
 
         owner_id_str = self._cam_owners.get(str(camera_id))
         if not owner_id_str:

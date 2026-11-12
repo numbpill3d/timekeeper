@@ -21,12 +21,21 @@ class Tracker:
         minimum_matching_threshold: float = 0.8,
         frame_rate: int = 30,
     ) -> None:
-        self._bt = sv.ByteTrack(
-            track_activation_threshold=track_activation_threshold,
-            lost_track_buffer=lost_track_buffer,
-            minimum_matching_threshold=minimum_matching_threshold,
-            frame_rate=frame_rate,
-        )
+        self._tracker_config = {
+            "track_activation_threshold": track_activation_threshold,
+            "lost_track_buffer": lost_track_buffer,
+            "minimum_matching_threshold": minimum_matching_threshold,
+            "frame_rate": frame_rate,
+        }
+        # ByteTrack should never match a person box to an object box. Keeping
+        # one stateful tracker per class preserves IDs while preventing
+        # cross-class identity swaps.
+        self._trackers: dict[str, sv.ByteTrack] = {}
+
+    def _tracker_for(self, class_name: str) -> sv.ByteTrack:
+        if class_name not in self._trackers:
+            self._trackers[class_name] = sv.ByteTrack(**self._tracker_config)
+        return self._trackers[class_name]
 
     def update(
         self,
@@ -43,54 +52,61 @@ class Tracker:
 
         h, w = frame_shape
 
-        # Denormalize to pixel coords for ByteTrack
-        xyxy = np.array(
-            [
-                [d.bbox[0] * w, d.bbox[1] * h, d.bbox[2] * w, d.bbox[3] * h]
-                for d in detections
-            ],
-            dtype=np.float32,
-        )
-        confs = np.array([d.confidence for d in detections], dtype=np.float32)
-        class_ids = np.zeros(len(detections), dtype=int)
-
-        sv_dets = sv.Detections(
-            xyxy=xyxy,
-            confidence=confs,
-            class_id=class_ids,
-        )
-        tracked = self._bt.update_with_detections(sv_dets)
-
-        # ByteTrack may filter and reorder detections. Match its output boxes
-        # back to source detections instead of assuming array positions are
-        # stable; positional matching can swap identities after a dropout.
         updated: list[RawDetection] = list(detections)
-        if tracked.tracker_id is None:
-            return updated
+        by_class: dict[str, list[int]] = {}
+        for index, detection in enumerate(detections):
+            by_class.setdefault(detection.class_name, []).append(index)
 
-        used: set[int] = set()
-        for tracked_box, tid in zip(tracked.xyxy, tracked.tracker_id):
-            if tid is None:
-                continue
-            best_index, _ = max(
-                (
-                    (index, _iou(tracked_box, xyxy[index]))
-                    for index in range(len(xyxy))
-                    if index not in used
-                ),
-                key=lambda pair: pair[1],
-                default=(-1, 0.0),
+        for class_name, indices in by_class.items():
+            xyxy = np.array(
+                [
+                    [
+                        detections[index].bbox[0] * w,
+                        detections[index].bbox[1] * h,
+                        detections[index].bbox[2] * w,
+                        detections[index].bbox[3] * h,
+                    ]
+                    for index in indices
+                ],
+                dtype=np.float32,
             )
-            if best_index < 0:
-                continue
-            used.add(best_index)
-            det = updated[best_index]
-            updated[best_index] = RawDetection(
-                track_id=int(tid),
-                class_name=det.class_name,
-                confidence=det.confidence,
-                bbox=det.bbox,
+            confs = np.array(
+                [detections[index].confidence for index in indices],
+                dtype=np.float32,
             )
+            tracked = self._tracker_for(class_name).update_with_detections(
+                sv.Detections(xyxy=xyxy, confidence=confs)
+            )
+            if tracked.tracker_id is None:
+                continue
+
+            # ByteTrack may filter and reorder detections. Match its output
+            # boxes back to source detections instead of assuming positions
+            # remain stable after a dropout.
+            used: set[int] = set()
+            for tracked_box, tid in zip(tracked.xyxy, tracked.tracker_id):
+                if tid is None:
+                    continue
+                best_index, _ = max(
+                    (
+                        (local, _iou(tracked_box, xyxy[local]))
+                        for local in range(len(indices))
+                        if local not in used
+                    ),
+                    key=lambda pair: pair[1],
+                    default=(-1, 0.0),
+                )
+                if best_index < 0:
+                    continue
+                used.add(best_index)
+                source_index = indices[best_index]
+                det = updated[source_index]
+                updated[source_index] = RawDetection(
+                    track_id=int(tid),
+                    class_name=det.class_name,
+                    confidence=det.confidence,
+                    bbox=det.bbox,
+                )
 
         return updated
 
