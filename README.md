@@ -28,6 +28,12 @@ invent an identity or action when the evidence is missing or weak.
 - Keeps camera/provider credentials out of event data and rejects credential
   material embedded in camera URLs or provider configuration.
 
+The bundled `yolov8n.pt` weights cover the mapped COCO categories such as
+people, phones, laptops, bags, bottles, cups, books, animals, cars, and
+bicycles. Categories such as keys, wallets, medication, and packages require
+custom YOLO weights supplied through `YOLO_MODEL`; the query fallback supports
+both the canonical labels and common aliases such as “scissors” → “tool”.
+
 ## Architecture
 
 ```text

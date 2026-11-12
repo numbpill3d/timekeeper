@@ -25,3 +25,10 @@ def test_fallback_query_does_not_require_a_search_term():
     sql, params = build_fallback_query("what happened today?")
     assert "e.timestamp >= $2" in sql
     assert params[0].tzinfo is not None
+
+
+def test_fallback_query_maps_detector_alias_to_object_category():
+    sql, params = build_fallback_query("where were my scissors today?")
+    assert "o.category ILIKE $2" in sql
+    assert params[0] == "%tool%"
+    assert "p.label ILIKE" not in sql
