@@ -19,12 +19,17 @@ import cv2
 from omniscient_shared.models.camera import Camera
 from omniscient_shared.models.entity import FrameMessage
 
+from .config import parse_frame_interval
 from .providers import ProviderError, frames_for
 
 log = logging.getLogger(__name__)
 
 FRAME_DIR = Path(os.getenv("FRAME_STORE_PATH", "/tmp/frames"))
-FRAME_INTERVAL_S = float(os.getenv("FRAME_INTERVAL_S", "0.1"))  # 10 fps default
+
+
+FRAME_INTERVAL_S = parse_frame_interval(
+    os.getenv("FRAME_INTERVAL_S", "0.1")
+)  # 10 fps default
 
 
 async def stream_camera(

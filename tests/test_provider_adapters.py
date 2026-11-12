@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import numpy as np
 import pytest
+from config import parse_frame_interval
 from omniscient_shared.models.camera import Camera, CameraProtocol
 from providers import (
     ProviderError,
@@ -101,6 +102,16 @@ def test_provider_config_cannot_select_unrelated_secret_env(monkeypatch):
     monkeypatch.setenv("JWT_SECRET", "do-not-send-this")
     with pytest.raises(ProviderError, match="uppercase RING_"):
         _OAuthCredentials({"access_token_env": "JWT_SECRET"}, "ring")
+
+
+def test_frame_interval_is_bounded():
+    assert parse_frame_interval("0.1") == 0.1
+    with pytest.raises(RuntimeError, match="between"):
+        parse_frame_interval("0")
+    with pytest.raises(RuntimeError, match="between"):
+        parse_frame_interval("61")
+    with pytest.raises(RuntimeError, match="number"):
+        parse_frame_interval("not-a-number")
 
 
 def test_webrtc_adapter_completes_offer_answer_and_yields_video(monkeypatch):
