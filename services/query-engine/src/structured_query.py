@@ -9,7 +9,9 @@ but this keeps the local assistant useful when Ollama is starting or absent.
 from __future__ import annotations
 
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
+
+from omniscient_shared.time import local_now
 
 _OBJECT_TERMS = {
     "keys", "key", "wallet", "phone", "bag", "backpack", "package",
@@ -36,10 +38,10 @@ def _terms(question: str) -> list[str]:
 
 def _time_predicates(question: str, start_param: int) -> tuple[list[str], list[object]]:
     lowered = question.lower()
-    now = datetime.now(tz=UTC)
+    now = local_now()
     if "yesterday" in lowered:
         start = datetime.combine(
-            (now - timedelta(days=1)).date(), datetime.min.time(), tzinfo=UTC
+            (now - timedelta(days=1)).date(), datetime.min.time(), tzinfo=now.tzinfo
         )
         end = start + timedelta(days=1)
         return [f"e.timestamp >= ${start_param}", f"e.timestamp < ${start_param + 1}"], [start, end]
@@ -49,7 +51,7 @@ def _time_predicates(question: str, start_param: int) -> tuple[list[str], list[o
         delta = timedelta(**({"hours": amount} if match.group(2).startswith("hour") else {"minutes": amount}))
         return [f"e.timestamp >= ${start_param}"], [now - delta]
     if "today" in lowered or not any(word in lowered for word in ("yesterday", "last")):
-        start = datetime.combine(now.date(), datetime.min.time(), tzinfo=UTC)
+        start = datetime.combine(now.date(), datetime.min.time(), tzinfo=now.tzinfo)
         return [f"e.timestamp >= ${start_param}"], [start]
     return [], []
 

@@ -12,6 +12,8 @@ from __future__ import annotations
 import logging
 import os
 
+from omniscient_shared.time import to_local
+
 log = logging.getLogger(__name__)
 
 _OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
@@ -139,6 +141,8 @@ def _format_evidence_response(rows: list[dict]) -> str:
     lines: list[str] = []
     for row in rows[:5]:
         timestamp = row.get("timestamp")
+        if timestamp:
+            timestamp = to_local(timestamp)
         time_text = timestamp.strftime("%I:%M %p") if timestamp else "an unknown time"
         person = row.get("person_label") or "An unidentified person"
         item = row.get("object_label") or row.get("object_category") or "the recorded item"

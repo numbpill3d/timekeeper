@@ -25,6 +25,7 @@ import re
 from math import isfinite
 
 from omniscient_shared.models.event import Event, EventType
+from omniscient_shared.time import to_local
 
 log = logging.getLogger(__name__)
 
@@ -186,7 +187,7 @@ def event_matches(
     time_after = rule.get("time_after")
     time_before = rule.get("time_before")
     if time_after or time_before:
-        t = event.timestamp
+        t = to_local(event.timestamp)
         hhmm = t.hour * 60 + t.minute
         if time_after:
             ah, am = map(int, time_after.split(":"))

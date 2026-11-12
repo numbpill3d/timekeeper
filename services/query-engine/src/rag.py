@@ -15,6 +15,9 @@ from __future__ import annotations
 import logging
 import os
 
+import asyncpg
+from omniscient_shared.time import to_local
+
 try:
     from .db import get_pool
 except ImportError:  # Support direct-module imports used by local tests.
@@ -48,7 +51,7 @@ async def retrieve_context(question: str, owner_id: str) -> str:
     """Return a text block of the k most relevant past events for `question`."""
     try:
         vec = embed_text(question)
-    except Exception as exc:
+    except (ImportError, OSError, RuntimeError, ValueError) as exc:
         log.warning("embedding failed: %s", exc)
         return ""
 
@@ -75,7 +78,7 @@ async def retrieve_context(question: str, owner_id: str) -> str:
         pool = get_pool()
         async with pool.acquire() as conn:
             rows = await conn.fetch(sql, owner_id, vec_literal, _TOP_K)
-    except Exception as exc:
+    except (asyncpg.PostgresError, OSError, RuntimeError, ValueError) as exc:
         log.warning("rag retrieval failed: %s", exc)
         return ""
 
@@ -84,7 +87,7 @@ async def retrieve_context(question: str, owner_id: str) -> str:
 
     lines = ["Relevant past events:"]
     for r in rows:
-        ts = r["timestamp"].strftime("%Y-%m-%d %H:%M") if r["timestamp"] else "?"
+        ts = to_local(r["timestamp"]).strftime("%Y-%m-%d %H:%M") if r["timestamp"] else "?"
         who = r["person_label"] or "unknown person"
         object_name = r["object_label"] or r["object_category"]
         what = r["action_label"] or r["event_type"]
