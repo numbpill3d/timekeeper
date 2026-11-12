@@ -13,7 +13,9 @@ import os
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, field_validator
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator
 
 from ..auth import CurrentUser
 from ..media import signed_clip_url
@@ -24,9 +26,24 @@ _QE_URL = os.getenv("QUERY_ENGINE_URL", "http://query-engine:8001")
 _FREE_MONTHLY_LIMIT = 10
 
 
+class ConversationTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("content")
+    @classmethod
+    def _strip_content(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("conversation content cannot be empty")
+        return value
+
+
 class QueryRequest(BaseModel):
     question: str
-    conversation_history: list[dict] | None = None
+    conversation_history: list[ConversationTurn] | None = Field(
+        default=None, max_length=6
+    )
 
     @field_validator("question")
     @classmethod
@@ -77,7 +94,9 @@ async def query(
     payload = {
         "question": req.question,
         "owner_id": user["sub"],
-        "conversation_history": req.conversation_history,
+        "conversation_history": [
+            turn.model_dump() for turn in (req.conversation_history or [])
+        ],
     }
 
     try:
@@ -90,8 +109,18 @@ async def query(
         ) from exc
     except httpx.HTTPStatusError as exc:
         raise HTTPException(
-            status_code=exc.response.status_code,
-            detail=exc.response.text,
+            status_code=(
+                exc.response.status_code
+                if 400 <= exc.response.status_code < 500
+                else 503
+            ),
+            detail="query engine rejected the request"
+            if exc.response.status_code < 500
+            else "query engine unavailable",
+        ) from exc
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=503, detail="query engine unavailable"
         ) from exc
 
     data = resp.json()

@@ -13,7 +13,9 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator
 
 from .db import close_pool, init_pool
 from .rag import embed_text
@@ -40,10 +42,25 @@ app = FastAPI(
 )
 
 
+class ConversationTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("content")
+    @classmethod
+    def _strip_content(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("conversation content cannot be empty")
+        return value
+
+
 class QueryRequest(BaseModel):
     question: str
     owner_id: str
-    conversation_history: list[dict] | None = None
+    conversation_history: list[ConversationTurn] | None = Field(
+        default=None, max_length=6
+    )
 
 
 class QueryResponse(BaseModel):
@@ -70,7 +87,9 @@ async def query(req: QueryRequest) -> QueryResponse:
         result = await answer(
             question=req.question,
             owner_id=req.owner_id,
-            conversation_history=req.conversation_history,
+            conversation_history=[
+                turn.model_dump() for turn in (req.conversation_history or [])
+            ],
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
