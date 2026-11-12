@@ -59,9 +59,16 @@ async def events_stream(websocket: WebSocket) -> None:
         value_deserializer=lambda v: json.loads(v.decode()),
         auto_offset_reset="latest",
     )
-    await consumer.start()
-
+    consumer_started = False
     try:
+        try:
+            await consumer.start()
+            consumer_started = True
+        except Exception:
+            log.exception("live event broker unavailable")
+            await websocket.close(code=1011)
+            return
+
         async for msg in consumer:
             try:
                 event = Event.model_validate(msg.value)
@@ -71,7 +78,7 @@ async def events_stream(websocket: WebSocket) -> None:
             # Filter to this user's cameras on the fly.
             # The event-processor already scoped events to real cameras;
             # ownership check here is the security gate.
-            cam_owner = event.get("metadata", {}).get("owner_id")
+            cam_owner = event.metadata.get("owner_id")
             if cam_owner != owner_id:
                 continue
 
@@ -86,5 +93,6 @@ async def events_stream(websocket: WebSocket) -> None:
     except asyncio.CancelledError:
         pass
     finally:
-        await consumer.stop()
+        if consumer_started:
+            await consumer.stop()
         log.info("ws client disconnected: %s", owner_id)
