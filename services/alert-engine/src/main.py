@@ -123,36 +123,77 @@ async def _evaluate(event: Event, db: asyncpg.Connection) -> None:
         title = _title(priority, event)
         body = event.action_label
 
-        delivery_id = await db.fetchval(
-            """
-            INSERT INTO alert_deliveries (rule_id, event_id, channels_sent)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (rule_id, event_id) DO NOTHING
-            RETURNING id
-            """,
-            rule_row["id"],
-            event.id,
-            [],
-        )
-        if delivery_id is None:
-            log.info(
-                "skipping duplicate alert delivery for rule %s/event %s",
+        requested_channels = list(dict.fromkeys(rule_row["channels"] or []))
+        async with db.transaction():
+            # Serialize retries for one rule/event pair. The unique index
+            # prevents duplicate rows; the advisory lock also prevents two
+            # workers from both sending the same missing channel.
+            lock_key = f"alert:{rule_row['id']}:{event.id}"
+            await db.execute(
+                "SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))",
+                lock_key,
+            )
+            existing = await db.fetchrow(
+                "SELECT id, channels_sent, triggered_at FROM alert_deliveries "
+                "WHERE rule_id = $1 AND event_id = $2",
                 rule_row["id"],
                 event.id,
             )
-            continue
+            if existing:
+                already_sent = list(existing["channels_sent"] or [])
+                if set(requested_channels) <= set(already_sent):
+                    log.info(
+                        "skipping duplicate alert delivery for rule %s/event %s",
+                        rule_row["id"],
+                        event.id,
+                    )
+                    continue
+                # A failed or partial attempt may be retried after a short
+                # cooldown. This avoids permanent loss while limiting repeat
+                # notifications during a provider outage.
+                recent_attempt = await db.fetchval(
+                    "SELECT $1::timestamptz > NOW() - INTERVAL '5 minutes'",
+                    existing["triggered_at"],
+                )
+                if recent_attempt:
+                    continue
+                delivery_id = existing["id"]
+                await db.execute(
+                    "UPDATE alert_deliveries SET triggered_at = NOW() WHERE id = $1",
+                    delivery_id,
+                )
+            else:
+                already_sent = []
+                delivery_id = await db.fetchval(
+                    """
+                    INSERT INTO alert_deliveries (rule_id, event_id, channels_sent)
+                    VALUES ($1, $2, $3)
+                    ON CONFLICT (rule_id, event_id) DO NOTHING
+                    RETURNING id
+                    """,
+                    rule_row["id"],
+                    event.id,
+                    [],
+                )
+                if delivery_id is None:
+                    continue
+
+        pending_channels = [
+            channel for channel in requested_channels if channel not in already_sent
+        ]
 
         sent = await deliver(
-            channels=list(rule_row["channels"]),
+            channels=pending_channels,
             title=title,
             body=body,
             fcm_token=fcm_token,
             phone=phone,
         )
 
+        channels_sent = list(dict.fromkeys(already_sent + sent))
         await db.execute(
             "UPDATE alert_deliveries SET channels_sent = $1 WHERE id = $2",
-            sent,
+            channels_sent,
             delivery_id,
         )
 
