@@ -46,4 +46,5 @@ aiofiles>=23.2.0
 httpx>=0.26.0
 boto3>=1.34.0
 twilio>=8.10.0
+google-auth>=2.0.0
 email-validator>=2.1.0
