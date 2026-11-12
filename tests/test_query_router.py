@@ -15,6 +15,20 @@ def test_safe_sql_requires_events_and_rejects_multiple_statements():
 @pytest.mark.parametrize(
     "sql",
     [
+        "SELECT pg_read_file('/etc/passwd') FROM events",
+        "SELECT current_setting('DATABASE_URL') FROM events",
+        "SELECT pg_sleep(10) FROM events",
+        "SELECT e.id INTO leaked FROM events e",
+    ],
+)
+def test_safe_sql_rejects_privileged_functions_and_select_into(sql):
+    with pytest.raises(ValueError):
+        _safe_sql(sql)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
         "SELECT id FROM events WHERE id IN (SELECT id FROM users)",
         "SELECT id FROM events UNION SELECT id FROM users",
         "WITH leaked AS (SELECT * FROM users) SELECT id FROM events",

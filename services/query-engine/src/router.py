@@ -40,6 +40,13 @@ _TABLE_RE = re.compile(
     r"\b(?:FROM|JOIN)\s+(?:[a-zA-Z_][\w]*\.)?([a-zA-Z_][\w]*)",
     re.IGNORECASE,
 )
+_UNSAFE_FUNCTION_RE = re.compile(
+    r"\b(?:pg_read_file|pg_read_binary_file|pg_ls_dir|pg_stat_file|"
+    r"pg_terminate_backend|pg_cancel_backend|pg_reload_conf|set_config|"
+    r"current_setting|dblink_connect|dblink_exec|lo_import|lo_export|"
+    r"pg_sleep)\s*\(",
+    re.IGNORECASE,
+)
 _ALLOWED_TABLES = {"events", "persons", "tracked_objects", "cameras"}
 
 
@@ -53,8 +60,15 @@ def _safe_sql(sql: str) -> str:
         raise ValueError(f"non-SELECT statement rejected: {sql[:80]}")
     if ";" in sql or "--" in sql or "/*" in sql or "*/" in sql:
         raise ValueError("multiple statements and SQL comments are not allowed")
-    if re.search(r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|GRANT|REVOKE|COPY|CREATE)\b", sql, re.IGNORECASE):
+    if re.search(
+        r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|GRANT|REVOKE|COPY|CREATE|"
+        r"INTO|CALL|DO|EXECUTE|LISTEN|NOTIFY|VACUUM|ANALYZE)\b",
+        sql,
+        re.IGNORECASE,
+    ):
         raise ValueError("unsafe SQL keyword rejected")
+    if _UNSAFE_FUNCTION_RE.search(sql):
+        raise ValueError("unsafe SQL function rejected")
     if not re.search(r"\bFROM\s+(?:[a-zA-Z_][\w]*\.)?events\b", sql, re.IGNORECASE):
         raise ValueError("query must read from the events table")
     if re.search(r"\b(UNION|INTERSECT|EXCEPT|WITH)\b", sql, re.IGNORECASE):
