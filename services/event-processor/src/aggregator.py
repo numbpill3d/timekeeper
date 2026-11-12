@@ -185,15 +185,15 @@ class CameraAggregator:
 
     @staticmethod
     def _attribution_metadata(det: Detection) -> dict:
+        metadata = {"object_category": det.class_name}
         if not det.person_id:
-            return {}
-        return {
-            "attribution": {
-                "person_id": str(det.person_id),
-                "confidence": det.association_confidence,
-                "method": det.association_method or "unknown",
-            }
+            return metadata
+        metadata["attribution"] = {
+            "person_id": str(det.person_id),
+            "confidence": det.association_confidence,
+            "method": det.association_method or "unknown",
         }
+        return metadata
 
     @staticmethod
     def _event_confidence(det: Detection) -> float:

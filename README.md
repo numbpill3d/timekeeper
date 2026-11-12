@@ -16,6 +16,9 @@ invent an identity or action when the evidence is missing or weak.
 - Ingests RTSP/RTSPS, HTTP(S), HLS, local files, and supported provider sessions.
 - Detects and tracks people and objects with a local CV pipeline.
 - Associates people and objects using time, position, tracking, and ReID data.
+- Correlates cross-camera object movement with stable track IDs when available,
+  and otherwise uses a conservative, lower-confidence category/time-window
+  match only when the evidence is unambiguous.
 - Stores events, labels, confidence, embeddings, and clip references in
   PostgreSQL/TimescaleDB with pgvector.
 - Answers natural-language questions through RAG + text-to-SQL, with a

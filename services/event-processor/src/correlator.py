@@ -36,17 +36,23 @@ class Correlator:
             oid = str(event.object_id)
             self._pending_pickups[oid] = (str(event.camera_id), event, event.timestamp)
 
-        elif event.event_type == EventType.object_placed and event.object_id:
-            oid = str(event.object_id)
-            if oid in self._pending_pickups:
-                from_cam, from_evt, _ = self._pending_pickups.pop(oid)
+        elif event.event_type == EventType.object_placed:
+            match = self._find_pickup(event)
+            if match:
+                pickup_key, from_cam, from_evt, match_method = match
+                self._pending_pickups.pop(pickup_key, None)
                 if from_cam != str(event.camera_id):
-                    obj_name = from_evt.action_label.split()[0].lower()
-                    label = f"{obj_name.capitalize()} moved"
+                    object_name = event.metadata.get("object_category") or from_evt.metadata.get(
+                        "object_category"
+                    ) or from_evt.action_label.split()[0].lower()
+                    label = f"{str(object_name).capitalize()} moved"
                     if from_evt.location_label:
                         label += f" from {from_evt.location_label}"
                     if event.location_label:
                         label += f" to {event.location_label}"
+                    confidence = min(from_evt.confidence, event.confidence)
+                    if match_method == "category_time_window":
+                        confidence *= 0.75
                     extra.append(
                         Event(
                             camera_id=event.camera_id,
@@ -56,19 +62,56 @@ class Correlator:
                             person_id=from_evt.person_id or event.person_id,
                             location_label=event.location_label,
                             action_label=label,
-                            confidence=min(from_evt.confidence, event.confidence),
+                            confidence=confidence,
                             metadata={
                                 **event.metadata,
                                 "from_camera_id": from_cam,
                                 "from_location": from_evt.location_label,
                                 "pickup_attribution": from_evt.metadata.get("attribution"),
                                 "placement_attribution": event.metadata.get("attribution"),
+                                "identity_match": match_method,
                             },
                         )
                     )
-                    log.info("object_moved: %s %s->%s", oid, from_cam, event.camera_id)
+                    log.info(
+                        "object_moved: %s %s->%s (%s)",
+                        event.object_id,
+                        from_cam,
+                        event.camera_id,
+                        match_method,
+                    )
 
         return extra
+
+    def _find_pickup(
+        self, event: Event
+    ) -> tuple[str, str, Event, str] | None:
+        """Find an exact object match, or one unambiguous category match.
+
+        Object track IDs are camera/session scoped, so an exact UUID cannot
+        survive a camera transition. The category fallback is deliberately
+        conservative: more than one candidate means the system must not claim
+        which item moved.
+        """
+        if event.object_id:
+            key = str(event.object_id)
+            pickup = self._pending_pickups.get(key)
+            if pickup:
+                return key, pickup[0], pickup[1], "object_id"
+
+        category = event.metadata.get("object_category")
+        if not category:
+            return None
+        candidates = [
+            (key, *pickup)
+            for key, pickup in self._pending_pickups.items()
+            if pickup[0] != str(event.camera_id)
+            and pickup[1].metadata.get("object_category") == category
+        ]
+        if len(candidates) != 1:
+            return None
+        key, from_cam, from_evt, _ = candidates[0]
+        return key, from_cam, from_evt, "category_time_window"
 
     def _expire(self, now: datetime) -> None:
         cutoff = now - CROSS_CAMERA_WINDOW
