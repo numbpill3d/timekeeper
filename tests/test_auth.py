@@ -7,14 +7,13 @@ import pytest
 # Must be set before auth module is imported (evaluated at module level)
 os.environ["JWT_SECRET"] = "test-secret-for-unit-tests-only-must-be-32c"
 
-from fastapi import HTTPException  # noqa: E402
-from auth import (  # noqa: E402
+from auth import (
     create_access_token,
     decode_token,
     hash_password,
     verify_password,
 )
-
+from fastapi import HTTPException
 
 # ── password hashing ──────────────────────────────────────────────
 
@@ -35,15 +34,16 @@ def test_wrong_password_fails():
 # ── JWT token ─────────────────────────────────────────────────────
 
 def test_token_roundtrip():
-    token = create_access_token("user-abc", "home")
+    user_id = "00000000-0000-0000-0000-000000000001"
+    token = create_access_token(user_id, "home")
     payload = decode_token(token)
-    assert payload["sub"] == "user-abc"
+    assert payload["sub"] == user_id
     assert payload["tier"] == "home"
 
 
 def test_different_user_ids_produce_different_tokens():
-    t1 = create_access_token("user-1", "free")
-    t2 = create_access_token("user-2", "free")
+    t1 = create_access_token("00000000-0000-0000-0000-000000000001", "free")
+    t2 = create_access_token("00000000-0000-0000-0000-000000000002", "free")
     assert t1 != t2
 
 
@@ -54,11 +54,13 @@ def test_invalid_token_raises_401():
 
 
 def test_tampered_signature_raises_401():
-    token = create_access_token("user-xyz", "pro")
+    token = create_access_token(
+        "00000000-0000-0000-0000-000000000003", "pro"
+    )
     header, payload, signature = token.split(".")
     first = signature[0]
     tampered_signature = ("A" if first != "A" else "B") + signature[1:]
-    tampered = ".".join((header, payload, tampered_signature))
+    tampered = f"{header}.{payload}.{tampered_signature}"
     with pytest.raises(HTTPException) as exc_info:
         decode_token(tampered)
     assert exc_info.value.status_code == 401
@@ -66,5 +68,12 @@ def test_tampered_signature_raises_401():
 
 def test_tier_preserved_in_token():
     for tier in ("free", "home", "family", "pro"):
-        payload = decode_token(create_access_token("u", tier))
+        payload = decode_token(
+            create_access_token("00000000-0000-0000-0000-000000000001", tier)
+        )
         assert payload["tier"] == tier
+
+
+def test_malformed_subject_is_rejected():
+    with pytest.raises(ValueError):
+        create_access_token("not-a-uuid", "free")

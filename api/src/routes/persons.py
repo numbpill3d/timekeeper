@@ -8,7 +8,7 @@ from uuid import UUID
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from ..auth import CurrentUser
 from ..db import get_db
@@ -30,8 +30,16 @@ class PersonOut(BaseModel):
 
 
 class PersonUpdate(BaseModel):
-    label: str | None = None
+    label: str | None = Field(default=None, min_length=1, max_length=120)
     is_known: bool | None = None
+
+    @field_validator("label")
+    @classmethod
+    def _strip_label(cls, value: str | None) -> str | None:
+        value = value.strip() if value is not None else None
+        if value == "":
+            raise ValueError("label cannot be empty")
+        return value
 
 
 @router.get("", response_model=list[PersonOut])

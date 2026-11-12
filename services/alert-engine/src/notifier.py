@@ -1,7 +1,7 @@
 """
 Multi-channel notification delivery.
 
-Supported channels: push (FCM via legacy HTTP API), sms (Twilio).
+Supported channels: push (FCM HTTP v1, with a legacy fallback), sms (Twilio).
 Channels are selected per alert rule; delivery silently no-ops if the
 required credentials are not configured in the environment.
 """

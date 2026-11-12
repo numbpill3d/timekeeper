@@ -19,7 +19,6 @@ from typing import Any
 from urllib.parse import urlparse
 
 import numpy as np
-
 from omniscient_shared.models.camera import Camera, CameraProtocol
 
 
@@ -142,14 +141,15 @@ class _OAuthCredentials:
                 "client_id": client_id,
                 "client_secret": client_secret,
             }
-            async with ClientSession() as session:
-                async with session.post(self.token_url, data=payload) as response:
-                    body = await response.text()
-                    if response.status >= 400:
-                        raise ProviderError(
-                            f"{self.provider} token refresh failed ({response.status})"
-                        )
-                    result = json.loads(body)
+            async with ClientSession() as session, session.post(
+                self.token_url, data=payload
+            ) as response:
+                body = await response.text()
+                if response.status >= 400:
+                    raise ProviderError(
+                        f"{self.provider} token refresh failed ({response.status})"
+                    )
+                result = json.loads(body)
             token = str(result.get("access_token", "")).strip()
             if not token:
                 raise ProviderError(f"{self.provider} refresh returned no access token")
@@ -224,7 +224,6 @@ async def _webrtc_frames(
 ) -> AsyncIterator[np.ndarray]:
     """Create one receive-only WebRTC session and yield video frames."""
     try:
-        from aiohttp import ClientSession
         from aiortc import RTCPeerConnection, RTCSessionDescription
     except ImportError as exc:
         raise ProviderError(
@@ -280,9 +279,10 @@ async def _whep_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
                 "Content-Type": "application/sdp",
                 "Accept": "application/sdp, application/json",
             }
-            async with ClientSession() as session:
-                async with session.post(endpoint, data=offer_sdp, headers=headers) as response:
-                    return response.status, response.content_type, await response.text()
+            async with ClientSession() as session, session.post(
+                endpoint, data=offer_sdp, headers=headers
+            ) as response:
+                return response.status, response.content_type, await response.text()
 
         token = await credentials.get()
         status, content_type, body = await request(token)
@@ -329,9 +329,10 @@ async def _nest_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
         }
         async def request(token: str) -> tuple[int, str]:
             headers = {"Authorization": f"Bearer {token}"}
-            async with ClientSession() as session:
-                async with session.post(command_url, json=payload, headers=headers) as response:
-                    return response.status, await response.text()
+            async with ClientSession() as session, session.post(
+                command_url, json=payload, headers=headers
+            ) as response:
+                return response.status, await response.text()
 
         status, body = await request(await credentials.get())
         if status == 401:

@@ -11,15 +11,20 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from typing import Literal
+from uuid import UUID
 
 from fastapi import FastAPI, HTTPException
-from typing import Literal
-
 from pydantic import BaseModel, Field, field_validator
 
-from .db import close_pool, init_pool
-from .rag import embed_text
-from .router import answer
+try:
+    from .db import close_pool, init_pool
+    from .rag import embed_text
+    from .router import answer
+except ImportError:  # Support direct-module imports used by local tests.
+    from db import close_pool, init_pool
+    from rag import embed_text
+    from router import answer
 
 log = logging.getLogger(__name__)
 logging.basicConfig(
@@ -56,11 +61,19 @@ class ConversationTurn(BaseModel):
 
 
 class QueryRequest(BaseModel):
-    question: str
-    owner_id: str
+    question: str = Field(min_length=1, max_length=1000)
+    owner_id: UUID
     conversation_history: list[ConversationTurn] | None = Field(
         default=None, max_length=6
     )
+
+    @field_validator("question")
+    @classmethod
+    def _strip_question(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("question cannot be empty")
+        return value
 
 
 class QueryResponse(BaseModel):
@@ -71,7 +84,15 @@ class QueryResponse(BaseModel):
 
 
 class EmbedRequest(BaseModel):
-    text: str
+    text: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("text")
+    @classmethod
+    def _strip_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("text cannot be empty")
+        return value
 
 
 class EmbedResponse(BaseModel):
@@ -86,7 +107,7 @@ async def query(req: QueryRequest) -> QueryResponse:
     try:
         result = await answer(
             question=req.question,
-            owner_id=req.owner_id,
+            owner_id=str(req.owner_id),
             conversation_history=[
                 turn.model_dump() for turn in (req.conversation_history or [])
             ],
@@ -109,7 +130,8 @@ async def embed(req: EmbedRequest) -> EmbedResponse:
     try:
         vec = embed_text(req.text)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        log.exception("embedding failed")
+        raise HTTPException(status_code=503, detail="embedding service unavailable") from exc
     return EmbedResponse(embedding=vec)
 
 

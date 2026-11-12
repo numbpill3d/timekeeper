@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Annotated
 import re
+from typing import Annotated
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -52,15 +52,20 @@ async def register(req: RegisterRequest, db: DB) -> TokenResponse:
     if existing:
         raise HTTPException(status_code=409, detail="email already registered")
 
-    row = await db.fetchrow(
-        """
-        INSERT INTO users (email, password_hash)
-        VALUES ($1, $2)
-        RETURNING id, subscription_tier
-        """,
-        req.email,
-        hash_password(req.password),
-    )
+    try:
+        row = await db.fetchrow(
+            """
+            INSERT INTO users (email, password_hash)
+            VALUES ($1, $2)
+            RETURNING id, subscription_tier
+            """,
+            req.email,
+            hash_password(req.password),
+        )
+    except asyncpg.UniqueViolationError as exc:
+        # The pre-check is only a friendly fast path; the unique index is the
+        # authority when two registrations race.
+        raise HTTPException(status_code=409, detail="email already registered") from exc
     token = create_access_token(str(row["id"]), row["subscription_tier"])
     return TokenResponse(access_token=token)
 

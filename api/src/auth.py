@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import hashlib
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
+from uuid import UUID
 
 import bcrypt as _bcrypt
 from fastapi import Depends, HTTPException, status
@@ -42,6 +43,7 @@ if not 1 <= _EXPIRE_MIN <= 1440:
     raise RuntimeError("JWT_EXPIRE_MINUTES must be between 1 and 1440")
 
 _bearer = HTTPBearer()
+_VALID_TIERS = {"free", "home", "family", "pro"}
 
 
 # ── Password utils ────────────────────────────────────────────────
@@ -62,7 +64,13 @@ def verify_password(plain: str, hashed: str) -> bool:
 # ── Token utils ───────────────────────────────────────────────────
 
 def create_access_token(user_id: str, tier: str) -> str:
-    expire = datetime.now(tz=timezone.utc) + timedelta(minutes=_EXPIRE_MIN)
+    try:
+        UUID(user_id)
+    except (ValueError, AttributeError) as exc:
+        raise ValueError("user_id must be a UUID") from exc
+    if tier not in _VALID_TIERS:
+        raise ValueError("tier is invalid")
+    expire = datetime.now(tz=UTC) + timedelta(minutes=_EXPIRE_MIN)
     return jwt.encode(
         {"sub": user_id, "tier": tier, "exp": expire},
         _SECRET,
@@ -72,8 +80,14 @@ def create_access_token(user_id: str, tier: str) -> str:
 
 def decode_token(token: str) -> dict:
     try:
-        return jwt.decode(token, _SECRET, algorithms=[_ALGORITHM])
-    except JWTError as exc:
+        payload = jwt.decode(token, _SECRET, algorithms=[_ALGORITHM])
+        if not isinstance(payload.get("sub"), str):
+            raise TypeError("token subject is missing")
+        UUID(payload["sub"])
+        if payload.get("tier") not in _VALID_TIERS:
+            raise ValueError("token tier is invalid")
+        return payload
+    except (JWTError, TypeError, ValueError, AttributeError) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="invalid or expired token",
