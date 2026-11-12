@@ -65,6 +65,18 @@ async def main() -> None:
             det_msg = DetectionMessage(**msg.value)
             cam_key = str(det_msg.camera_id)
 
+            if cam_key not in cam_locations:
+                row = await db.fetchrow(
+                    "SELECT location_label, owner_id FROM cameras "
+                    "WHERE id = $1 AND is_active = TRUE",
+                    det_msg.camera_id,
+                )
+                if not row:
+                    log.warning("dropping detection for unknown/inactive camera %s", cam_key)
+                    continue
+                cam_locations[cam_key] = row["location_label"]
+                cam_owners[cam_key] = str(row["owner_id"])
+
             if cam_key not in aggregators:
                 aggregators[cam_key] = CameraAggregator(
                     camera_id=cam_key,

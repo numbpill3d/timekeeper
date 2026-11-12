@@ -8,7 +8,6 @@ import asyncio
 import logging
 import os
 from pathlib import Path
-from urllib.parse import urlparse
 from uuid import UUID
 
 import asyncpg
@@ -18,6 +17,8 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 from omniscient_shared.models.event import Event
 
+from .storage import object_key
+
 log = logging.getLogger(__name__)
 
 _DB_URL = os.getenv("DATABASE_URL", "")
@@ -26,9 +27,15 @@ _S3_ENDPOINT = os.getenv("S3_ENDPOINT_URL", "http://minio:9000")
 _S3_KEY = os.getenv("S3_ACCESS_KEY", "minioadmin")
 _S3_SECRET = os.getenv("S3_SECRET_KEY", "minioadmin")
 _BUCKET = os.getenv("MEDIA_BUCKET", "omniscient-media")
+_FRAME_ROOT = Path(os.getenv("FRAME_STORE_PATH", "/tmp/frames")).resolve()
 _DEFAULT_RETENTION_DAYS = max(
     1, int(os.getenv("DEFAULT_RETENTION_DAYS", "30"))
 )
+
+if os.getenv("ENVIRONMENT", "development").lower() == "production" and (
+    not _S3_KEY or not _S3_SECRET or _S3_KEY == "minioadmin" or _S3_SECRET == "minioadmin"
+):
+    raise RuntimeError("production media storage credentials must be configured")
 
 _s3 = boto3.client(
     "s3",
@@ -54,7 +61,12 @@ def _upload_sync(local_path: str, key: str) -> str:
 
 async def store_clip(frame_path: str, event_id: UUID) -> str | None:
     """Upload frame JPEG and return its private object key."""
-    path = Path(frame_path)
+    try:
+        path = Path(frame_path).resolve()
+        path.relative_to(_FRAME_ROOT)
+    except (OSError, ValueError):
+        log.warning("rejected clip path outside frame store: %s", frame_path)
+        return None
     if not path.exists():
         return None
     key = f"clips/{event_id}.jpg"
@@ -110,11 +122,16 @@ async def purge_expired_events(conn: asyncpg.Connection) -> int:
         """,
         _DEFAULT_RETENTION_DAYS,
     )
-    keys = [
-        _object_key(row["clip_path"])
-        for row in rows
-        if row["clip_path"]
-    ]
+    keys = []
+    for row in rows:
+        if not row["clip_path"]:
+            continue
+        try:
+            key = object_key(row["clip_path"])
+        except ValueError:
+            log.warning("skipping invalid expired clip key")
+            continue
+        keys.append(key)
     if keys:
         await asyncio.get_running_loop().run_in_executor(
             None, _delete_objects_sync, keys
@@ -128,15 +145,6 @@ def _delete_objects_sync(keys: list[str]) -> None:
             Bucket=_BUCKET,
             Delete={"Objects": [{"Key": key} for key in keys[start:start + 1000]]},
         )
-
-
-def _object_key(value: str) -> str:
-    """Handle both current keys and URLs written by older releases."""
-    parsed = urlparse(value)
-    prefix = f"/{_BUCKET}/"
-    if parsed.scheme and parsed.netloc and parsed.path.startswith(prefix):
-        return parsed.path[len(prefix):]
-    return value.lstrip("/")
 
 
 async def _get_embedding(event: Event) -> str | None:
