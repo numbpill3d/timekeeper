@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from omniscient_shared.models.event import Event, EventType
-from rules import compile_rule, event_matches
+from rules import compile_rule, event_matches, normalize_rule
 
 
 def _event(
@@ -38,6 +38,16 @@ def test_compile_package_template():
 def test_compile_no_match_returns_empty():
     result = compile_rule("some completely unrecognized rule xyz123")
     assert result == {}
+
+
+def test_invalid_compiled_rule_is_rejected():
+    assert normalize_rule({"event_types": ["read_users_table"]}) == {}
+    assert normalize_rule({"time_after": "25:99"}) == {}
+    assert normalize_rule({"min_confidence": 2}) == {}
+
+
+def test_disabled_rule_never_matches():
+    assert event_matches(_event(), {"_disabled": True}, person_label=None) is False
 
 
 # ── event type filter ─────────────────────────────────────────────

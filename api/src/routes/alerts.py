@@ -5,10 +5,11 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated
 from uuid import UUID
+from typing import Literal
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from ..auth import CurrentUser
 from ..db import get_db
@@ -21,18 +22,34 @@ _ALLOWED = {"is_active", "name", "rule_text", "priority", "channels"}
 
 
 class AlertRuleCreate(BaseModel):
-    name: str
-    rule_text: str
-    priority: str = "important"
-    channels: list[str] = ["push"]
+    name: str = Field(min_length=1, max_length=120)
+    rule_text: str = Field(min_length=1, max_length=1000)
+    priority: Literal["critical", "important", "informational"] = "important"
+    channels: list[Literal["push", "sms"]] = Field(default_factory=lambda: ["push"], min_length=1, max_length=2)
+
+    @field_validator("name", "rule_text")
+    @classmethod
+    def _strip_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("value cannot be empty")
+        return value
 
 
 class AlertRuleUpdate(BaseModel):
     is_active: bool | None = None
-    name: str | None = None
-    rule_text: str | None = None
-    priority: str | None = None
-    channels: list[str] | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    rule_text: str | None = Field(default=None, min_length=1, max_length=1000)
+    priority: Literal["critical", "important", "informational"] | None = None
+    channels: list[Literal["push", "sms"]] | None = Field(default=None, min_length=1, max_length=2)
+
+    @field_validator("name", "rule_text")
+    @classmethod
+    def _strip_optional_text(cls, value: str | None) -> str | None:
+        value = value.strip() if value is not None else None
+        if value == "":
+            raise ValueError("value cannot be empty")
+        return value
 
 
 class AlertRuleOut(BaseModel):

@@ -16,7 +16,7 @@ from omniscient_shared.kafka.topics import EVENTS, GROUP_ALERT_ENGINE
 from omniscient_shared.models.event import Event
 
 from .notifier import deliver
-from .rules import compile_rule, compile_rule_llm, event_matches
+from .rules import compile_rule, compile_rule_llm, event_matches, normalize_rule
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -81,11 +81,20 @@ async def _evaluate(event: Event, db: asyncpg.Connection) -> None:
             compiled = compile_rule(rule_row["rule_text"])
             if not compiled:
                 compiled = await compile_rule_llm(rule_row["rule_text"])
+            compiled = normalize_rule(compiled)
+            if not compiled:
+                # An unknown or invalid rule must not degrade into a
+                # match-all predicate. Keep it disabled until edited.
+                compiled = {"_disabled": True}
             await db.execute(
                 "UPDATE alert_rules SET compiled_rule = $1 WHERE id = $2",
                 json.dumps(compiled),
                 rule_row["id"],
             )
+        else:
+            compiled = normalize_rule(compiled)
+            if not compiled:
+                continue
 
         if not event_matches(
             event,

@@ -21,6 +21,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
+from math import isfinite
 
 from omniscient_shared.models.event import Event, EventType
 
@@ -66,6 +68,52 @@ Predicate schema (only include relevant fields):
 Return ONLY valid JSON, no explanation.
 """.strip()
 
+_RULE_LIST_FIELDS = {
+    "event_types": {event.value for event in EventType},
+    "person_labels": None,
+    "object_categories": None,
+    "location_labels": None,
+}
+_TIME_RE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+
+
+def normalize_rule(value: object) -> dict:
+    """Validate the LLM/database predicate before it reaches evaluation."""
+    if not isinstance(value, dict):
+        return {}
+
+    normalized: dict = {}
+    for field, allowed in _RULE_LIST_FIELDS.items():
+        raw = value.get(field)
+        if raw is None:
+            continue
+        if not isinstance(raw, list) or not all(isinstance(item, str) for item in raw):
+            return {}
+        items = [item.strip() for item in raw if item.strip()]
+        if allowed is not None:
+            items = [item for item in items if item in allowed]
+            if not items:
+                return {}
+        normalized[field] = items[:32]
+
+    for field in ("time_after", "time_before"):
+        raw = value.get(field)
+        if raw is not None:
+            if not isinstance(raw, str) or not _TIME_RE.fullmatch(raw):
+                return {}
+            normalized[field] = raw
+
+    if "min_confidence" in value:
+        try:
+            confidence = float(value["min_confidence"])
+        except (TypeError, ValueError):
+            return {}
+        if not isfinite(confidence) or not 0.0 <= confidence <= 1.0:
+            return {}
+        normalized["min_confidence"] = confidence
+
+    return normalized
+
 
 def compile_rule(rule_text: str) -> dict:
     """Template matching fallback — fast, no LLM required."""
@@ -93,7 +141,7 @@ async def compile_rule_llm(rule_text: str) -> dict:
         if "```" in raw:
             parts = raw.split("```")
             raw = parts[1].lstrip("json").strip() if len(parts) > 1 else raw
-        return json.loads(raw)
+        return normalize_rule(json.loads(raw))
     except Exception as exc:
         log.warning("llm rule compilation failed: %s", exc)
         return {}
@@ -109,6 +157,8 @@ def event_matches(
     """Return True if event satisfies the compiled rule predicate."""
     if not rule:
         return True
+    if rule.get("_disabled"):
+        return False
 
     types = rule.get("event_types")
     if types and event.event_type.value not in types:
