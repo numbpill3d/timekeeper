@@ -1,6 +1,6 @@
 .PHONY: test web-build compose-config check
 
-PYTHON ?= python
+PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python)
 COMPOSE ?= docker-compose
 ENV_FILE ?= .env
 
