@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Platform } from "react-native";
+import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -16,6 +16,15 @@ import { TimelineScreen } from "./src/screens/TimelineScreen";
 
 const Tab = createBottomTabNavigator();
 const queryClient = new QueryClient();
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 async function registerPushToken(): Promise<void> {
   if (Platform.OS === "ios") return; // FCM token registration requires APNs config for iOS
@@ -44,7 +53,13 @@ export default function App() {
     if (authed) registerPushToken();
   }, [authed]);
 
-  if (authed === null) return null;
+  if (authed === null) {
+    return (
+      <View style={styles.loading} accessibilityLabel="Loading Timekeeper">
+        <ActivityIndicator color="#c00" />
+      </View>
+    );
+  }
 
   if (!authed) {
     return (
@@ -79,3 +94,12 @@ export default function App() {
     </QueryClientProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#000",
+  },
+});

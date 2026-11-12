@@ -7,7 +7,7 @@ import { EventCard } from "../components/EventCard";
 export function TimelineScreen() {
   const [filter, setFilter] = useState("");
 
-  const { data } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["events", "timeline", filter],
     queryFn: () =>
       listEvents({
@@ -27,6 +27,12 @@ export function TimelineScreen() {
       />
       <FlatList
         data={data ?? []}
+        refreshing={isLoading}
+        ListEmptyComponent={
+          <Text style={styles.empty}>
+            {isError ? "couldn't load the timeline." : "no matching events."}
+          </Text>
+        }
         keyExtractor={(e) => e.id}
         renderItem={({ item }) => <EventCard event={item} />}
         ItemSeparatorComponent={() => <View style={styles.sep} />}
@@ -47,4 +53,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   sep: { height: 1, backgroundColor: "#111" },
+  empty: { color: "#888", fontSize: 14, textAlign: "center", marginTop: 32 },
 });

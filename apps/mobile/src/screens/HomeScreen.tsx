@@ -8,7 +8,7 @@ export function HomeScreen() {
   const [liveEvents, setLiveEvents] = useState<OmniscientEvent[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
 
-  const { data: recentEvents } = useQuery({
+  const { data: recentEvents, isLoading, isError } = useQuery({
     queryKey: ["events"],
     queryFn: () => listEvents({ limit: 20 }).then((r) => r.data),
     refetchInterval: 30_000,
@@ -40,6 +40,12 @@ export function HomeScreen() {
       <Text style={styles.header}>recent activity</Text>
       <FlatList
         data={allEvents}
+        refreshing={isLoading}
+        ListEmptyComponent={
+          <Text style={styles.empty}>
+            {isError ? "couldn't load activity right now." : "no activity recorded yet."}
+          </Text>
+        }
         keyExtractor={(e) => e.id}
         renderItem={({ item }) => <EventCard event={item} />}
         ItemSeparatorComponent={() => <View style={styles.sep} />}
@@ -52,4 +58,5 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000", padding: 16 },
   header: { color: "#888", fontSize: 12, letterSpacing: 1, marginBottom: 12 },
   sep: { height: 1, backgroundColor: "#111" },
+  empty: { color: "#888", fontSize: 14, textAlign: "center", marginTop: 32 },
 });

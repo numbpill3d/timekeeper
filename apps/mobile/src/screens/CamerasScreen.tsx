@@ -11,7 +11,7 @@ interface Camera {
 }
 
 export function CamerasScreen() {
-  const { data } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["cameras"],
     queryFn: () => api.get<Camera[]>("/cameras").then((r) => r.data),
   });
@@ -20,6 +20,12 @@ export function CamerasScreen() {
     <View style={styles.container}>
       <FlatList
         data={data ?? []}
+        refreshing={isLoading}
+        ListEmptyComponent={
+          <Text style={styles.empty}>
+            {isError ? "couldn't load cameras." : "no cameras connected yet."}
+          </Text>
+        }
         keyExtractor={(c) => c.id}
         renderItem={({ item }) => (
           <View style={styles.card}>
@@ -50,4 +56,5 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4, marginTop: 8 },
   online: { backgroundColor: "#0c0" },
   offline: { backgroundColor: "#600" },
+  empty: { color: "#888", fontSize: 14, textAlign: "center", marginTop: 32 },
 });

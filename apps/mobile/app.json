@@ -6,9 +6,6 @@
     "orientation": "portrait",
     "scheme": "omniscient",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "backgroundColor": "#000000"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.omniscienthome.app",
