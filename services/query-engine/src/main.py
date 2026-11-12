@@ -10,6 +10,7 @@ Endpoints:
 from __future__ import annotations
 
 import logging
+import math
 from contextlib import asynccontextmanager
 from typing import Literal
 from uuid import UUID
@@ -18,11 +19,11 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 try:
-    from .db import close_pool, init_pool
+    from .db import close_pool, get_pool, init_pool
     from .rag import embed_text
     from .router import answer
 except ImportError:  # Support direct-module imports used by local tests.
-    from db import close_pool, init_pool
+    from db import close_pool, get_pool, init_pool
     from rag import embed_text
     from router import answer
 
@@ -100,6 +101,13 @@ class EmbedResponse(BaseModel):
     # column; accepting another size only defers failure to event persistence.
     embedding: list[float] = Field(min_length=384, max_length=384)
 
+    @field_validator("embedding")
+    @classmethod
+    def _finite_values(cls, value: list[float]) -> list[float]:
+        if not all(math.isfinite(item) for item in value):
+            raise ValueError("embedding values must be finite")
+        return value
+
 
 @app.post("/query", response_model=QueryResponse)
 async def query(req: QueryRequest) -> QueryResponse:
@@ -139,4 +147,10 @@ async def embed(req: EmbedRequest) -> EmbedResponse:
 
 @app.get("/health")
 async def health() -> dict:
-    return {"status": "ok"}
+    try:
+        pool = get_pool()
+        async with pool.acquire() as conn:
+            await conn.fetchval("SELECT 1")
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="database unavailable") from exc
+    return {"status": "ok", "database": "ok"}

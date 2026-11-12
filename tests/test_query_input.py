@@ -63,6 +63,8 @@ def test_embedding_response_requires_database_vector_dimension():
         EmbedResponse(embedding=[0.0] * 383)
     with pytest.raises(ValueError):
         EmbedResponse(embedding=[0.0] * 385)
+    with pytest.raises(ValueError, match="finite"):
+        EmbedResponse(embedding=[float("nan")] + [0.0] * 383)
 
 
 def test_notification_profile_explicit_nulls_are_preserved_for_clear():
