@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class EventType(str, Enum):
@@ -29,11 +30,22 @@ class Event(BaseModel):
     timestamp: datetime
     person_id: UUID | None = None
     object_id: UUID | None = None
-    location_label: str | None = None
+    location_label: str | None = Field(default=None, max_length=120)
     action_label: str = Field(min_length=1, max_length=500)
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
     metadata: dict = Field(default_factory=dict)
-    clip_path: str | None = None
+    clip_path: str | None = Field(default=None, max_length=2048)
+
+    @field_validator("metadata")
+    @classmethod
+    def _bounded_metadata(cls, value: dict) -> dict:
+        try:
+            encoded = json.dumps(value, separators=(",", ":"))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("metadata must be JSON serializable") from exc
+        if len(encoded) > 16384:
+            raise ValueError("metadata exceeds the 16 KiB limit")
+        return value
 
     def to_text(self) -> str:
         """Human-readable event description for LLM context."""

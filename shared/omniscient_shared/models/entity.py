@@ -18,7 +18,7 @@ class Detection(BaseModel):
     person_id: UUID | None = None
     object_id: UUID | None = None
     association_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
-    association_method: str | None = None
+    association_method: str | None = Field(default=None, max_length=80)
 
     @model_validator(mode="after")
     def _valid_bbox(self) -> Detection:
@@ -44,18 +44,18 @@ class DetectionMessage(BaseModel):
     """Published by vision to the 'detections' topic."""
     camera_id: UUID
     timestamp: datetime
-    frame_id: str
-    frame_path: str | None = None  # propagated from FrameMessage for clip extraction
-    detections: list[Detection] = Field(default_factory=list)
+    frame_id: str = Field(min_length=1, max_length=200)
+    frame_path: str | None = Field(default=None, max_length=1024)  # propagated from FrameMessage for clip extraction
+    detections: list[Detection] = Field(default_factory=list, max_length=512)
 
 
 class Person(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     owner_id: UUID
-    label: str
+    label: str = Field(min_length=1, max_length=120)
     is_known: bool = False
     appearance_tags: list[str] = Field(default_factory=list)
-    retention_days: int = 30
+    retention_days: int = Field(default=30, ge=1, le=3650)
     last_seen_at: datetime | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -63,8 +63,8 @@ class Person(BaseModel):
 class TrackedObject(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     owner_id: UUID
-    category: str
-    label: str | None = None
+    category: str = Field(min_length=1, max_length=80)
+    label: str | None = Field(default=None, max_length=120)
     last_camera_id: UUID | None = None
     last_seen_at: datetime | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)

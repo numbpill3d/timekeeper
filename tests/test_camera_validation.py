@@ -1,7 +1,8 @@
 """Camera input validation must not persist credentials."""
 
 import pytest
-from omniscient_shared.models.entity import Detection, FrameMessage
+from omniscient_shared.models.entity import Detection, DetectionMessage, FrameMessage
+from omniscient_shared.models.event import Event, EventType
 from pydantic import ValidationError
 
 from api.src.routes.cameras import CameraCreate
@@ -87,3 +88,32 @@ def test_detection_contract_rejects_invalid_bounds():
             width=0,
             height=100,
         )
+
+
+def test_detection_message_bounds_untrusted_frame_payloads():
+    with pytest.raises(ValidationError):
+        DetectionMessage(
+            camera_id="00000000-0000-0000-0000-000000000001",
+            timestamp="2026-01-01T00:00:00Z",
+            frame_id="x" * 201,
+        )
+    with pytest.raises(ValidationError):
+        DetectionMessage(
+            camera_id="00000000-0000-0000-0000-000000000001",
+            timestamp="2026-01-01T00:00:00Z",
+            frame_id="frame",
+            frame_path="x" * 1025,
+        )
+
+
+def test_event_contract_rejects_oversized_or_non_json_metadata():
+    base = {
+        "camera_id": "00000000-0000-0000-0000-000000000001",
+        "event_type": EventType.person_detected,
+        "timestamp": "2026-01-01T00:00:00Z",
+        "action_label": "person detected",
+    }
+    with pytest.raises(ValidationError):
+        Event(**base, metadata={"payload": "x" * 16385})
+    with pytest.raises(ValidationError):
+        Event(**base, metadata={"payload": object()})
