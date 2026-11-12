@@ -40,6 +40,11 @@ _TABLE_RE = re.compile(
     r"\b(?:FROM|JOIN)\s+(?:[a-zA-Z_][\w]*\.)?([a-zA-Z_][\w]*)",
     re.IGNORECASE,
 )
+_FROM_SECTION_RE = re.compile(
+    r"\bFROM\b(?P<section>.*?)(?=\bWHERE\b|\bGROUP\s+BY\b|"
+    r"\bORDER\s+BY\b|\bHAVING\b|\bLIMIT\b|\bOFFSET\b|$)",
+    re.IGNORECASE | re.DOTALL,
+)
 _UNSAFE_FUNCTION_RE = re.compile(
     r"\b(?:pg_read_file|pg_read_binary_file|pg_ls_dir|pg_stat_file|"
     r"pg_terminate_backend|pg_cancel_backend|pg_reload_conf|set_config|"
@@ -62,7 +67,7 @@ def _safe_sql(sql: str) -> str:
         raise ValueError("multiple statements and SQL comments are not allowed")
     if re.search(
         r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|GRANT|REVOKE|COPY|CREATE|"
-        r"INTO|CALL|DO|EXECUTE|LISTEN|NOTIFY|VACUUM|ANALYZE)\b",
+        r"INTO|CALL|DO|EXECUTE|LISTEN|NOTIFY|VACUUM|ANALYZE|LATERAL)\b",
         sql,
         re.IGNORECASE,
     ):
@@ -71,6 +76,9 @@ def _safe_sql(sql: str) -> str:
         raise ValueError("unsafe SQL function rejected")
     if not re.search(r"\bFROM\s+(?:[a-zA-Z_][\w]*\.)?events\b", sql, re.IGNORECASE):
         raise ValueError("query must read from the events table")
+    from_section = _FROM_SECTION_RE.search(sql)
+    if from_section and "," in from_section.group("section"):
+        raise ValueError("comma-separated FROM relations are not allowed")
     if re.search(r"\b(UNION|INTERSECT|EXCEPT|WITH)\b", sql, re.IGNORECASE):
         raise ValueError("set operations and CTEs are not allowed")
     tables = {match.group(1).lower() for match in _TABLE_RE.finditer(sql)}

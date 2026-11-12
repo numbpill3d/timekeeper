@@ -32,6 +32,8 @@ def test_safe_sql_rejects_privileged_functions_and_select_into(sql):
         "SELECT id FROM events WHERE id IN (SELECT id FROM users)",
         "SELECT id FROM events UNION SELECT id FROM users",
         "WITH leaked AS (SELECT * FROM users) SELECT id FROM events",
+        "SELECT e.id FROM events e, users u",
+        "SELECT e.id FROM events e CROSS JOIN LATERAL (SELECT id FROM users) u",
     ],
 )
 def test_safe_sql_rejects_unscoped_or_composed_queries(sql):
