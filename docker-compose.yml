@@ -47,7 +47,7 @@ services:
         done
 
   kafka:
-    image: bitnamilegacy/kafka:3.6
+    image: bitnamilegacy/kafka:3.6@sha256:287cec8bf1b254efe016ec66ea77628e31f242b09f3c68a15eec74d93c21a410
     environment:
       KAFKA_CFG_NODE_ID: 1
       KAFKA_CFG_PROCESS_ROLES: controller,broker
@@ -70,14 +70,14 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe
     volumes:
       - redisdata:/data
     ports:
       - "127.0.0.1:6379:6379"
 
   minio:
-    image: rustfs/rustfs:latest
+    image: rustfs/rustfs:latest@sha256:b81d16a90ee25bd9511280127ca1471788c6e874cf0f0da759645f46b2dc1d74
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY}
@@ -91,7 +91,7 @@ services:
       - "127.0.0.1:9001:9001"
 
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:latest@sha256:910d0d8107b538fb0894e63163eb195de0cc7aefcbc666dc62d3b18f71124592
     volumes:
       - ollamadata:/root/.ollama
     ports:

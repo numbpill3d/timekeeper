@@ -1,4 +1,4 @@
-FROM timescale/timescaledb:latest-pg15
+FROM timescale/timescaledb:latest-pg15@sha256:6343bdc87ca132c6b53acb26113a6bad1821d188fa39975a745f32ddd9757634
 
 # The Timescale image provides the time-series extension but not pgvector.
 # Build pgvector against the PostgreSQL 15 headers in this image; Alpine's

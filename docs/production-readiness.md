@@ -2,6 +2,10 @@
 
 ## Local stack
 
+Infrastructure image references are pinned by digest in Compose and the
+TimescaleDB Dockerfile. Refresh those digests deliberately during dependency
+upgrades rather than relying on mutable tags.
+
 1. Copy `.env.example` to `.env` and replace every development credential.
 2. Set `ENVIRONMENT=production`, a random `JWT_SECRET` of at least 32
    characters, a browser-reachable `S3_PUBLIC_ENDPOINT_URL`, and real storage
