@@ -39,6 +39,9 @@ _LOCATION_RE = re.compile(
 _GENERIC_OBJECT_QUESTION_RE = re.compile(
     r"\b(?:what happened to|where (?:is|was|were))\b", re.IGNORECASE
 )
+_POSSESSIVE_PERSON_RE = re.compile(
+    r"\b(?P<person>[a-z][a-z0-9_-]{1,31})['’]s\b", re.IGNORECASE
+)
 _HISTORY_QUESTION_RE = re.compile(
     r"\b(?:what happened to|follow|track|where did .*\bgo|sequence|history)\b",
     re.IGNORECASE,
@@ -209,20 +212,29 @@ def build_fallback_query(question: str) -> tuple[str, list[object]]:
     generic_object_question = bool(
         _GENERIC_OBJECT_QUESTION_RE.search(question)
     )
+    possessive_person_match = _POSSESSIVE_PERSON_RE.search(question.lower())
+    possessive_person = (
+        possessive_person_match.group("person")
+        if possessive_person_match
+        else None
+    )
+    object_search_terms = [
+        term for term in terms if not possessive_person or term != possessive_person
+    ]
     object_sources = [
         term
-        for term in terms
+        for term in object_search_terms
         if term.rstrip("s") in {t.rstrip("s") for t in _OBJECT_TERMS}
     ]
     object_terms = (
-        [" ".join(term for term in terms if term not in location_tokens)]
-        if generic_object_question and terms and not (
+        [" ".join(term for term in object_search_terms if term not in location_tokens)]
+        if generic_object_question and object_search_terms and not (
             len(terms) == 1 and terms[0] in object_sources
         )
         else [_OBJECT_ALIASES.get(term, term) for term in object_sources]
     )
-    person_terms = [] if generic_object_question else [
-        term for term in terms
+    person_terms = ([possessive_person] if possessive_person else []) if generic_object_question else [
+        term for term in object_search_terms
         if term not in object_sources and term not in location_tokens
     ]
 
