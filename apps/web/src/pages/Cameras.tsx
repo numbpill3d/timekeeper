@@ -183,7 +183,7 @@ export function Cameras() {
   const [removeError, setRemoveError] = useState("");
   const [showForm, setShowForm] = useState(false);
 
-  const { data: cameras = [], isLoading } = useQuery({
+  const { data: cameras = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["cameras"],
     queryFn: () => listCameras().then((r) => r.data),
   });
@@ -395,6 +395,11 @@ export function Cameras() {
         {isLoading ? (
           <div style={{ color: "var(--text-dim)", fontSize: 12 }}>
             loading...
+          </div>
+        ) : isError ? (
+          <div role="alert" style={{ color: "var(--accent)", fontSize: 12, padding: "32px 0", display: "flex", gap: 10, alignItems: "center" }}>
+            couldn't load cameras.
+            <button className="btn btn-ghost" onClick={() => void refetch()}>retry</button>
           </div>
         ) : cameras.length === 0 ? (
           <div

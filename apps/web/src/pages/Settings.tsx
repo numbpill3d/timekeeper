@@ -66,7 +66,7 @@ export function Settings() {
   const [saveError, setSaveError] = useState("");
   const [connectError, setConnectError] = useState("");
 
-  const { data: profile, isLoading } = useQuery({
+  const { data: profile, isLoading, isError, refetch } = useQuery({
     queryKey: ["profile"],
     queryFn: () => getProfile().then((r) => r.data),
   });
@@ -138,6 +138,11 @@ export function Settings() {
         {isLoading ? (
           <div style={{ color: "var(--text-dim)", fontSize: 12 }}>
             loading...
+          </div>
+        ) : isError ? (
+          <div role="alert" style={{ color: "var(--accent)", fontSize: 12, display: "flex", gap: 10, alignItems: "center" }}>
+            couldn't load your profile.
+            <button className="btn btn-ghost" onClick={() => void refetch()}>retry</button>
           </div>
         ) : (
           <>

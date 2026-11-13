@@ -233,7 +233,7 @@ function PersonCard({ person }: { person: Person }) {
 export function Persons() {
   const [tab, setTab] = useState<"all" | "known" | "unknown">("all");
 
-  const { data: persons = [], isLoading } = useQuery({
+  const { data: persons = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["persons"],
     queryFn: () => listPersons().then((r) => r.data),
     refetchInterval: 30_000,
@@ -322,6 +322,11 @@ export function Persons() {
         {isLoading ? (
           <div style={{ color: "var(--text-dim)", fontSize: 12 }}>
             loading...
+          </div>
+        ) : isError ? (
+          <div role="alert" style={{ color: "var(--accent)", fontSize: 12, padding: "32px 0", display: "flex", gap: 10, alignItems: "center" }}>
+            couldn't load persons.
+            <button className="btn btn-ghost" onClick={() => void refetch()}>retry</button>
           </div>
         ) : filtered.length === 0 ? (
           <div style={{ color: "var(--text-dim)", fontSize: 12, padding: "32px 0" }}>

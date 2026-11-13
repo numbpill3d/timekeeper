@@ -175,7 +175,7 @@ export function Alerts() {
   const [channels, setChannels] = useState<string[]>(["push"]);
   const [error, setError] = useState("");
 
-  const { data: rules = [], isLoading } = useQuery({
+  const { data: rules = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["alerts"],
     queryFn: () => listAlerts().then((r) => r.data),
   });
@@ -390,6 +390,11 @@ export function Alerts() {
             style={{ padding: "32px 20px", color: "var(--text-dim)", fontSize: 12 }}
           >
             loading...
+          </div>
+        ) : isError ? (
+          <div role="alert" style={{ padding: "32px 20px", color: "var(--accent)", fontSize: 12, display: "flex", gap: 10, alignItems: "center" }}>
+            couldn't load alert rules.
+            <button className="btn btn-ghost" onClick={() => void refetch()}>retry</button>
           </div>
         ) : rules.length === 0 ? (
           <div
