@@ -32,6 +32,7 @@ export function ChatPanel() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [failedQuestion, setFailedQuestion] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollTimerRef = useRef<number | null>(null);
 
@@ -53,6 +54,7 @@ export function ChatPanel() {
     if (!q || loading) return;
     setInput("");
     setError("");
+    setFailedQuestion("");
 
     const uid = Date.now();
     setMessages((p) => [...p, { id: uid, role: "user", content: q }]);
@@ -73,6 +75,7 @@ export function ChatPanel() {
       ]);
     } catch {
       setError("query unavailable — check that the API and query engine are running.");
+      setFailedQuestion(q);
     } finally {
       setLoading(false);
       if (scrollTimerRef.current !== null) {
@@ -272,7 +275,21 @@ export function ChatPanel() {
             processing...
           </div>
         )}
-        {error && <div className="chat-error" role="alert">{error}</div>}
+        {error && (
+          <div className="chat-error" role="alert">
+            <span>{error}</span>
+            {failedQuestion && (
+              <button
+                className="btn btn-ghost"
+                type="button"
+                onClick={() => void send(failedQuestion)}
+                disabled={loading}
+              >
+                retry
+              </button>
+            )}
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 

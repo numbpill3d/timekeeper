@@ -41,6 +41,8 @@ export function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [queryError, setQueryError] = useState("");
+  const [failedQuestion, setFailedQuestion] = useState("");
   const listRef = useRef<FlatList>(null);
 
   const history = messages.slice(-6).map((m) => ({
@@ -48,10 +50,12 @@ export function ChatScreen() {
     content: m.content,
   }));
 
-  async function send() {
-    const question = input.trim();
+  async function send(questionOverride?: string) {
+    const question = (questionOverride ?? input).trim();
     if (!question || loading) return;
     setInput("");
+    setQueryError("");
+    setFailedQuestion("");
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -73,14 +77,8 @@ export function ChatScreen() {
       };
       setMessages((prev) => [...prev, reply]);
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content: "sorry, couldn't reach the server right now.",
-        },
-      ]);
+      setQueryError("couldn't reach the server right now.");
+      setFailedQuestion(question);
     } finally {
       setLoading(false);
       listRef.current?.scrollToEnd({ animated: true });
@@ -168,6 +166,22 @@ export function ChatScreen() {
         )}
       />
 
+      {queryError ? (
+        <View style={styles.errorRow} accessibilityRole="alert">
+          <Text style={styles.errorText}>{queryError}</Text>
+          {failedQuestion ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Retry query"
+              onPress={() => void send(failedQuestion)}
+              disabled={loading}
+            >
+              <Text style={styles.retryText}>retry</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+
       <View style={styles.inputRow}>
         <TextInput
           style={styles.input}
@@ -177,13 +191,13 @@ export function ChatScreen() {
           placeholderTextColor="#555"
           maxLength={1000}
           accessibilityLabel="Ask about camera history"
-          onSubmitEditing={send}
+          onSubmitEditing={() => void send()}
           returnKeyType="send"
           editable={!loading}
         />
         <Pressable
           style={[styles.sendBtn, loading && styles.sendBtnDisabled]}
-          onPress={send}
+          onPress={() => void send()}
           disabled={loading}
         >
           <Text style={styles.sendText}>{loading ? "..." : "ask"}</Text>
@@ -227,6 +241,18 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textDecorationLine: "underline",
   },
+  errorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#282828",
+  },
+  errorText: { color: "#c66", fontSize: 11, flex: 1 },
+  retryText: { color: "#ccc", fontSize: 12 },
   inputRow: {
     flexDirection: "row",
     padding: 12,
