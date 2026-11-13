@@ -24,6 +24,7 @@ _STOPWORDS = {
     "any", "someone", "somebody", "person", "pick", "picked", "pickup",
     "grab", "grabbed", "take", "took", "move", "moved", "place", "placed",
     "left", "leave", "find", "happen", "happened", "with", "about", "is", "up",
+    "item", "object", "thing",
     "are", "was", "were", "to", "a", "an", "at", "in", "on", "of", "today",
     "yesterday", "recently", "last", "hours", "hour", "minutes", "minute",
     "this", "morning", "afternoon", "evening", "tonight", "night",
@@ -33,6 +34,9 @@ _LOCATION_RE = re.compile(
     r"\b(?:in|at|near)\s+(?:(?:the|my|our)\s+)?"
     r"(?P<phrase>[a-z][a-z0-9_-]*(?:\s+[a-z][a-z0-9_-]*){0,3})",
     re.IGNORECASE,
+)
+_GENERIC_OBJECT_QUESTION_RE = re.compile(
+    r"\b(?:what happened to|where (?:is|was|were))\b", re.IGNORECASE
 )
 
 
@@ -127,18 +131,24 @@ def _time_predicates(question: str, start_param: int) -> tuple[list[str], list[o
 def build_fallback_query(question: str) -> tuple[str, list[object]]:
     """Return ``(SELECT, parameters_without_owner)`` for a safe event search."""
     terms = _terms(question)
+    generic_object_question = bool(
+        _GENERIC_OBJECT_QUESTION_RE.search(question)
+    )
     object_sources = [
         term
         for term in terms
         if term.rstrip("s") in {t.rstrip("s") for t in _OBJECT_TERMS}
     ]
-    object_terms = [
-        _OBJECT_ALIASES.get(term, term)
-        for term in object_sources
-    ]
+    object_terms = (
+        [" ".join(terms)]
+        if generic_object_question and terms and not (
+            len(terms) == 1 and terms[0] in object_sources
+        )
+        else [_OBJECT_ALIASES.get(term, term) for term in object_sources]
+    )
     location = _location_term(question)
     location_tokens = set(location.split()) if location else set()
-    person_terms = [
+    person_terms = [] if generic_object_question else [
         term for term in terms
         if term not in object_sources and term not in location_tokens
     ]

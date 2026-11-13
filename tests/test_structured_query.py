@@ -24,6 +24,13 @@ def test_fallback_query_uses_yesterday_range_without_interpolating_text():
     assert len(params) == 3
 
 
+def test_fallback_query_treats_an_arbitrary_item_label_as_an_object():
+    sql, params = build_fallback_query("what happened to my blue xyz item today?")
+    assert "o.label ILIKE $2" in sql
+    assert "p.label ILIKE" not in sql
+    assert params[0] == "%blue xyz%"
+
+
 def test_fallback_query_does_not_require_a_search_term():
     sql, params = build_fallback_query("what happened today?")
     assert "e.timestamp >= $2" in sql
