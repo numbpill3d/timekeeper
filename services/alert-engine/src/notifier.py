@@ -136,11 +136,15 @@ async def _send_fcm_legacy(token: str, title: str, body: str) -> bool:
 
 async def _send_sms(to: str, message: str) -> bool:
     try:
-        from twilio.rest import Client
-
-        client = Client(_TWILIO_SID, _TWILIO_TOKEN)
-        client.messages.create(to=to, from_=_TWILIO_FROM, body=message)
+        await asyncio.to_thread(_send_sms_sync, to, message)
         return True
     except Exception as exc:  # noqa: BLE001 - provider SDK errors are not stable
         log.warning("sms delivery failed: %s", exc)
         return False
+
+
+def _send_sms_sync(to: str, message: str) -> None:
+    from twilio.rest import Client
+
+    client = Client(_TWILIO_SID, _TWILIO_TOKEN)
+    client.messages.create(to=to, from_=_TWILIO_FROM, body=message)
