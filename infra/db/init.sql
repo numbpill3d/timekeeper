@@ -47,6 +47,8 @@ CREATE TABLE cameras (
     is_edge_only   BOOLEAN NOT NULL DEFAULT FALSE,
     is_active      BOOLEAN NOT NULL DEFAULT TRUE,
     provider_config JSONB NOT NULL DEFAULT '{}',
+    retention_days INTEGER NOT NULL DEFAULT 30
+        CHECK (retention_days BETWEEN 1 AND 3650),
     last_frame_at  TIMESTAMPTZ,
     last_error_at  TIMESTAMPTZ,
     last_error_code TEXT,

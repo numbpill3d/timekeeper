@@ -84,6 +84,7 @@ export interface Camera {
   last_frame_width: number | null;
   last_frame_height: number | null;
   observed_fps: number | null;
+  retention_days: number;
   default_retention_days: number;
 }
 
@@ -214,6 +215,7 @@ export const addCamera = (data: {
   protocol?: string;
   location_label?: string;
   provider_config?: Record<string, unknown>;
+  retention_days?: number;
 }) => api.post<Camera>("/cameras", data);
 
 export const updateCamera = (
@@ -225,6 +227,7 @@ export const updateCamera = (
     location_label?: string | null;
     is_active?: boolean;
     provider_config?: Record<string, unknown>;
+    retention_days?: number;
   },
 ) => api.patch<Camera>(`/cameras/${id}`, data);
 

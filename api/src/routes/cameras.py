@@ -33,7 +33,8 @@ _DIRECT_SCHEME_PROTOCOLS = {
     "file": "file",
 }
 _UPDATE_ALLOWED = {
-    "name", "stream_url", "protocol", "location_label", "is_active", "provider_config"
+    "name", "stream_url", "protocol", "location_label", "is_active",
+    "provider_config", "retention_days",
 }
 _URL_CONFIG_KEYS = {
     "whepurl", "rtspurl", "streamurl", "apiurl", "commandurl", "tokenurl",
@@ -41,6 +42,7 @@ _URL_CONFIG_KEYS = {
 _MAX_PROVIDER_CONFIG_BYTES = 16 * 1024
 _CAMERA_STALE_AFTER = timedelta(seconds=45)
 _DEFAULT_RETENTION_DAYS = max(1, int(os.getenv("DEFAULT_RETENTION_DAYS", "30")))
+_MAX_RETENTION_DAYS = 3650
 
 
 def _normalized_key(key: object) -> str:
@@ -141,6 +143,7 @@ class CameraCreate(BaseModel):
     # external edge-agent protocol that could process such a camera.
     is_edge_only: bool = False
     provider_config: dict = Field(default_factory=dict)
+    retention_days: int | None = Field(default=None, ge=1, le=_MAX_RETENTION_DAYS)
 
     @field_validator("protocol")
     @classmethod
@@ -237,6 +240,7 @@ class CameraUpdate(BaseModel):
     location_label: str | None = Field(default=None, max_length=120)
     is_active: bool | None = None
     provider_config: dict | None = None
+    retention_days: int | None = Field(default=None, ge=1, le=_MAX_RETENTION_DAYS)
 
     @field_validator("protocol")
     @classmethod
@@ -337,6 +341,7 @@ class CameraOut(BaseModel):
     is_edge_only: bool
     is_active: bool
     provider_config: dict
+    retention_days: int = _DEFAULT_RETENTION_DAYS
     status: str = "starting"
     last_frame_at: datetime | None = None
     last_error_at: datetime | None = None
@@ -410,8 +415,8 @@ async def add_camera(
         row = await db.fetchrow(
             """
             INSERT INTO cameras
-                (owner_id, name, stream_url, protocol, location_label, is_edge_only, provider_config)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+                (owner_id, name, stream_url, protocol, location_label, is_edge_only, provider_config, retention_days)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *
             """,
             user["sub"],
@@ -421,6 +426,7 @@ async def add_camera(
             req.location_label,
             req.is_edge_only,
             req.provider_config,
+            req.retention_days or _DEFAULT_RETENTION_DAYS,
         )
     return _public_camera(row)
 

@@ -48,3 +48,10 @@ camera, person, and evidence changes.
 
 `009_event_annotations.sql` adds owner-scoped, bounded operator notes for
 individual events. Notes are removed when an event is redacted or expires.
+
+`010_event_lookup_indexes.sql` adds non-blocking camera/time, person/time, and
+object/time indexes used by timeline and item-handoff queries.
+
+`011_camera_retention.sql` adds bounded per-camera retention policies. A
+person-specific retention policy still takes precedence when an event or raw
+detection is associated with a person.

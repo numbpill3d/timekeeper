@@ -73,6 +73,7 @@ function CameraCard({
     stream_url: string;
     protocol: string;
     location_label: string | null;
+    retention_days: number;
   }) => Promise<unknown>;
   togglePending: boolean;
   deletePending: boolean;
@@ -84,6 +85,7 @@ function CameraCard({
   const [editUrl, setEditUrl] = useState(cam.stream_url);
   const [editLocation, setEditLocation] = useState(cam.location_label ?? "");
   const [editProtocol, setEditProtocol] = useState(cam.protocol);
+  const [editRetentionDays, setEditRetentionDays] = useState(String(cam.retention_days));
   const [editProtocolTouched, setEditProtocolTouched] = useState(false);
   const [editError, setEditError] = useState("");
 
@@ -92,6 +94,7 @@ function CameraCard({
     setEditUrl(cam.stream_url);
     setEditLocation(cam.location_label ?? "");
     setEditProtocol(cam.protocol);
+    setEditRetentionDays(String(cam.retention_days));
     setEditProtocolTouched(false);
     setEditError("");
     setEditing(true);
@@ -100,8 +103,13 @@ function CameraCard({
   async function save() {
     const name = editName.trim();
     const stream_url = editUrl.trim();
+    const retention_days = Number.parseInt(editRetentionDays, 10);
     if (!name || !stream_url) {
       setEditError("name and stream URL are required");
+      return;
+    }
+    if (!Number.isInteger(retention_days) || retention_days < 1 || retention_days > 3650) {
+      setEditError("retention must be between 1 and 3650 days");
       return;
     }
     setEditError("");
@@ -111,6 +119,7 @@ function CameraCard({
         stream_url,
         protocol: editProtocol,
         location_label: editLocation.trim() || null,
+        retention_days,
       });
       setEditing(false);
     } catch {
@@ -223,6 +232,19 @@ function CameraCard({
               ))}
             </select>
           </div>
+          <input
+            aria-label={`Retention days for ${cam.name}`}
+            type="number"
+            min={1}
+            max={3650}
+            value={editRetentionDays}
+            onChange={(e) => setEditRetentionDays(e.target.value)}
+            placeholder="retention days"
+            style={{ width: "100%", padding: "6px 8px" }}
+          />
+          <div style={{ color: "var(--text-dim)", fontSize: 10 }}>
+            camera default; person-specific policies take precedence
+          </div>
           {editError && <div role="alert" style={{ color: "var(--accent)", fontSize: 11 }}>{editError}</div>}
         </div>
       ) : (
@@ -287,7 +309,7 @@ function CameraCard({
           privacy &amp; retention
         </div>
         <div style={{ color: "var(--text-dim)", fontSize: 10 }}>
-          evidence kept locally for {cam.default_retention_days ?? DEFAULT_RETENTION_DAYS} days by default
+          evidence kept locally for {cam.retention_days ?? cam.default_retention_days ?? DEFAULT_RETENTION_DAYS} days
         </div>
         <div style={{ color: "var(--text-dim)", fontSize: 10 }}>
           person-specific retention can override this window
@@ -393,6 +415,7 @@ export function Cameras() {
   const [proto, setProto] = useState("rtsp");
   const [protocolTouched, setProtocolTouched] = useState(false);
   const [providerConfigText, setProviderConfigText] = useState("");
+  const [retentionDays, setRetentionDays] = useState("30");
   const [error, setError] = useState("");
   const [removeError, setRemoveError] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -417,6 +440,7 @@ export function Cameras() {
         protocol: proto,
         location_label: loc || undefined,
         provider_config,
+        retention_days: Number.parseInt(retentionDays, 10),
       }).then((r) => r.data);
     },
     onSuccess: () => {
@@ -427,6 +451,7 @@ export function Cameras() {
       setProto("rtsp");
       setProtocolTouched(false);
       setProviderConfigText("");
+      setRetentionDays("30");
       setError("");
       setSetupStep(1);
       setShowForm(false);
@@ -463,6 +488,7 @@ export function Cameras() {
         stream_url: string;
         protocol: string;
         location_label: string | null;
+        retention_days: number;
       };
     }) => updateCamera(id, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["cameras"] }),
@@ -483,6 +509,11 @@ export function Cameras() {
   function validateConnectionStep(): boolean {
     if (!privacyAcknowledged) {
       setError("confirm that you are authorized to monitor and retain this feed");
+      return false;
+    }
+    const parsedRetentionDays = Number.parseInt(retentionDays, 10);
+    if (!Number.isInteger(parsedRetentionDays) || parsedRetentionDays < 1 || parsedRetentionDays > 3650) {
+      setError("retention must be between 1 and 3650 days");
       return false;
     }
     const trimmedUrl = url.trim();
@@ -609,6 +640,23 @@ export function Cameras() {
                       </option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <div className="label" style={{ marginBottom: 4 }}>
+                    retention days
+                  </div>
+                  <input
+                    aria-label="Camera retention days"
+                    type="number"
+                    min={1}
+                    max={3650}
+                    value={retentionDays}
+                    onChange={(e) => setRetentionDays(e.target.value)}
+                    style={{ width: "100%", padding: "7px 10px" }}
+                  />
+                  <div style={{ color: "var(--text-dim)", fontSize: 10, marginTop: 4 }}>
+                    raw evidence is eligible for cleanup after this many days
+                  </div>
                 </div>
               </>
             ) : (

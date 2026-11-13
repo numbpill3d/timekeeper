@@ -97,8 +97,10 @@ async def test_retention_deletes_alert_deliveries_with_expired_events():
     class Db:
         def __init__(self):
             self.statements: list[str] = []
+            self.fetch_sql = ""
 
-        async def fetch(self, _sql: str, *_params: object):
+        async def fetch(self, sql: str, *_params: object):
+            self.fetch_sql = sql
             return [{"id": "event-1", "clip_path": None}]
 
         def transaction(self):
@@ -111,6 +113,7 @@ async def test_retention_deletes_alert_deliveries_with_expired_events():
     deleted = await purge_expired_events(db)
 
     assert deleted == 1
+    assert "c.retention_days" in db.fetch_sql
     assert "DELETE FROM alert_deliveries" in db.statements[0]
     assert "DELETE FROM event_annotations" in db.statements[1]
     assert "DELETE FROM events" in db.statements[2]
@@ -119,7 +122,12 @@ async def test_retention_deletes_alert_deliveries_with_expired_events():
 @pytest.mark.asyncio
 async def test_retention_deletes_a_bounded_batch_of_raw_detections():
     class Db:
-        async def execute(self, _sql: str, *_params: object):
+        sql = ""
+
+        async def execute(self, sql: str, *_params: object):
+            self.sql = sql
             return "DELETE 37"
 
-    assert await purge_expired_detections(Db()) == 37
+    db = Db()
+    assert await purge_expired_detections(db) == 37
+    assert "c.retention_days" in db.sql

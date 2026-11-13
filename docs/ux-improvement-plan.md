@@ -109,11 +109,11 @@ local camera evidence system.
 
 ## Next high-value improvements
 
-41. **Policy-level retention controls** — add configurable per-camera and
-    per-person retention policies beyond the current previews and defaults,
-    with explicit dry-run/impact summaries before cleanup. The shipped baseline
-    already provides web/mobile retention previews, audited event redaction, clip
-    cleanup, web/mobile audit history, and web CSV export.
+41. **Policy-level retention controls** — extend the shipped configurable
+    per-camera and per-person retention policies with richer policy templates,
+    scheduled dry-run reports, and explicit approval workflows before cleanup.
+    The shipped baseline already provides web/mobile retention previews, audited
+    event redaction, clip cleanup, web/mobile audit history, and web CSV export.
 
 ## Product-level follow-ons
 

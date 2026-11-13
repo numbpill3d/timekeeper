@@ -39,6 +39,9 @@ invent an identity or action when the evidence is missing or weak.
   describe.
 - Provides URL-backed timeline search, time ranges, event-type and camera-source
   filters on web/mobile, plus grouped evidence review and CSV snapshots.
+- Provides bounded per-camera retention policies with read-only impact previews;
+  person-specific retention settings take precedence when evidence is associated
+  with a person.
 - Keeps camera/provider credentials out of event data and rejects credential
   material embedded in camera URLs or provider configuration.
 

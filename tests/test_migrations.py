@@ -72,3 +72,10 @@ def test_event_lookup_indexes_cover_camera_person_and_object_histories():
     assert "events_object_timestamp_idx" in migration
     assert migration.count("CREATE INDEX CONCURRENTLY") == 3
     assert "VALUES ('010_event_lookup_indexes')" in migration
+
+
+def test_camera_retention_migration_adds_bounded_policy():
+    migration = (MIGRATION_DIR / "011_camera_retention.sql").read_text(encoding="utf-8")
+    assert "ADD COLUMN IF NOT EXISTS retention_days" in migration
+    assert "retention_days BETWEEN 1 AND 3650" in migration
+    assert "VALUES ('011_camera_retention')" in migration

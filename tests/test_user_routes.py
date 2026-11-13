@@ -105,6 +105,8 @@ def test_retention_preview_is_read_only_and_owner_scoped():
 
     assert result[0].events_expiring == 2
     assert "c.owner_id = $1" in db.sql
+    assert "c.name AS camera_name" in db.sql
+    assert "ec.retention_days" in db.sql
     assert "DELETE" not in db.sql
     assert db.params[0] == "owner-1"
 

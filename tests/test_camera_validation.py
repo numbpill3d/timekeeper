@@ -99,6 +99,20 @@ def test_camera_update_infers_protocol_when_source_changes():
         CameraUpdate(stream_url="https://camera.example/live", protocol="rtsp")
 
 
+def test_camera_retention_days_is_bounded_and_persistable():
+    camera = CameraCreate(
+        name="front door",
+        stream_url="rtsp://camera/live",
+        retention_days=365,
+    )
+    assert camera.retention_days == 365
+    assert CameraUpdate(retention_days=7).retention_days == 7
+    with pytest.raises(ValidationError):
+        CameraCreate(name="front door", stream_url="rtsp://camera/live", retention_days=0)
+    with pytest.raises(ValidationError):
+        CameraUpdate(retention_days=3651)
+
+
 def test_provider_config_rejects_credentials_in_nested_endpoint():
     with pytest.raises(ValidationError, match="provider endpoint"):
         CameraCreate(

@@ -137,6 +137,7 @@ async def purge_expired_events(conn: asyncpg.Connection) -> int:
         WHERE
           e.timestamp < NOW() - make_interval(days => COALESCE(
               (SELECT p.retention_days FROM persons p WHERE p.id = e.person_id),
+              c.retention_days,
               $1
           ))
         LIMIT 1000
@@ -206,6 +207,7 @@ async def purge_expired_detections(conn: asyncpg.Connection) -> int:
                 (SELECT p.retention_days
                  FROM persons p
                  WHERE p.id = d.person_id),
+                c.retention_days,
                 $1
             ))
             ORDER BY d.timestamp, d.id
