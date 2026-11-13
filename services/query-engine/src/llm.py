@@ -212,7 +212,7 @@ def _format_evidence_response(rows: list[dict]) -> str:
                 f"{camera_only if has_path else where}."
             )
         elif action == "object_placed":
-            lines.append(f"{at_prefix} {time_text}, {person} was associated with {item}{where}.")
+            lines.append(f"{at_prefix} {time_text}, {person} placed {item}{where}.")
         elif action == "person_entered":
             lines.append(f"{at_prefix} {time_text}, {person} entered{where}.")
         elif action == "person_exited":

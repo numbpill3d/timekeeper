@@ -97,6 +97,19 @@ def test_evidence_formatter_names_a_person_for_exit_events():
     assert answer == "At 04:31 PM, John left at front door."
 
 
+def test_evidence_formatter_describes_placement_as_placement():
+    answer = llm._format_evidence_response([
+        {
+            "event_type": "object_placed",
+            "timestamp": datetime(2026, 11, 11, 16, 32, tzinfo=UTC),
+            "person_label": "John",
+            "object_label": "blue toolbox",
+            "location_label": "garage",
+        }
+    ])
+    assert answer == "At 04:32 PM, John placed blue toolbox at garage."
+
+
 def test_empty_model_content_falls_back_to_recorded_evidence(monkeypatch):
     async def empty(system: str, user: str) -> str:
         return "   "
