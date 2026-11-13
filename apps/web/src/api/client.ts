@@ -181,7 +181,7 @@ export const listPersons = () => api.get<Person[]>("/persons");
 
 export const updatePerson = (
   id: string,
-  data: { label?: string; is_known?: boolean }
+  data: { label?: string; is_known?: boolean; retention_days?: number }
 ) => api.patch<Person>(`/persons/${id}`, data);
 
 export const deletePerson = (id: string) => api.delete(`/persons/${id}`);

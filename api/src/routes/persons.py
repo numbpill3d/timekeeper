@@ -40,6 +40,7 @@ class PersonOut(BaseModel):
 class PersonUpdate(BaseModel):
     label: str | None = Field(default=None, min_length=1, max_length=120)
     is_known: bool | None = None
+    retention_days: int | None = Field(default=None, ge=1, le=3650)
 
     @field_validator("label")
     @classmethod
@@ -99,6 +100,8 @@ async def update_person(
         updates["label"] = req.label
     if req.is_known is not None:
         updates["is_known"] = req.is_known
+    if req.retention_days is not None:
+        updates["retention_days"] = req.retention_days
 
     if not updates:
         return await get_person(person_id, user, db)

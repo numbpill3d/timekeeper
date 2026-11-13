@@ -11,7 +11,7 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 
 from api.src.routes.events import _event_filters, count_events, list_events
-from api.src.routes.persons import delete_person, list_persons
+from api.src.routes.persons import PersonUpdate, delete_person, list_persons
 from api.src.routes.query import _check_rate_limit
 from api.src.routes.users import (
     LoginRequest,
@@ -33,6 +33,15 @@ def test_auth_passwords_have_a_bounded_request_size():
         RegisterRequest(email="user@example.com", password="x" * 257)
     with pytest.raises(ValidationError):
         LoginRequest(email="user@example.com", password="x" * 257)
+
+
+def test_person_retention_days_is_bounded_and_optional():
+    assert PersonUpdate(retention_days=90).retention_days == 90
+    assert PersonUpdate().model_dump(exclude_unset=True) == {}
+    with pytest.raises(ValidationError):
+        PersonUpdate(retention_days=0)
+    with pytest.raises(ValidationError):
+        PersonUpdate(retention_days=3651)
 
 
 def test_event_time_filters_normalize_naive_datetimes_to_utc():

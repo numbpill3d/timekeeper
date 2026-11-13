@@ -36,11 +36,12 @@ function PersonCard({ person }: { person: Person }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(person.label);
+  const [retentionDays, setRetentionDays] = useState(String(person.retention_days));
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState("");
 
   const update = useMutation({
-    mutationFn: (data: { label?: string; is_known?: boolean }) =>
+    mutationFn: (data: { label?: string; is_known?: boolean; retention_days?: number }) =>
       updatePerson(person.id, data),
     onMutate: () => setError(""),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["persons"] }),
@@ -75,11 +76,15 @@ function PersonCard({ person }: { person: Person }) {
               onChange={(e) => setLabel(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && label.trim()) {
-                  update.mutate({ label: label.trim() });
+                  update.mutate({
+                    label: label.trim(),
+                    retention_days: Number(retentionDays),
+                  });
                   setEditing(false);
                 }
                 if (e.key === "Escape") {
                   setLabel(person.label);
+                  setRetentionDays(String(person.retention_days));
                   setEditing(false);
                 }
               }}
@@ -106,6 +111,29 @@ function PersonCard({ person }: { person: Person }) {
             >
               {person.label}
             </div>
+          )}
+          {editing && (
+            <label style={{ display: "block", fontSize: 10, color: "var(--text-dim)", marginTop: 8 }}>
+              evidence retention (days)
+              <input
+                aria-label={`Retention days for ${person.label}`}
+                type="number"
+                min={1}
+                max={3650}
+                value={retentionDays}
+                onChange={(e) => setRetentionDays(e.target.value)}
+                style={{
+                  display: "block",
+                  width: 120,
+                  marginTop: 4,
+                  padding: "4px 8px",
+                  fontSize: 12,
+                  background: "var(--elevated)",
+                  border: "1px solid var(--border-hi)",
+                  color: "var(--text)",
+                }}
+              />
+            </label>
           )}
           <div
             style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 3 }}
@@ -191,9 +219,18 @@ function PersonCard({ person }: { person: Person }) {
               <button
                 className="btn btn-primary"
                 style={{ padding: "4px 10px" }}
-                disabled={!label.trim() || update.isPending}
+                disabled={
+                  !label.trim() ||
+                  !Number.isInteger(Number(retentionDays)) ||
+                  Number(retentionDays) < 1 ||
+                  Number(retentionDays) > 3650 ||
+                  update.isPending
+                }
                 onClick={() => {
-                  update.mutate({ label: label.trim() });
+                  update.mutate({
+                    label: label.trim(),
+                    retention_days: Number(retentionDays),
+                  });
                   setEditing(false);
                 }}
               >
