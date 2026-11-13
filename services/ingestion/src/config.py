@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from omniscient_shared.models.camera import Camera
+
 
 def parse_frame_interval(raw: str) -> float:
     try:
@@ -11,3 +13,8 @@ def parse_frame_interval(raw: str) -> float:
     if not 0.01 <= value <= 60:
         raise RuntimeError("FRAME_INTERVAL_S must be between 0.01 and 60 seconds")
     return value
+
+
+def safe_stream_error_context(camera: Camera, error: BaseException) -> str:
+    """Describe a stream failure without logging URLs or provider details."""
+    return f"{camera.name} ({camera.protocol.value}): {type(error).__name__}"
