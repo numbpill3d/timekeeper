@@ -10,6 +10,13 @@ import {
 } from "../api/client";
 
 const PROTOCOLS = ["rtsp", "http", "https", "hls", "file", "onvif", "ring", "nest", "arlo", "wyze"];
+const DIRECT_PROTOCOLS: Record<string, string> = {
+  rtsp: "rtsp",
+  rtsps: "rtsp",
+  http: "http",
+  https: "https",
+  file: "file",
+};
 const DEFAULT_RETENTION_DAYS = 30;
 const STATUS_COLOR = {
   paused: "var(--text-dim)",
@@ -41,6 +48,14 @@ function cameraDiagnostic(cam: Camera): string {
   return "receiving frames normally";
 }
 
+function inferredDirectProtocol(value: string): string | null {
+  try {
+    return DIRECT_PROTOCOLS[new URL(value.trim()).protocol.replace(":", "")] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function CameraCard({
   cam,
   onToggle,
@@ -69,6 +84,7 @@ function CameraCard({
   const [editUrl, setEditUrl] = useState(cam.stream_url);
   const [editLocation, setEditLocation] = useState(cam.location_label ?? "");
   const [editProtocol, setEditProtocol] = useState(cam.protocol);
+  const [editProtocolTouched, setEditProtocolTouched] = useState(false);
   const [editError, setEditError] = useState("");
 
   function startEditing() {
@@ -76,6 +92,7 @@ function CameraCard({
     setEditUrl(cam.stream_url);
     setEditLocation(cam.location_label ?? "");
     setEditProtocol(cam.protocol);
+    setEditProtocolTouched(false);
     setEditError("");
     setEditing(true);
   }
@@ -174,7 +191,14 @@ function CameraCard({
           <input
             aria-label={`Edit stream URL for ${cam.name}`}
             value={editUrl}
-            onChange={(e) => setEditUrl(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setEditUrl(value);
+              if (!editProtocolTouched && editProtocol === "rtsp") {
+                const inferred = inferredDirectProtocol(value);
+                if (inferred && inferred !== "rtsp") setEditProtocol(inferred);
+              }
+            }}
             style={{ width: "100%", padding: "6px 8px" }}
           />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -188,7 +212,10 @@ function CameraCard({
             <select
               aria-label={`Edit protocol for ${cam.name}`}
               value={editProtocol}
-              onChange={(e) => setEditProtocol(e.target.value)}
+              onChange={(e) => {
+                setEditProtocolTouched(true);
+                setEditProtocol(e.target.value);
+              }}
               style={{ width: "100%", padding: "6px 8px" }}
             >
               {PROTOCOLS.map((protocol) => (
@@ -364,6 +391,7 @@ export function Cameras() {
   const [url, setUrl] = useState("");
   const [loc, setLoc] = useState("");
   const [proto, setProto] = useState("rtsp");
+  const [protocolTouched, setProtocolTouched] = useState(false);
   const [providerConfigText, setProviderConfigText] = useState("");
   const [error, setError] = useState("");
   const [removeError, setRemoveError] = useState("");
@@ -397,6 +425,7 @@ export function Cameras() {
       setUrl("");
       setLoc("");
       setProto("rtsp");
+      setProtocolTouched(false);
       setProviderConfigText("");
       setError("");
       setSetupStep(1);
@@ -506,6 +535,7 @@ export function Cameras() {
             setShowForm((v) => !v);
             setSetupStep(1);
             setPrivacyAcknowledged(false);
+            setProtocolTouched(false);
             setError("");
           }}
         >
@@ -567,7 +597,10 @@ export function Cameras() {
                   <select
                     aria-label="Camera protocol"
                     value={proto}
-                    onChange={(e) => setProto(e.target.value)}
+                    onChange={(e) => {
+                      setProtocolTouched(true);
+                      setProto(e.target.value);
+                    }}
                     style={{ width: "100%", padding: "7px 10px" }}
                   >
                     {PROTOCOLS.map((p) => (
@@ -587,7 +620,14 @@ export function Cameras() {
                   <input
                     aria-label="Camera stream URL"
                     value={url}
-                    onChange={(e) => setUrl(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setUrl(value);
+                      if (!protocolTouched && proto === "rtsp") {
+                        const inferred = inferredDirectProtocol(value);
+                        if (inferred && inferred !== "rtsp") setProto(inferred);
+                      }
+                    }}
                     placeholder={proto === "ring" || proto === "nest" ? `${proto}://device-id` : "rtsp://192.168.1.100/stream"}
                     autoFocus
                     style={{ width: "100%", padding: "7px 10px" }}
