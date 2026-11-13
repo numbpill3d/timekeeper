@@ -63,7 +63,8 @@ async def main() -> None:
         producer_started = True
         db = await asyncpg.connect(_DB_URL)
         cam_rows = await db.fetch(
-            "SELECT id, location_label, owner_id FROM cameras"
+            "SELECT id, location_label, owner_id FROM cameras "
+            "WHERE is_active = TRUE"
         )
         cam_locations = {str(r["id"]): r["location_label"] for r in cam_rows}
         cam_owners = {str(r["id"]): str(r["owner_id"]) for r in cam_rows}

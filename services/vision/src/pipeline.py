@@ -129,7 +129,9 @@ class VisionPipeline:
     async def _load_gallery(self) -> None:
         """Populate in-memory ReID gallery and camera-owner map from DB."""
         assert self._db is not None
-        cam_rows = await self._db.fetch("SELECT id, owner_id FROM cameras")
+        cam_rows = await self._db.fetch(
+            "SELECT id, owner_id FROM cameras WHERE is_active = TRUE"
+        )
         self._cam_owners = {str(r["id"]): str(r["owner_id"]) for r in cam_rows}
 
         person_rows = await self._db.fetch(
