@@ -5,6 +5,6 @@ pgvector>=0.2.4
 pydantic>=2.5.0
 ollama>=0.1.6
 openai>=1.10.0
-sentence-transformers==3.4.1
-transformers==4.46.3
+sentence-transformers==5.6.1
+transformers==5.10.4
 numpy>=1.26.0,<2.0

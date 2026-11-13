@@ -23,6 +23,9 @@ invent an identity or action when the evidence is missing or weak.
   PostgreSQL/TimescaleDB with pgvector.
 - Answers natural-language questions through RAG + text-to-SQL, with a
   parameterized no-LLM fallback for common item/person/time questions.
+- Uses maintained sentence-transformer and transformer releases for local
+  semantic retrieval; the query-engine image keeps the CPU Torch constraint
+  separate so upgrades do not pull CUDA runtimes.
 - Provides a React/Vite dashboard, FastAPI API, mobile app foundation, alerts,
   bounded retention cleanup for raw detections/events/clips, and private signed
   clip URLs.
