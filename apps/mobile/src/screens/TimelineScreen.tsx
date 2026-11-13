@@ -69,9 +69,21 @@ export function TimelineScreen() {
         refreshing={isLoading || isRefetching}
         onRefresh={() => void refetch()}
         ListEmptyComponent={
-          <Text style={styles.empty}>
-            {isError ? "couldn't load the timeline." : "no matching events."}
-          </Text>
+          isError ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.empty}>couldn't load the timeline.</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Retry loading timeline"
+                onPress={() => void refetch()}
+                style={styles.retry}
+              >
+                <Text style={styles.retryText}>retry</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Text style={styles.empty}>no matching events.</Text>
+          )
         }
         keyExtractor={(e) => e.id}
         renderItem={({ item }) => <EventCard event={item} />}
@@ -94,5 +106,8 @@ const styles = StyleSheet.create({
   filterText: { color: "#888", fontSize: 11 },
   filterTextSelected: { color: "#fff" },
   sep: { height: 1, backgroundColor: "#111" },
-  empty: { color: "#888", fontSize: 14, textAlign: "center", marginTop: 32 },
+  emptyState: { alignItems: "center", marginTop: 32 },
+  empty: { color: "#888", fontSize: 14, textAlign: "center" },
+  retry: { borderColor: "#555", borderWidth: 1, marginTop: 12, paddingHorizontal: 12, paddingVertical: 7 },
+  retryText: { color: "#ccc", fontSize: 12 },
 });

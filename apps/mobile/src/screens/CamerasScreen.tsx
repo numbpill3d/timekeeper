@@ -36,9 +36,21 @@ export function CamerasScreen() {
         refreshing={isLoading || isRefetching}
         onRefresh={() => void refetch()}
         ListEmptyComponent={
-          <Text style={styles.empty}>
-            {isError ? "couldn't load cameras." : "no cameras connected yet."}
-          </Text>
+          isError ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.empty}>couldn't load cameras.</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Retry loading cameras"
+                onPress={() => void refetch()}
+                style={styles.retry}
+              >
+                <Text style={styles.retryText}>retry</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Text style={styles.empty}>no cameras connected yet.</Text>
+          )
         }
         keyExtractor={(c) => c.id}
         renderItem={({ item }) => (
@@ -98,6 +110,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   actionText: { color: "#ccc", fontSize: 12 },
-  empty: { color: "#888", fontSize: 14, textAlign: "center", marginTop: 32 },
+  emptyState: { alignItems: "center", marginTop: 32 },
+  empty: { color: "#888", fontSize: 14, textAlign: "center" },
+  retry: { borderColor: "#555", borderWidth: 1, marginTop: 12, paddingHorizontal: 12, paddingVertical: 7 },
+  retryText: { color: "#ccc", fontSize: 12 },
   error: { color: "#f66", fontSize: 12, marginBottom: 10 },
 });

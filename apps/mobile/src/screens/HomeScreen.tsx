@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import {
   EventStream,
@@ -55,9 +55,21 @@ export function HomeScreen() {
         refreshing={isLoading || isRefetching}
         onRefresh={() => void refetch()}
         ListEmptyComponent={
-          <Text style={styles.empty}>
-            {isError ? "couldn't load activity right now." : "no activity recorded yet."}
-          </Text>
+          isError ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.empty}>couldn't load activity right now.</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Retry loading activity"
+                onPress={() => void refetch()}
+                style={styles.retry}
+              >
+                <Text style={styles.retryText}>retry</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Text style={styles.empty}>no activity recorded yet.</Text>
+          )
         }
         keyExtractor={(e) => e.id}
         renderItem={({ item }) => <EventCard event={item} />}
@@ -71,5 +83,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000", padding: 16 },
   header: { color: "#888", fontSize: 12, letterSpacing: 1, marginBottom: 12 },
   sep: { height: 1, backgroundColor: "#111" },
-  empty: { color: "#888", fontSize: 14, textAlign: "center", marginTop: 32 },
+  emptyState: { alignItems: "center", marginTop: 32 },
+  empty: { color: "#888", fontSize: 14, textAlign: "center" },
+  retry: { borderColor: "#555", borderWidth: 1, marginTop: 12, paddingHorizontal: 12, paddingVertical: 7 },
+  retryText: { color: "#ccc", fontSize: 12 },
 });
