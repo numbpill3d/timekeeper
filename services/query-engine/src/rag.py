@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 
 import asyncpg
 from omniscient_shared.time import to_local
@@ -29,20 +30,28 @@ _TOP_K = 8
 _MODEL_NAME = "all-MiniLM-L6-v2"  # 384-dim, fast, fits on CPU
 
 _embedder = None
+_embedder_init_lock = threading.Lock()
+_embedder_inference_lock = threading.Lock()
 
 
 def _get_embedder():
     global _embedder
     if _embedder is None:
-        from sentence_transformers import SentenceTransformer
+        with _embedder_init_lock:
+            if _embedder is None:
+                from sentence_transformers import SentenceTransformer
 
-        _embedder = SentenceTransformer(_MODEL_NAME)
+                _embedder = SentenceTransformer(_MODEL_NAME)
     return _embedder
 
 
 def embed_text(text: str) -> list[float]:
     model = _get_embedder()
-    vec = model.encode(text, normalize_embeddings=True)
+    # Keep access to the shared torch model serialized. The async callers run
+    # this function in worker threads, and not all model backends are safe for
+    # concurrent encode calls; serialization also bounds peak memory use.
+    with _embedder_inference_lock:
+        vec = model.encode(text, normalize_embeddings=True)
     return vec.tolist()
 
 
