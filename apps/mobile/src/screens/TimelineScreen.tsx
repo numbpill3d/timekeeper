@@ -29,7 +29,7 @@ const EVENT_TYPES = [
 export function TimelineScreen() {
   const [filter, setFilter] = useState("");
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isRefetching, isError, refetch } = useQuery({
     queryKey: ["events", "timeline", filter],
     queryFn: () =>
       listEvents({
@@ -66,7 +66,7 @@ export function TimelineScreen() {
       </ScrollView>
       <FlatList
         data={data ?? []}
-        refreshing={isLoading}
+        refreshing={isLoading || isRefetching}
         onRefresh={() => void refetch()}
         ListEmptyComponent={
           <Text style={styles.empty}>

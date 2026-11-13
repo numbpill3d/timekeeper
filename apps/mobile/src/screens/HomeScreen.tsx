@@ -13,7 +13,7 @@ export function HomeScreen() {
   const [liveEvents, setLiveEvents] = useState<OmniscientEvent[]>([]);
   const wsRef = useRef<EventStream | null>(null);
 
-  const { data: recentEvents, isLoading, isError, refetch } = useQuery({
+  const { data: recentEvents, isLoading, isRefetching, isError, refetch } = useQuery({
     queryKey: ["events"],
     queryFn: () => listEvents({ limit: 20 }).then((r) => r.data),
     refetchInterval: 30_000,
@@ -52,7 +52,7 @@ export function HomeScreen() {
       <Text style={styles.header}>recent activity</Text>
       <FlatList
         data={allEvents}
-        refreshing={isLoading}
+        refreshing={isLoading || isRefetching}
         onRefresh={() => void refetch()}
         ListEmptyComponent={
           <Text style={styles.empty}>

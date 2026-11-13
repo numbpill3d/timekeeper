@@ -6,7 +6,7 @@ import { api, Camera, updateCamera } from "../api/client";
 export function CamerasScreen() {
   const queryClient = useQueryClient();
   const [mutationError, setMutationError] = useState("");
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isRefetching, isError, refetch } = useQuery({
     queryKey: ["cameras"],
     queryFn: () => api.get<Camera[]>("/cameras").then((r) => r.data),
   });
@@ -33,7 +33,7 @@ export function CamerasScreen() {
       ) : null}
       <FlatList
         data={data ?? []}
-        refreshing={isLoading}
+        refreshing={isLoading || isRefetching}
         onRefresh={() => void refetch()}
         ListEmptyComponent={
           <Text style={styles.empty}>
