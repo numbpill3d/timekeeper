@@ -161,11 +161,17 @@ export function ChatScreen() {
           onPress: () => {
             void redactEvent(eventId)
               .then(() => {
-                setMessages((current) => current.map((message) => (
-                  message.id === messageId
-                    ? { ...message, evidence: message.evidence?.filter((item) => item.event_id !== eventId) }
-                    : message
-                )));
+                setMessages((current) => current.map((message) => {
+                  if (message.id !== messageId) return message;
+                  const redactedClip = message.evidence?.find((item) => item.event_id === eventId)?.clip_url;
+                  return {
+                    ...message,
+                    evidence: message.evidence?.filter((item) => item.event_id !== eventId),
+                    clips: redactedClip
+                      ? message.clips?.filter((clip) => clip !== redactedClip)
+                      : message.clips,
+                  };
+                }));
                 setQueryError("");
               })
               .catch(() => setQueryError("couldn't redact that evidence; it was left unchanged."));

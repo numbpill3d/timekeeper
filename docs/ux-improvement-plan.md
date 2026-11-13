@@ -63,10 +63,12 @@ local camera evidence system.
 26. **Answer-level evidence controls** — carry event identities through the
    query contract so web and mobile answer cards can verify or deliberately
    redact the exact supporting event.
+27. **Redaction link cleanup** — remove a redacted event's supporting row and
+   any duplicate top-level clip link from the answer card on both clients.
 
 ## Next high-value improvements
 
-27. **Trust and retention controls** — add per-camera retention previews,
+28. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins. Camera cards now surface the local
     configured local default and person-specific override behavior. Individual timeline
