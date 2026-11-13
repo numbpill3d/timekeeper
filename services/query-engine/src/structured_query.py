@@ -9,7 +9,7 @@ but this keeps the local assistant useful when Ollama is starting or absent.
 from __future__ import annotations
 
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 from omniscient_shared.time import local_now
 
@@ -26,7 +26,13 @@ _STOPWORDS = {
     "left", "leave", "find", "happen", "happened", "with", "about", "is", "up",
     "are", "was", "were", "to", "a", "an", "at", "in", "on", "of", "today",
     "yesterday", "recently", "last", "hours", "hour", "minutes", "minute",
+    "this", "morning", "afternoon", "evening", "tonight", "night",
 }
+_LOCATION_RE = re.compile(
+    r"\b(?:in|at|near)\s+(?:(?:the|my|our)\s+)?"
+    r"(?P<phrase>[a-z][a-z0-9_-]*(?:\s+[a-z][a-z0-9_-]*){0,3})",
+    re.IGNORECASE,
+)
 
 
 def _terms(question: str) -> list[str]:
@@ -36,24 +42,47 @@ def _terms(question: str) -> list[str]:
     return list(dict.fromkeys(term.strip() for term in candidates if term.strip()))
 
 
+def _location_term(question: str) -> str | None:
+    """Extract a short location phrase after a location preposition."""
+    match = _LOCATION_RE.search(question.lower())
+    if not match:
+        return None
+    stopwords = _STOPWORDS | {"during", "from", "until", "for"}
+    words = []
+    for word in match.group("phrase").split():
+        if word in stopwords:
+            break
+        words.append(word)
+    return " ".join(words) or None
+
+
 def _time_predicates(question: str, start_param: int) -> tuple[list[str], list[object]]:
     lowered = question.lower()
     now = local_now()
-    if "yesterday" in lowered:
-        start = datetime.combine(
-            (now - timedelta(days=1)).date(), datetime.min.time(), tzinfo=now.tzinfo
-        )
-        end = start + timedelta(days=1)
-        return [f"e.timestamp >= ${start_param}", f"e.timestamp < ${start_param + 1}"], [start, end]
     match = re.search(r"last\s+(\d+)\s*(hour|hours|minute|minutes)", lowered)
     if match:
         amount = int(match.group(1))
         delta = timedelta(**({"hours": amount} if match.group(2).startswith("hour") else {"minutes": amount}))
         return [f"e.timestamp >= ${start_param}"], [now - delta]
-    if "today" in lowered or not any(word in lowered for word in ("yesterday", "last")):
-        start = datetime.combine(now.date(), datetime.min.time(), tzinfo=now.tzinfo)
-        return [f"e.timestamp >= ${start_param}"], [start]
-    return [], []
+
+    day = (now - timedelta(days=1)).date() if "yesterday" in lowered else now.date()
+    day_parts = (
+        ("morning", time(0, 0), time(12, 0)),
+        ("afternoon", time(12, 0), time(18, 0)),
+        ("evening", time(18, 0), time(23, 59, 59, 999999)),
+        ("tonight", time(18, 0), time(23, 59, 59, 999999)),
+        ("night", time(18, 0), time(23, 59, 59, 999999)),
+    )
+    for word, start_time, end_time in day_parts:
+        if word in lowered:
+            start = datetime.combine(day, start_time, tzinfo=now.tzinfo)
+            end = datetime.combine(day, end_time, tzinfo=now.tzinfo)
+            return [f"e.timestamp >= ${start_param}", f"e.timestamp <= ${start_param + 1}"], [start, end]
+
+    start = datetime.combine(day, datetime.min.time(), tzinfo=now.tzinfo)
+    if "yesterday" in lowered:
+        return [f"e.timestamp >= ${start_param}", f"e.timestamp < ${start_param + 1}"], [start, start + timedelta(days=1)]
+    return [f"e.timestamp >= ${start_param}"], [start]
 
 
 def build_fallback_query(question: str) -> tuple[str, list[object]]:
@@ -68,7 +97,12 @@ def build_fallback_query(question: str) -> tuple[str, list[object]]:
         _OBJECT_ALIASES.get(term, term)
         for term in object_sources
     ]
-    person_terms = [term for term in terms if term not in object_sources]
+    location = _location_term(question)
+    location_tokens = set(location.split()) if location else set()
+    person_terms = [
+        term for term in terms
+        if term not in object_sources and term not in location_tokens
+    ]
 
     # The query router injects the owner scope centrally after validating this
     # single-level SELECT. Keeping it out here prevents a second, unscoped
@@ -87,6 +121,10 @@ def build_fallback_query(question: str) -> tuple[str, list[object]]:
     if person_terms:
         clauses.append(f"p.label ILIKE ${next_param}")
         params.append(f"%{person_terms[0]}%")
+        next_param += 1
+    if location:
+        clauses.append(f"e.location_label ILIKE ${next_param}")
+        params.append(f"%{location}%")
         next_param += 1
 
     time_clauses, time_params = _time_predicates(question, next_param)

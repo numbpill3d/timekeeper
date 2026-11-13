@@ -39,3 +39,16 @@ def test_fallback_query_supports_custom_toolbox_category():
     sql, params = build_fallback_query("where was my toolbox today?")
     assert "o.category ILIKE $2" in sql
     assert params[0] == "%toolbox%"
+
+
+def test_fallback_query_filters_location_and_day_part():
+    sql, params = build_fallback_query(
+        "what happened in the garage this afternoon?"
+    )
+    assert "e.location_label ILIKE $2" in sql
+    assert "e.timestamp >= $3" in sql
+    assert "e.timestamp <= $4" in sql
+    assert params[0] == "%garage%"
+    assert params[1].hour == 12
+    assert params[2].hour == 18
+    assert "p.label ILIKE" not in sql
