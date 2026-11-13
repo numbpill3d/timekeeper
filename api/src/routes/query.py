@@ -71,10 +71,44 @@ class QueryRequest(BaseModel):
         return v
 
 
+class EvidenceOut(BaseModel):
+    timestamp: datetime.datetime | None = None
+    event_type: str | None = None
+    action_label: str | None = None
+    location_label: str | None = None
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    person_label: str | None = None
+    object_label: str | None = None
+    object_category: str | None = None
+    clip_url: str | None = None
+
+
+class QueryEvidenceIn(BaseModel):
+    """Internal query-engine contract before clip URLs are signed."""
+
+    timestamp: datetime.datetime | None = None
+    event_type: str | None = None
+    action_label: str | None = None
+    location_label: str | None = None
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    person_label: str | None = None
+    object_label: str | None = None
+    object_category: str | None = None
+    clip_path: str | None = None
+
+
 class QueryResponse(BaseModel):
     answer: str = Field(min_length=1, max_length=10000)
     clips: list[str]
     confidence: float = Field(ge=0.0, le=1.0)
+    evidence: list[EvidenceOut] = Field(default_factory=list, max_length=20)
+
+
+class UpstreamQueryResponse(BaseModel):
+    answer: str = Field(min_length=1, max_length=10000)
+    clips: list[str]
+    confidence: float = Field(ge=0.0, le=1.0)
+    evidence: list[QueryEvidenceIn] = Field(default_factory=list, max_length=20)
 
 
 async def _check_rate_limit(user: dict, request: Request) -> None:
@@ -145,7 +179,7 @@ async def query(
         ) from exc
 
     try:
-        data = QueryResponse.model_validate(resp.json())
+        data = UpstreamQueryResponse.model_validate(resp.json())
     except (TypeError, ValueError, ValidationError) as exc:
         raise HTTPException(
             status_code=503, detail="query engine returned an invalid response"
@@ -155,8 +189,23 @@ async def query(
         for clip in data.clips
         if (url := safe_signed_clip_url(clip)) is not None
     ]
+    evidence = [
+        EvidenceOut(
+            timestamp=item.timestamp,
+            event_type=item.event_type,
+            action_label=item.action_label,
+            location_label=item.location_label,
+            confidence=item.confidence,
+            person_label=item.person_label,
+            object_label=item.object_label,
+            object_category=item.object_category,
+            clip_url=safe_signed_clip_url(item.clip_path),
+        )
+        for item in data.evidence
+    ]
     return QueryResponse(
         answer=data.answer,
         clips=clips,
         confidence=data.confidence,
+        evidence=evidence,
     )

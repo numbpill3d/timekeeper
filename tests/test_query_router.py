@@ -173,6 +173,25 @@ async def test_answer_confidence_includes_zero_confidence_rows(monkeypatch):
     assert result["confidence"] == 0.5
 
 
+def test_evidence_projection_is_bounded_and_excludes_unrequested_columns():
+    rows = [
+        {
+            "timestamp": "2026-01-01T16:30:00+00:00",
+            "event_type": "object_picked_up",
+            "action_label": "Keys picked up",
+            "person_label": "John",
+            "object_category": "keys",
+            "private_metadata": "must not leave query engine",
+        }
+    ] * 25
+
+    evidence = router._evidence(rows)
+
+    assert len(evidence) == 20
+    assert evidence[0]["person_label"] == "John"
+    assert "private_metadata" not in evidence[0]
+
+
 @pytest.mark.asyncio
 async def test_query_failures_do_not_log_generated_sql(monkeypatch, caplog):
     class Pool:

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { askQuestion } from "../api/client";
+import { askQuestion, QueryEvidence } from "../api/client";
 
 interface Message {
   id: number;
@@ -7,6 +7,17 @@ interface Message {
   content: string;
   confidence?: number;
   clips?: string[];
+  evidence?: QueryEvidence[];
+}
+
+function evidenceTime(timestamp: string | null): string {
+  if (!timestamp) return "unknown time";
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime())
+    ? "unknown time"
+    : new Intl.DateTimeFormat(undefined, {
+        month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+      }).format(date);
 }
 
 export function ChatPanel() {
@@ -57,6 +68,7 @@ export function ChatPanel() {
           content: data.answer,
           confidence: data.confidence,
           clips: data.clips,
+          evidence: data.evidence,
         },
       ]);
     } catch {
@@ -186,6 +198,29 @@ export function ChatPanel() {
                     clip {i + 1} →
                   </a>
                 ))}
+              </div>
+            )}
+            {m.evidence && m.evidence.length > 0 && (
+              <div className="query-evidence" aria-label="Supporting evidence">
+                <div className="query-evidence-title">supporting evidence</div>
+                {m.evidence.map((item, index) => {
+                  const itemName = item.object_label ?? item.object_category;
+                  const details = [item.person_label, itemName, item.location_label]
+                    .filter(Boolean)
+                    .join(" · ");
+                  return (
+                    <div className="query-evidence-row" key={`${m.id}-evidence-${index}`}>
+                      <span>{evidenceTime(item.timestamp)}</span>
+                      <span>{item.action_label ?? item.event_type ?? "activity"}</span>
+                      {details && <span>{details}</span>}
+                      {item.clip_url && (
+                        <a href={item.clip_url} target="_blank" rel="noreferrer">
+                          verify →
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

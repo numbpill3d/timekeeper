@@ -69,6 +69,33 @@ input:focus, textarea:focus, select:focus {
 }
 input::placeholder, textarea::placeholder { color: var(--text-dim); }
 
+.query-evidence {
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border);
+}
+
+.query-evidence-title {
+  color: var(--accent);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.query-evidence-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 7px;
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.query-evidence-row span:nth-child(2) { color: var(--text); }
+.query-evidence-row span:nth-child(3) { grid-column: 2; }
+.query-evidence-row a { color: var(--accent); grid-column: 2; }
+
 /* ── Shared utility classes ──────────────────────────── */
 .label {
   font-size: 10px;

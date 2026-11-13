@@ -13,6 +13,7 @@ import asyncio
 import logging
 import math
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -78,11 +79,26 @@ class QueryRequest(BaseModel):
         return value
 
 
+class Evidence(BaseModel):
+    """Public-safe fields that let clients verify an answer row by row."""
+
+    timestamp: datetime | None = None
+    event_type: str | None = None
+    action_label: str | None = None
+    location_label: str | None = None
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    person_label: str | None = None
+    object_label: str | None = None
+    object_category: str | None = None
+    clip_path: str | None = None
+
+
 class QueryResponse(BaseModel):
     answer: str = Field(min_length=1, max_length=10000)
     sql: str
     clips: list[str]
     confidence: float = Field(ge=0.0, le=1.0)
+    evidence: list[Evidence] = Field(default_factory=list, max_length=20)
 
 
 class EmbedRequest(BaseModel):
@@ -133,6 +149,7 @@ async def query(req: QueryRequest) -> QueryResponse:
         sql=result["sql"],
         clips=result["clips"],
         confidence=result["confidence"],
+        evidence=result["evidence"],
     )
 
 

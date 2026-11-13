@@ -210,7 +210,18 @@ async def answer(
         "rows": rows,
         "clips": clips,
         "confidence": avg_conf,
+        "evidence": _evidence(rows),
     }
+
+
+def _evidence(rows: list[dict]) -> list[dict]:
+    """Project query rows to bounded, non-sensitive answer evidence."""
+    fields = (
+        "timestamp", "event_type", "action_label", "location_label",
+        "confidence", "person_label", "object_label", "object_category",
+        "clip_path",
+    )
+    return [{field: row.get(field) for field in fields} for row in rows[:20]]
 
 
 def _format_history(history: list[dict]) -> str:

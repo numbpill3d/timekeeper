@@ -16,7 +16,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { askQuestion, QueryResponse } from "../api/client";
+import { askQuestion, QueryEvidence } from "../api/client";
 
 interface Message {
   id: string;
@@ -24,6 +24,17 @@ interface Message {
   content: string;
   confidence?: number;
   clips?: string[];
+  evidence?: QueryEvidence[];
+}
+
+function evidenceTime(timestamp: string | null): string {
+  if (!timestamp) return "unknown time";
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime())
+    ? "unknown time"
+    : date.toLocaleString(undefined, {
+        month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+      });
 }
 
 export function ChatScreen() {
@@ -58,6 +69,7 @@ export function ChatScreen() {
         content: data.answer,
         confidence: data.confidence,
         clips: data.clips,
+        evidence: data.evidence,
       };
       setMessages((prev) => [...prev, reply]);
     } catch {
@@ -111,6 +123,34 @@ export function ChatScreen() {
                 <Text style={styles.clip}>view evidence {index + 1} →</Text>
               </Pressable>
             ))}
+            {item.evidence?.length ? (
+              <View style={styles.evidence} accessibilityLabel="Supporting evidence">
+                <Text style={styles.evidenceTitle}>supporting evidence</Text>
+                {item.evidence.map((evidence: QueryEvidence, index: number) => {
+                  const itemName = evidence.object_label ?? evidence.object_category;
+                  const details = [evidence.person_label, itemName, evidence.location_label]
+                    .filter(Boolean)
+                    .join(" · ");
+                  return (
+                    <View key={`${item.id}-evidence-${index}`} style={styles.evidenceRow}>
+                      <Text style={styles.evidenceText}>
+                        {evidenceTime(evidence.timestamp)} · {evidence.action_label ?? evidence.event_type ?? "activity"}
+                      </Text>
+                      {details ? <Text style={styles.evidenceDetail}>{details}</Text> : null}
+                      {evidence.clip_url ? (
+                        <Pressable
+                          accessibilityRole="link"
+                          accessibilityLabel={`Verify evidence ${index + 1}`}
+                          onPress={() => void Linking.openURL(evidence.clip_url!).catch(() => undefined)}
+                        >
+                          <Text style={styles.clip}>verify evidence →</Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
           </View>
         )}
       />
@@ -157,6 +197,16 @@ const styles = StyleSheet.create({
   },
   bubbleText: { color: "#fff", fontSize: 14, lineHeight: 20 },
   confidence: { color: "#888", fontSize: 11, marginTop: 4 },
+  evidence: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#282828",
+  },
+  evidenceTitle: { color: "#c00", fontSize: 10, letterSpacing: 1, marginBottom: 5 },
+  evidenceRow: { marginBottom: 7 },
+  evidenceText: { color: "#ddd", fontSize: 11, lineHeight: 16 },
+  evidenceDetail: { color: "#888", fontSize: 11, lineHeight: 16 },
   clip: {
     color: "#e00",
     fontSize: 11,

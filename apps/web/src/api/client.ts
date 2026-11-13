@@ -45,6 +45,19 @@ export interface QueryResponse {
   answer: string;
   clips: string[];
   confidence: number;
+  evidence: QueryEvidence[];
+}
+
+export interface QueryEvidence {
+  timestamp: string | null;
+  event_type: string | null;
+  action_label: string | null;
+  location_label: string | null;
+  confidence: number | null;
+  person_label: string | null;
+  object_label: string | null;
+  object_category: string | null;
+  clip_url: string | null;
 }
 
 export interface Camera {
