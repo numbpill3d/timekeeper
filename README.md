@@ -4,7 +4,7 @@ Local-first camera intelligence for answering questions about recorded events.
 Attach a live camera feed, let the CV pipeline turn observations into
 timestamped evidence, and ask questions such as:
 
-> At 4:30 PM, who grabbed the blue toolbox and where did they go?
+> At 4:30 PM, who grabbed the toolbox and where did they go?
 
 Timekeeper answers from recorded events and supporting clips. It does not
 invent an identity or action when the evidence is missing or weak.
@@ -30,9 +30,12 @@ invent an identity or action when the evidence is missing or weak.
 
 The bundled `yolov8n.pt` weights cover the mapped COCO categories such as
 people, phones, laptops, bags, bottles, cups, books, animals, cars, and
-bicycles. Categories such as keys, wallets, medication, and packages require
-custom YOLO weights supplied through `YOLO_MODEL`; the query fallback supports
-both the canonical labels and common aliases such as “scissors” → “tool”.
+bicycles. Custom YOLO weights supplied through `YOLO_MODEL` can add classes
+such as keys, wallets, medication, packages, or toolbox; those class names are
+preserved by the vision pipeline and the structured query fallback supports
+common household labels and aliases such as “scissors” → “tool”. Color and
+other fine-grained attributes are not currently inferred unless the custom
+model emits them as distinct classes.
 
 ## Architecture
 
@@ -115,7 +118,7 @@ questions such as:
 
 ```text
 Did John pick up my keys today?
-Where was the blue toolbox yesterday?
+Where was the toolbox yesterday?
 What happened in the garage this afternoon?
 ```
 

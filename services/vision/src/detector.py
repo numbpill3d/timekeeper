@@ -32,10 +32,6 @@ _COCO_TO_CANONICAL: dict[str, str] = {
     "bicycle": "bicycle",
 }
 
-# Custom fine-tuned classes added on top of COCO
-_CUSTOM_CLASSES: set[str] = {"keys", "wallet", "medication", "package"}
-
-
 class Detector:
     def __init__(
         self,
@@ -71,9 +67,9 @@ class Detector:
             for box in r.boxes:
                 raw_cls = r.names[int(box.cls)]
                 canonical = _COCO_TO_CANONICAL.get(raw_cls, raw_cls)
-                if canonical not in (
-                    set(_COCO_TO_CANONICAL.values()) | _CUSTOM_CLASSES
-                ):
+                # The model's class map is the allowlist. Preserve arbitrary
+                # custom YOLO classes instead of silently dropping them.
+                if not isinstance(canonical, str) or not canonical.strip():
                     continue
 
                 x1, y1, x2, y2 = box.xyxy[0].tolist()

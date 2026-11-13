@@ -32,3 +32,9 @@ def test_fallback_query_maps_detector_alias_to_object_category():
     assert "o.category ILIKE $2" in sql
     assert params[0] == "%tool%"
     assert "p.label ILIKE" not in sql
+
+
+def test_fallback_query_supports_custom_toolbox_category():
+    sql, params = build_fallback_query("where was my toolbox today?")
+    assert "o.category ILIKE $2" in sql
+    assert params[0] == "%toolbox%"

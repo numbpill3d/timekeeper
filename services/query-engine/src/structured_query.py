@@ -15,7 +15,7 @@ from omniscient_shared.time import local_now
 
 _OBJECT_TERMS = {
     "keys", "key", "wallet", "phone", "bag", "backpack", "package",
-    "laptop", "tablet", "glasses", "medication", "bottle", "cup", "book",
+    "laptop", "tablet", "glasses", "medication", "toolbox", "bottle", "cup", "book",
     "tool", "scissors",
 }
 _OBJECT_ALIASES = {"scissors": "tool"}
