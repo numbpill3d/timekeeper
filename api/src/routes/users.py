@@ -24,7 +24,9 @@ DB = Annotated[asyncpg.Connection, Depends(get_db)]
 
 def _normalize_email(value: EmailStr) -> str:
     """Use one case-insensitive identity for registration and login."""
-    return str(value).strip().casefold()
+    # PostgreSQL's lower() index is the durable uniqueness boundary, so keep
+    # application normalization byte-for-byte aligned with that expression.
+    return str(value).strip().lower()
 
 
 class RegisterRequest(BaseModel):

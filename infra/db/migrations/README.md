@@ -18,3 +18,8 @@ new events populate the current column without deleting historical events.
 
 `002_alert_delivery_idempotency.sql` removes duplicate historical delivery
 rows before adding the uniqueness boundary used by the alert worker.
+
+`003_user_email_canonicalization.sql` normalizes legacy email casing and adds
+case-insensitive uniqueness. It aborts before changing data if existing
+accounts collide after normalization, so those accounts can be resolved
+explicitly by an administrator first.
