@@ -43,6 +43,7 @@ from omniscient_shared.models.entity import (
 from .association import PersonCandidate, associate_person
 from .detector import Detector
 from .face import FaceModel
+from .gallery import EMBEDDING_DIM, parse_gallery_embedding
 from .reid import ReIDModel
 from .tracker import Tracker
 
@@ -148,9 +149,16 @@ class VisionPipeline:
                 raw = row[column]
                 if raw is None:
                     continue
-                vals = [float(x) for x in str(raw).strip("[]").split(",")]
+                embedding = parse_gallery_embedding(raw, dimension=EMBEDDING_DIM)
+                if embedding is None:
+                    log.warning(
+                        "skipping invalid %s embedding for person %s",
+                        column,
+                        person_id,
+                    )
+                    continue
                 gallery.setdefault(owner_id, []).append(
-                    (person_id, np.array(vals, dtype=np.float32))
+                    (person_id, embedding)
                 )
 
         log.info(
