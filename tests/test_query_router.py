@@ -304,6 +304,12 @@ async def test_item_history_adds_related_person_exit(monkeypatch):
 
     assert len(calls) == 2
     assert "person_exited" in calls[1][0]
+    assert calls[1][1][0] == [person_id]
+    assert calls[1][1][1] == pickup_time
     assert [row["event_type"] for row in result["rows"]] == [
         "object_picked_up", "person_exited"
     ]
+
+
+def test_timestamp_sort_key_handles_missing_and_iso_timestamps():
+    assert router._timestamp_sort_key({"timestamp": "2026-01-01T16:30:00Z"}) < router._timestamp_sort_key({})

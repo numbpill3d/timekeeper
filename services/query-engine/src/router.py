@@ -270,16 +270,27 @@ async def _append_related_exits(
     if not person_ids or not timestamps:
         return rows
 
-    start = min(timestamps) - timedelta(minutes=30)
+    start = min(timestamps)
     end = max(timestamps) + timedelta(minutes=30)
     exit_sql = _inject_owner_scope(_safe_sql(_EXIT_EVENTS_SQL))
     exits = await _execute(exit_sql, owner_id, [person_ids, start, end])
     existing_ids = {row.get("event_id") for row in rows}
     merged = rows + [row for row in exits if row.get("event_id") not in existing_ids]
-    return sorted(
-        merged,
-        key=lambda row: row.get("timestamp") or datetime.min,
-    )
+    return sorted(merged, key=_timestamp_sort_key)
+
+
+def _timestamp_sort_key(row: dict) -> tuple[int, float]:
+    """Sort evidence chronologically without assuming complete DB rows."""
+    timestamp = row.get("timestamp")
+    if isinstance(timestamp, datetime):
+        return (0, timestamp.timestamp())
+    if isinstance(timestamp, str):
+        try:
+            parsed = datetime.fromisoformat(timestamp)
+            return (0, parsed.timestamp())
+        except ValueError:
+            pass
+    return (1, 0.0)
 
 
 def _evidence(rows: list[dict]) -> list[dict]:

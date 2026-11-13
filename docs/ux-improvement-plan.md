@@ -93,10 +93,13 @@ local camera evidence system.
 36. **Multi-camera synthetic handoff** — make the hardware-free fixture use
    deterministic kitchen and garage cameras, and assert that the formatted
    answer preserves pickup, movement, placement, exit, and camera-path facts.
+37. **Complete item handoff narratives** — correlate a nearby owner-scoped
+    person-exit event with matched pickup/movement/placement evidence so an
+    item-history answer can explain both what was taken and who left afterward.
 
 ## Next high-value improvements
 
-37. **Trust and retention controls** — add per-camera retention previews,
+38. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins. Camera cards now surface the local
     configured local default and person-specific override behavior. Individual timeline
