@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from functools import lru_cache
 from pathlib import PurePosixPath
 from urllib.parse import urlparse
 
@@ -33,7 +34,9 @@ if os.getenv("ENVIRONMENT", "development").lower() == "production" and (
     raise RuntimeError("production media storage credentials must be configured")
 
 
+@lru_cache(maxsize=1)
 def _client():
+    """Reuse the signing client across event-list responses."""
     import boto3
 
     return boto3.client(
