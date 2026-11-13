@@ -347,6 +347,7 @@ export function Cameras() {
   const [removeError, setRemoveError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [setupStep, setSetupStep] = useState<1 | 2>(1);
+  const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
 
   const { data: cameras = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["cameras"],
@@ -429,6 +430,10 @@ export function Cameras() {
   }
 
   function validateConnectionStep(): boolean {
+    if (!privacyAcknowledged) {
+      setError("confirm that you are authorized to monitor and retain this feed");
+      return false;
+    }
     const trimmedUrl = url.trim();
     if (!trimmedUrl) {
       setError("stream URL is required");
@@ -478,6 +483,7 @@ export function Cameras() {
           onClick={() => {
             setShowForm((v) => !v);
             setSetupStep(1);
+            setPrivacyAcknowledged(false);
             setError("");
           }}
         >
@@ -596,6 +602,37 @@ export function Cameras() {
                 Tokens stay in ingestion: {proto.toUpperCase()}_ACCESS_TOKEN.
               </div>
             </div>
+          )}
+          {setupStep === 2 && (
+            <label
+              style={{
+                display: "flex",
+                gap: 8,
+                alignItems: "flex-start",
+                padding: "9px 10px",
+                border: "1px solid var(--border-hi)",
+                background: "var(--elevated)",
+                color: "var(--text-dim)",
+                fontSize: 10,
+                lineHeight: 1.5,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={privacyAcknowledged}
+                onChange={(event) => {
+                  setPrivacyAcknowledged(event.target.checked);
+                  if (event.target.checked) setError("");
+                }}
+                aria-label="Confirm camera monitoring authorization"
+                style={{ marginTop: 2 }}
+              />
+              <span>
+                I am authorized to monitor and retain this feed. Evidence stays in
+                this Timekeeper deployment until retention cleanup or camera deletion;
+                use appropriate notice and consent for people in view.
+              </span>
+            </label>
           )}
           {error && (
             <div
