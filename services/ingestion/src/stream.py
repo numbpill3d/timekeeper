@@ -83,7 +83,13 @@ async def _read_loop(camera: Camera, publish_cb) -> None:
         path = FRAME_DIR / f"{frame_id}.jpg"
         published = False
         try:
-            if not cv2.imwrite(str(path), img, [cv2.IMWRITE_JPEG_QUALITY, 85]):
+            encoded = await asyncio.to_thread(
+                cv2.imwrite,
+                str(path),
+                img,
+                [cv2.IMWRITE_JPEG_QUALITY, 85],
+            )
+            if not encoded:
                 log.warning("could not encode frame for %s", camera.name)
                 continue
 

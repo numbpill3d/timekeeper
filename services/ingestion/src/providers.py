@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import re
 import threading
@@ -26,6 +27,9 @@ from omniscient_shared.models.camera import Camera, CameraProtocol
 
 class ProviderError(RuntimeError):
     """A provider could not produce a usable video stream."""
+
+
+log = logging.getLogger(__name__)
 
 
 _ENV_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
@@ -119,8 +123,18 @@ async def _direct_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
             yield item  # type: ignore[misc]  # validated queue payload
     finally:
         stop.set()
-        if reader.done():
-            reader.result()
+        try:
+            # A normal demux loop observes ``stop`` quickly, but a provider
+            # can be blocked in its decoder or network read.  Bound cleanup so
+            # camera removal cannot hang the service, while still observing
+            # the worker's result whenever it exits promptly.
+            await asyncio.wait_for(asyncio.shield(reader), timeout=5)
+        except TimeoutError:
+            reader.cancel()
+            log.warning(
+                "direct stream worker did not stop promptly for %s",
+                camera.name,
+            )
 
 
 def _token(config: dict[str, Any], default_env: str) -> str:
