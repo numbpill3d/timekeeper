@@ -20,6 +20,17 @@ RUN pip install --no-cache-dir \
        --constraint /tmp/torch-constraints.txt \
        -r /tmp/requirements-no-torch.txt
 
+# Bundle the official OSNet x1.0 ImageNet weights in the same way as the
+# detector. Torchreid otherwise downloads them on the first process start and
+# silently disables cross-camera identity matching when the runtime is offline.
+ARG OSNET_WEIGHTS_URL=https://drive.google.com/uc?id=1LaG1EJpHrxdAxKnSCJ_i0u-nbxSAeiFY
+ARG OSNET_WEIGHTS_SHA256=fe2d63f9157c28a4a8d8ca29bec12d5b2988ac0346d712025789ea9174968e79
+RUN mkdir -p /root/.cache/torch/checkpoints \
+    && gdown "$OSNET_WEIGHTS_URL" \
+       -O /root/.cache/torch/checkpoints/osnet_x1_0_imagenet.pth \
+    && echo "$OSNET_WEIGHTS_SHA256  /root/.cache/torch/checkpoints/osnet_x1_0_imagenet.pth" \
+       | sha256sum -c -
+
 # Bundle the pinned default detector so a fresh or offline runtime does not
 # depend on an implicit first-start download from Ultralytics.
 ARG YOLO_WEIGHTS_URL=https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt

@@ -45,7 +45,9 @@ session. Static access tokens are never persisted.
 
 ## Recognition validation
 
-The vision service uses OSNet appearance ReID by default. FaceNet/MTCNN can be
+The vision image bundles the official OSNet x1.0 ImageNet weights, so the
+default appearance ReID path does not depend on a first-start network download.
+FaceNet/MTCNN can be
 provided separately when its model dependencies are validated; the default
 image omits the stale published FaceNet package pin so it can use maintained
 Torch/Torchvision releases. Enroll a known person by allowing a clear

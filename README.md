@@ -36,7 +36,8 @@ invent an identity or action when the evidence is missing or weak.
 - Keeps camera/provider credentials out of event data and rejects credential
   material embedded in camera URLs or provider configuration.
 
-The vision image bundles a SHA-256-verified `yolov8n.pt` detector covering the
+The vision image bundles SHA-256-verified YOLO and OSNet weights. The default
+`yolov8n.pt` detector covers the
 people, phones, laptops, bags, bottles, cups, books, animals, cars, and
 bicycles. Custom YOLO weights supplied through `YOLO_MODEL` can add classes
 such as keys, wallets, medication, packages, or toolbox; those class names are
