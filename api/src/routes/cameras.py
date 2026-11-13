@@ -233,7 +233,7 @@ def _public_camera(row: asyncpg.Record | dict) -> CameraOut:
 @router.get("", response_model=list[CameraOut])
 async def list_cameras(user: CurrentUser, db: DB) -> list[CameraOut]:
     rows = await db.fetch(
-        "SELECT * FROM cameras WHERE owner_id = $1 ORDER BY created_at",
+        "SELECT * FROM cameras WHERE owner_id = $1 ORDER BY created_at, id",
         user["sub"],
     )
     return [_public_camera(r) for r in rows]

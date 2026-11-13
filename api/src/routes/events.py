@@ -88,7 +88,7 @@ async def list_events(
         LEFT JOIN persons p ON e.person_id = p.id AND p.owner_id = $1
         LEFT JOIN tracked_objects o ON e.object_id = o.id AND o.owner_id = $1
         WHERE {where}
-        ORDER BY e.timestamp DESC
+        ORDER BY e.timestamp DESC, e.id DESC
         LIMIT ${limit_idx} OFFSET ${limit_idx + 1}
         """,
         *params,

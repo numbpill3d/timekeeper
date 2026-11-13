@@ -136,6 +136,7 @@ async def test_event_list_scopes_joined_identity_labels_to_owner():
     await list_events({"sub": "owner-1"}, db)
     assert "p.owner_id = $1" in db.sql
     assert "o.owner_id = $1" in db.sql
+    assert "ORDER BY e.timestamp DESC, e.id DESC" in db.sql
 
 
 @pytest.mark.asyncio

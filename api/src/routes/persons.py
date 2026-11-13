@@ -62,7 +62,7 @@ async def list_persons(user: CurrentUser, db: DB) -> list[PersonOut]:
              AND e.camera_id IN (SELECT id FROM cameras WHERE owner_id = $1)
         WHERE p.owner_id = $1
         GROUP BY p.id
-        ORDER BY p.last_seen_at DESC NULLS LAST, p.created_at DESC
+        ORDER BY p.last_seen_at DESC NULLS LAST, p.created_at DESC, p.id DESC
         """,
         user["sub"],
     )

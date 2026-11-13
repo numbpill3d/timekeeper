@@ -72,7 +72,7 @@ class AlertDeliveryOut(BaseModel):
 @router.get("", response_model=list[AlertRuleOut])
 async def list_rules(user: CurrentUser, db: DB) -> list[AlertRuleOut]:
     rows = await db.fetch(
-        "SELECT * FROM alert_rules WHERE owner_id = $1 ORDER BY created_at",
+        "SELECT * FROM alert_rules WHERE owner_id = $1 ORDER BY created_at, id",
         user["sub"],
     )
     return [AlertRuleOut(**dict(r)) for r in rows]
@@ -159,7 +159,7 @@ async def list_deliveries(
         """
         SELECT * FROM alert_deliveries
         WHERE rule_id = $1
-        ORDER BY triggered_at DESC
+        ORDER BY triggered_at DESC, id DESC
         LIMIT $2
         """,
         rule_id,
