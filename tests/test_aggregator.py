@@ -128,6 +128,38 @@ def test_object_placed_on_first_non_person():
     assert any(e.event_type == EventType.object_placed for e in events)
 
 
+def test_moved_stationary_object_can_be_placed_again():
+    agg = CameraAggregator(camera_id=str(_CAM), location_label=None)
+    t = datetime.now(tz=UTC)
+    original = _det("keys", track_id=3, ts=t)
+    agg.process(_msg([original], ts=t))
+    first_placement = agg.process(
+        _msg(
+            [original.model_copy(update={"timestamp": t + STILL_TIMEOUT})],
+            ts=t + STILL_TIMEOUT,
+        )
+    )
+    assert any(event.event_type == EventType.object_placed for event in first_placement)
+
+    moved_at = t + STILL_TIMEOUT + timedelta(seconds=1)
+    moved = original.model_copy(
+        update={
+            "timestamp": moved_at,
+            "bbox": (0.5, 0.1, 0.9, 0.8),
+        }
+    )
+    assert agg.process(_msg([moved], ts=moved_at)) == []
+
+    settled_at = moved_at + STILL_TIMEOUT
+    second_placement = agg.process(
+        _msg(
+            [moved.model_copy(update={"timestamp": settled_at})],
+            ts=settled_at,
+        )
+    )
+    assert any(event.event_type == EventType.object_placed for event in second_placement)
+
+
 def test_transient_object_does_not_emit_pickup():
     agg = CameraAggregator(camera_id=str(_CAM), location_label=None)
     t = datetime.now(tz=UTC)

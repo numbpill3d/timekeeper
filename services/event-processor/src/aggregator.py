@@ -58,11 +58,15 @@ class CameraAggregator:
                 if evt:
                     events.append(evt)
                 self._first_seen[key] = now
-            elif det.class_name != "person" and key not in self._stationary:
+            elif det.class_name != "person":
                 previous = self._active[key]
                 if self._bbox_iou(previous.bbox, det.bbox) < STATIONARY_IOU_THRESHOLD:
+                    # A previously stationary item has started moving again.
+                    # Reset the dwell timer so a later placement is emitted
+                    # after it settles at its new location.
                     self._first_seen[key] = now
-                elif now - self._first_seen[key] >= STILL_TIMEOUT:
+                    self._stationary.discard(key)
+                elif key not in self._stationary and now - self._first_seen[key] >= STILL_TIMEOUT:
                     events.append(self._on_stationary(det, now))
                     self._stationary.add(key)
 
