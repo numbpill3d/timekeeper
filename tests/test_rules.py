@@ -84,6 +84,11 @@ def test_unknown_skips_identified_person():
     assert result is False
 
 
+def test_unknown_does_not_match_events_without_a_person_association():
+    rule = {"person_labels": ["unknown"]}
+    assert event_matches(_event(), rule, person_label=None, person_is_known=False) is False
+
+
 def test_specific_label_matches():
     rule = {"person_labels": ["alice"]}
     assert event_matches(_event(), rule, person_label="alice") is True

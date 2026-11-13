@@ -168,8 +168,10 @@ def event_matches(
     p_labels = rule.get("person_labels")
     if p_labels:
         if "unknown" in p_labels:
-            # "unknown" means is_known=False; skip if person is identified
-            if person_is_known:
+            # "unknown" means an observed person was resolved and marked
+            # unknown; an event with no person association is not evidence of
+            # an unknown person and must not trigger this rule.
+            if not person_label or person_is_known:
                 return False
         else:
             # specific label(s) required
