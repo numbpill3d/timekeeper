@@ -11,8 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from omniscient_shared.time import to_utc
 from pydantic import BaseModel
 
-from ..auth import CurrentUser
 from ..audit import record_audit
+from ..auth import CurrentUser
 from ..db import get_db
 from ..media import delete_clip_objects, safe_signed_clip_url
 

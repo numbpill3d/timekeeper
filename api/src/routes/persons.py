@@ -10,8 +10,8 @@ import asyncpg
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-from ..auth import CurrentUser
 from ..audit import record_audit
+from ..auth import CurrentUser
 from ..db import get_db
 
 router = APIRouter()
