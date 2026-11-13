@@ -81,10 +81,22 @@ local camera evidence system.
 32. **Restart-safe handoffs** — restore only the bounded recent pickup window
    from persisted events when the event processor starts, so a short service
    restart does not silently break an otherwise valid camera handoff.
+33. **Provider session cleanup** — delete same-host WHEP session resources when
+   a cloud stream closes or reconnects, preventing stale provider sessions from
+   accumulating while refusing unsafe cross-host cleanup targets.
+34. **Ambiguous attribution safety** — refuse to name a person when multiple
+   overlapping candidates have near-tied object-association scores, so weak
+   evidence becomes unknown rather than a false identity claim.
+35. **Possessive item questions** — parse questions such as “what happened to
+   John’s blue toolbox?” into separate person and arbitrary item-label filters
+   in the local fallback planner.
+36. **Multi-camera synthetic handoff** — make the hardware-free fixture use
+   deterministic kitchen and garage cameras, and assert that the formatted
+   answer preserves pickup, movement, placement, exit, and camera-path facts.
 
 ## Next high-value improvements
 
-33. **Trust and retention controls** — add per-camera retention previews,
+37. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins. Camera cards now surface the local
     configured local default and person-specific override behavior. Individual timeline
