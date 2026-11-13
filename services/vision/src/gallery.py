@@ -7,6 +7,21 @@ import numpy as np
 EMBEDDING_DIM = 512
 
 
+def validate_embedding(
+    raw: object, *, dimension: int = EMBEDDING_DIM
+) -> np.ndarray | None:
+    """Return a finite, one-dimensional embedding with the expected size."""
+    try:
+        embedding = np.asarray(raw, dtype=np.float32)
+    except (TypeError, ValueError):
+        return None
+    if embedding.ndim != 1 or embedding.size != dimension:
+        return None
+    if not np.isfinite(embedding).all():
+        return None
+    return embedding
+
+
 def remove_person_from_gallery(
     gallery: dict[str, list[tuple[str, np.ndarray]]], person_id: str
 ) -> None:
@@ -28,8 +43,4 @@ def parse_gallery_embedding(
         embedding = np.asarray(values, dtype=np.float32)
     except (TypeError, ValueError):
         return None
-    if embedding.ndim != 1 or embedding.size != dimension:
-        return None
-    if not np.isfinite(embedding).all():
-        return None
-    return embedding
+    return validate_embedding(embedding, dimension=dimension)

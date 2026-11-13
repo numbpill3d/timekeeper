@@ -47,6 +47,7 @@ from .gallery import (
     EMBEDDING_DIM,
     parse_gallery_embedding,
     remove_person_from_gallery,
+    validate_embedding,
 )
 from .reid import ReIDModel
 from .tracker import Tracker
@@ -334,6 +335,8 @@ class VisionPipeline:
         if isinstance(reid_emb, Exception):
             log.warning("ReID extraction failed for camera %s: %s", camera_id, reid_emb)
             reid_emb = None
+        face_emb = validate_embedding(face_emb)
+        reid_emb = validate_embedding(reid_emb)
         if face_emb is None and reid_emb is None:
             return None
 
@@ -409,6 +412,7 @@ class VisionPipeline:
 
     @staticmethod
     def _vector_literal(embedding: np.ndarray | None) -> str | None:
+        embedding = validate_embedding(embedding)
         if embedding is None:
             return None
         return "[" + ",".join(f"{v:.6f}" for v in embedding) + "]"

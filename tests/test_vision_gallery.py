@@ -1,7 +1,11 @@
 """Regression tests for vision gallery input validation."""
 
 import numpy as np
-from gallery import parse_gallery_embedding, remove_person_from_gallery
+from gallery import (
+    parse_gallery_embedding,
+    remove_person_from_gallery,
+    validate_embedding,
+)
 
 
 def test_gallery_embedding_accepts_valid_pgvector_text():
@@ -21,6 +25,14 @@ def test_gallery_embedding_skips_wrong_dimension_and_malformed_values():
 def test_gallery_embedding_skips_non_finite_values():
     assert parse_gallery_embedding("[" + ",".join(["nan"] * 512) + "]") is None
     assert parse_gallery_embedding("[" + ",".join(["inf"] * 512) + "]") is None
+
+
+def test_generated_embedding_validation_rejects_wrong_shape_and_non_finite_values():
+    assert validate_embedding(np.zeros(511, dtype=np.float32)) is None
+    invalid = np.zeros(512, dtype=np.float32)
+    invalid[10] = np.nan
+    assert validate_embedding(invalid) is None
+    assert validate_embedding(np.ones(512, dtype=np.float64)).dtype == np.float32
 
 
 def test_deleted_person_is_removed_from_all_owner_galleries():
