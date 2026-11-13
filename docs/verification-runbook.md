@@ -2,6 +2,10 @@
 
 Run these checks from the repository root after starting the stack:
 
+The complete Python dependency set is tested on Python 3.11. On Python 3.13+
+or newer, the pinned vision packages currently declare incompatible NumPy
+markers; use the repository's Python 3.11 environment for `make test`.
+
 ```bash
 make PYTHON=.venv/bin/python test
 make mobile-typecheck

@@ -23,17 +23,24 @@ function Toggle({
   checked,
   onChange,
   label,
+  disabled = false,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   label: string;
+  disabled?: boolean;
 }) {
   return (
-    <label className="toggle" title={checked ? "active" : "paused"}>
+    <label
+      className="toggle"
+      title={checked ? "active" : "paused"}
+      aria-busy={disabled}
+    >
       <input
         aria-label={`${checked ? "Disable" : "Enable"} ${label}`}
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
       />
       <span className="toggle-track" />
@@ -45,15 +52,20 @@ function Toggle({
 function AlertRow({ rule }: { rule: AlertRule }) {
   const qc = useQueryClient();
   const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState("");
 
   const toggle = useMutation({
     mutationFn: (active: boolean) => toggleAlert(rule.id, active),
+    onMutate: () => setError(""),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["alerts"] }),
+    onError: () => setError("could not update this alert"),
   });
 
   const remove = useMutation({
     mutationFn: () => deleteAlert(rule.id),
+    onMutate: () => setError(""),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["alerts"] }),
+    onError: () => setError("could not delete this alert"),
   });
 
   const p = PRIORITY_STYLE[rule.priority] ?? PRIORITY_STYLE.informational;
@@ -64,6 +76,7 @@ function AlertRow({ rule }: { rule: AlertRule }) {
         padding: "12px 20px",
         borderBottom: "1px solid var(--border)",
         display: "flex",
+        flexWrap: "wrap",
         gap: 14,
         alignItems: "center",
         opacity: rule.is_active ? 1 : 0.5,
@@ -74,6 +87,7 @@ function AlertRow({ rule }: { rule: AlertRule }) {
         checked={rule.is_active}
         onChange={(v) => toggle.mutate(v)}
         label={rule.name}
+        disabled={toggle.isPending || remove.isPending}
       />
 
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -116,8 +130,9 @@ function AlertRow({ rule }: { rule: AlertRule }) {
               className="btn btn-danger"
               style={{ padding: "3px 8px" }}
               onClick={() => remove.mutate()}
+              disabled={remove.isPending}
             >
-              delete
+              {remove.isPending ? "deleting..." : "delete"}
             </button>
             <button
               className="btn btn-ghost"
@@ -133,11 +148,20 @@ function AlertRow({ rule }: { rule: AlertRule }) {
             aria-label={`Delete alert rule ${rule.name}`}
             style={{ padding: "3px 8px", fontSize: 10 }}
             onClick={() => setConfirming(true)}
+            disabled={toggle.isPending || remove.isPending}
           >
             ✕
           </button>
         )}
       </div>
+      {error && (
+        <div
+          role="alert"
+          style={{ color: "var(--accent)", fontSize: 10, flexBasis: "100%" }}
+        >
+          ! {error}
+        </div>
+      )}
     </div>
   );
 }

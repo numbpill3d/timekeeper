@@ -64,7 +64,8 @@ backup, and access-control policy.
 
 - Docker Engine and Docker Compose.
 - At least 8 GB free disk for the CPU images; model downloads require more.
-- Python 3.10+ for local tests.
+- Python 3.11 for local tests and the complete dependency set (the Docker
+  images and CI verification use Python 3.11).
 - Node.js/npm for the web application.
 - Node.js/npm for the mobile typecheck (an Android/iOS SDK is only required for
   device builds).
