@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   BrowserRouter,
   Navigate,
@@ -13,6 +14,7 @@ import { Login } from "./pages/Login";
 import { Persons } from "./pages/Persons";
 import { Settings } from "./pages/Settings";
 import { Timeline } from "./pages/Timeline";
+import { getHealth } from "./api/client";
 
 const NAV = [
   { to: "/",         label: "dashboard",  icon: "◆" },
@@ -24,6 +26,19 @@ const NAV = [
 ] as const;
 
 function Sidebar({ open, onNavigate }: { open: boolean; onNavigate: () => void }) {
+  const { isLoading: healthLoading, isError: healthError } = useQuery({
+    queryKey: ["health"],
+    queryFn: () => getHealth().then((response) => response.data),
+    refetchInterval: 30_000,
+    retry: false,
+  });
+
+  const healthLabel = healthLoading
+    ? "checking api"
+    : healthError
+      ? "api unavailable"
+      : "api healthy";
+
   function logout() {
     localStorage.removeItem("access_token");
     window.location.reload();
@@ -63,7 +78,14 @@ function Sidebar({ open, onNavigate }: { open: boolean; onNavigate: () => void }
 
       {/* Bottom status + logout */}
       <div className="sidebar-footer">
-        <div className="system-status"><span className="status-dot" /> all systems nominal</div>
+        <div
+          className="system-status"
+          style={{ color: healthError ? "var(--accent)" : healthLoading ? "var(--amber)" : "var(--green)" }}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="status-dot" /> {healthLabel}
+        </div>
         <button
           className="btn btn-ghost"
           style={{ padding: "5px 10px", fontSize: 10 }}
