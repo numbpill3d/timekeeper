@@ -56,8 +56,19 @@ export interface AuditRecord {
   created_at: string;
 }
 
+export interface RetentionPreview {
+  camera_id: string;
+  camera_name: string;
+  events_expiring: number;
+  detections_expiring: number;
+  oldest_event_at: string | null;
+}
+
 export const listAuditLog = (limit = 50) =>
   api.get<AuditRecord[]>("/audit", { params: { limit } });
+
+export const getRetentionPreview = () =>
+  api.get<RetentionPreview[]>("/retention/preview");
 
 // ── Query ─────────────────────────────────────────────────────────
 

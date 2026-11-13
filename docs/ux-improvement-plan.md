@@ -112,8 +112,8 @@ local camera evidence system.
 41. **Policy-level retention controls** — add configurable per-camera and
     per-person retention policies beyond the current previews and defaults,
     with explicit dry-run/impact summaries before cleanup. The shipped baseline
-    already provides retention previews, audited event redaction, clip cleanup,
-    web/mobile audit history, and web CSV export.
+    already provides web/mobile retention previews, audited event redaction, clip
+    cleanup, web/mobile audit history, and web CSV export.
 
 ## Product-level follow-ons
 

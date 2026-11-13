@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { StyleSheet, Text, View, FlatList, Pressable } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, Camera, updateCamera } from "../api/client";
+import { api, Camera, getRetentionPreview, updateCamera } from "../api/client";
 
 export function CamerasScreen() {
   const queryClient = useQueryClient();
@@ -11,6 +11,10 @@ export function CamerasScreen() {
     queryFn: () => api.get<Camera[]>("/cameras").then((r) => r.data),
     refetchInterval: 15_000,
     refetchIntervalInBackground: false,
+  });
+  const { data: retention = [] } = useQuery({
+    queryKey: ["retention-preview"],
+    queryFn: () => getRetentionPreview().then((r) => r.data),
   });
   const toggle = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
@@ -55,62 +59,70 @@ export function CamerasScreen() {
           )
         }
         keyExtractor={(c) => c.id}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.name}>{item.name}</Text>
-            <Text style={styles.meta}>
-              {item.location_label ?? "no location"} · {item.protocol} · {item.status}
-            </Text>
-            <View
-              accessibilityLabel={`Camera ${item.status}`}
-              style={[styles.dot, item.status === "online" ? styles.online : styles.offline]}
-            />
-            <Text style={styles.health}>
-              {item.last_frame_at
-                ? `last frame ${new Date(item.last_frame_at).toLocaleTimeString()}`
-                : "no frame received yet"}
-              {item.status === "error" && item.last_error_code
-                ? ` · ${item.last_error_code}`
-                : ""}
-              {item.last_frame_width && item.last_frame_height
-                ? ` · ${item.last_frame_width}×${item.last_frame_height}`
-                : ""}
-              {item.observed_fps
-                ? ` · ~${item.observed_fps.toFixed(1)} fps`
-                : ""}
-            </Text>
-            <View
-              style={styles.privacy}
-              accessibilityLabel={`Privacy and retention for ${item.name}`}
-            >
-              <Text style={styles.privacyTitle}>privacy &amp; retention</Text>
-              <Text style={styles.privacyText}>
-                evidence kept locally for {item.default_retention_days ?? 30} days by default
+        renderItem={({ item }) => {
+          const impact = retention.find((entry) => entry.camera_id === item.id);
+          return (
+            <View style={styles.card}>
+              <Text style={styles.name}>{item.name}</Text>
+              <Text style={styles.meta}>
+                {item.location_label ?? "no location"} · {item.protocol} · {item.status}
               </Text>
-              <Text style={styles.privacyText}>
-                person-specific retention can override this window
+              <View
+                accessibilityLabel={`Camera ${item.status}`}
+                style={[styles.dot, item.status === "online" ? styles.online : styles.offline]}
+              />
+              <Text style={styles.health}>
+                {item.last_frame_at
+                  ? `last frame ${new Date(item.last_frame_at).toLocaleTimeString()}`
+                  : "no frame received yet"}
+                {item.status === "error" && item.last_error_code
+                  ? ` · ${item.last_error_code}`
+                  : ""}
+                {item.last_frame_width && item.last_frame_height
+                  ? ` · ${item.last_frame_width}×${item.last_frame_height}`
+                  : ""}
+                {item.observed_fps
+                  ? ` · ~${item.observed_fps.toFixed(1)} fps`
+                  : ""}
               </Text>
+              <View
+                style={styles.privacy}
+                accessibilityLabel={`Privacy and retention for ${item.name}`}
+              >
+                <Text style={styles.privacyTitle}>privacy &amp; retention</Text>
+                <Text style={styles.privacyText}>
+                  evidence kept locally for {item.default_retention_days ?? 30} days by default
+                </Text>
+                <Text style={styles.privacyText}>
+                  person-specific retention can override this window
+                </Text>
+                {impact ? (
+                  <Text style={styles.privacyText}>
+                    next sweep: {impact.events_expiring} events · {impact.detections_expiring} detections
+                  </Text>
+                ) : null}
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${item.is_active ? "Pause" : "Resume"} ${item.name}`}
+                disabled={toggle.isPending}
+                onPress={() => {
+                  setMutationError("");
+                  toggle.mutate({ id: item.id, isActive: !item.is_active });
+                }}
+                style={styles.action}
+              >
+                <Text style={styles.actionText}>
+                  {toggle.isPending && toggle.variables?.id === item.id
+                    ? "updating..."
+                    : item.is_active
+                      ? "pause camera"
+                      : "resume camera"}
+                </Text>
+              </Pressable>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${item.is_active ? "Pause" : "Resume"} ${item.name}`}
-              disabled={toggle.isPending}
-              onPress={() => {
-                setMutationError("");
-                toggle.mutate({ id: item.id, isActive: !item.is_active });
-              }}
-              style={styles.action}
-            >
-              <Text style={styles.actionText}>
-                {toggle.isPending && toggle.variables?.id === item.id
-                  ? "updating..."
-                  : item.is_active
-                    ? "pause camera"
-                    : "resume camera"}
-              </Text>
-            </Pressable>
-          </View>
-        )}
+          );
+        }}
       />
     </View>
   );
