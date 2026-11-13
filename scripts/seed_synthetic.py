@@ -1,7 +1,7 @@
 """Seed deterministic, hardware-free events for a local Timekeeper demo.
 
 The script never creates users, changes camera credentials, or deletes data.
-It upserts one inactive fixture camera and four events owned by an existing
+It upserts one inactive fixture camera and five events owned by an existing
 account. Re-running it is safe because IDs are deterministic per fixture.
 """
 
@@ -56,6 +56,13 @@ async def seed(database_url: str, owner_id: UUID, fixture: str, start: datetime)
             "John placed the blue toolbox in the garage",
             "garage",
             object_id,
+        ),
+        (
+            "person_exited",
+            start + timedelta(minutes=15),
+            "John left the garage",
+            "garage",
+            None,
         ),
     ]
 
