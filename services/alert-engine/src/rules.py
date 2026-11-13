@@ -97,6 +97,11 @@ def normalize_rule(value: object) -> dict:
     """Validate the LLM/database predicate before it reaches evaluation."""
     if not isinstance(value, dict):
         return {}
+    # Preserve the durable fail-closed marker. If it is normalized to {}, a
+    # rule that failed compilation becomes the intentional match-all predicate
+    # on the next event.
+    if value.get("_disabled") is True:
+        return {"_disabled": True}
 
     normalized: dict = {}
     for field, allowed in _RULE_LIST_FIELDS.items():

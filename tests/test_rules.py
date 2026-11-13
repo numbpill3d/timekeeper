@@ -104,6 +104,12 @@ def test_disabled_rule_never_matches():
     assert event_matches(_event(), {"_disabled": True}, person_label=None) is False
 
 
+def test_disabled_rule_marker_survives_normalization():
+    disabled = normalize_rule({"_disabled": True})
+    assert disabled == {"_disabled": True}
+    assert event_matches(_event(), disabled, person_label=None) is False
+
+
 # ── event type filter ─────────────────────────────────────────────
 
 def test_empty_rule_matches_all():
