@@ -7,12 +7,16 @@ import { listEvents, OmniscientEvent } from "../api/client";
 const EVENT_TYPE_OPTIONS = [
   "person_entered",
   "person_exited",
+  "person_detected",
   "object_placed",
   "object_picked_up",
   "object_moved",
+  "door_opened",
+  "door_closed",
   "package_delivered",
   "intrusion_detected",
   "unknown_person",
+  "fall_detected",
 ];
 
 const CONF_COLOR = (c: number) => {

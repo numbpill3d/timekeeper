@@ -15,9 +15,13 @@ import {
 const EVENT_COLORS: Record<string, string> = {
   person_entered:     "var(--green)",
   person_exited:      "var(--text-dim)",
+  person_detected:    "var(--amber)",
   package_delivered:  "var(--amber)",
   intrusion_detected: "var(--accent)",
   unknown_person:     "var(--accent)",
+  door_opened:        "var(--amber)",
+  door_closed:        "var(--text-dim)",
+  fall_detected:      "var(--accent)",
   object_moved:       "#4488ff",
   object_placed:      "#444",
   object_picked_up:   "#444",
