@@ -29,7 +29,7 @@ const EVENT_TYPES = [
 export function TimelineScreen() {
   const [filter, setFilter] = useState("");
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["events", "timeline", filter],
     queryFn: () =>
       listEvents({
@@ -67,6 +67,7 @@ export function TimelineScreen() {
       <FlatList
         data={data ?? []}
         refreshing={isLoading}
+        onRefresh={() => void refetch()}
         ListEmptyComponent={
           <Text style={styles.empty}>
             {isError ? "couldn't load the timeline." : "no matching events."}

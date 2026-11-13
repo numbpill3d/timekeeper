@@ -36,7 +36,7 @@ export function Timeline() {
   if (eventType) params.event_type = eventType;
   if (sinceDate) params.since = new Date(sinceDate).toISOString();
 
-  const { data = [], isLoading } = useQuery({
+  const { data = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["events", "timeline", eventType, sinceDate, offset],
     queryFn: () => listEvents(params).then((r) => r.data),
   });
@@ -147,6 +147,24 @@ export function Timeline() {
             loading...
           </div>
         ) : (
+          isError ? (
+          <div
+            role="alert"
+            style={{
+              padding: "32px 20px",
+              color: "var(--accent-hi)",
+              fontSize: 12,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <span>couldn't load the timeline.</span>
+            <button className="btn btn-ghost" onClick={() => void refetch()}>
+              retry
+            </button>
+          </div>
+        ) : (
           <table
             style={{
               width: "100%",
@@ -164,7 +182,7 @@ export function Timeline() {
                   borderBottom: "1px solid var(--border-hi)",
                 }}
               >
-                {["timestamp", "event", "location", "person", "conf", "clip"].map(
+                {["timestamp", "event", "location", "person", "item", "conf", "clip"].map(
                   (h) => (
                     <th
                       key={h}
@@ -244,6 +262,14 @@ export function Timeline() {
                   <td
                     style={{
                       padding: "8px 12px",
+                      color: e.object_label ? "var(--amber)" : "var(--text-dim)",
+                    }}
+                  >
+                    {e.object_label ?? "—"}
+                  </td>
+                  <td
+                    style={{
+                      padding: "8px 12px",
                       color: CONF_COLOR(e.confidence),
                       fontVariantNumeric: "tabular-nums",
                     }}
@@ -268,6 +294,7 @@ export function Timeline() {
               ))}
             </tbody>
           </table>
+        )
         )}
       </div>
 

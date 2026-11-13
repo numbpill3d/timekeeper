@@ -25,6 +25,9 @@ export function EventCard({ event }: Props) {
       {event.person_label && (
         <Text style={styles.tag}>{event.person_label}</Text>
       )}
+      {event.object_label && (
+        <Text style={styles.object}>{event.object_label}</Text>
+      )}
       {event.clip_path && (
         <Pressable
           accessibilityRole="link"
@@ -53,6 +56,12 @@ const styles = StyleSheet.create({
   loc: { color: "#888", fontSize: 12, marginTop: 2 },
   tag: {
     color: "#c00",
+    fontSize: 11,
+    marginTop: 4,
+    fontWeight: "600",
+  },
+  object: {
+    color: "#d99a00",
     fontSize: 11,
     marginTop: 4,
     fontWeight: "600",
