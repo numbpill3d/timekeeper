@@ -4,6 +4,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ChatPanel } from "../components/ChatPanel";
 import { ClipModal } from "../components/ClipModal";
 import {
+  countEvents,
   listEvents,
   listCameras,
   OmniscientEvent,
@@ -34,9 +35,9 @@ export function Dashboard() {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const { data: todayEvents = [] } = useQuery({
-    queryKey: ["events", "today"],
-    queryFn: () => listEvents({ limit: 1000, since: today.toISOString() }).then((r) => r.data),
+  const { data: todayCount = 0 } = useQuery({
+    queryKey: ["events", "today", "count"],
+    queryFn: () => countEvents({ since: today.toISOString() }).then((r) => r.data.count),
     refetchInterval: 30_000,
   });
 
@@ -58,7 +59,6 @@ export function Dashboard() {
     new Map([...live, ...recent].map((event) => [event.id, event])).values()
   ).slice(0, 14);
   const now = new Date();
-  const todayCount = todayEvents.length;
   const activeCams = cameras.filter((c) => c.is_active).length;
   const alertCount = events.filter((e) =>
     ["intrusion_detected", "unknown_person"].includes(e.event_type)

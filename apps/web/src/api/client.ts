@@ -103,6 +103,9 @@ export const updateProfile = (data: { fcm_token?: string | null; phone?: string 
 export const listEvents = (params?: Record<string, unknown>) =>
   api.get<OmniscientEvent[]>("/events", { params });
 
+export const countEvents = (params?: Record<string, unknown>) =>
+  api.get<{ count: number }>("/events/count", { params });
+
 export const getEvent = (id: string) =>
   api.get<OmniscientEvent>(`/events/${id}`);
 

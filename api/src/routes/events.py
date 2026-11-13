@@ -32,6 +32,35 @@ class EventOut(BaseModel):
     object_label: str | None
 
 
+class EventCountOut(BaseModel):
+    count: int
+
+
+def _event_filters(
+    user_id: str,
+    event_type: str | None,
+    person_id: UUID | None,
+    since: datetime | None,
+    until: datetime | None,
+) -> tuple[str, list[object]]:
+    filters = [
+        "e.camera_id IN (SELECT id FROM cameras WHERE owner_id = $1)"
+    ]
+    params: list[object] = [user_id]
+
+    for expression, value in (
+        ("e.event_type =", event_type),
+        ("e.person_id =", person_id),
+        ("e.timestamp >=", since),
+        ("e.timestamp <=", until),
+    ):
+        if value is not None:
+            placeholder = len(params) + 1
+            filters.append(f"{expression} ${placeholder}")
+            params.append(value)
+    return " AND ".join(filters), params
+
+
 @router.get("", response_model=list[EventOut])
 async def list_events(
     user: CurrentUser,
@@ -43,30 +72,10 @@ async def list_events(
     since: datetime | None = None,
     until: datetime | None = None,
 ) -> list[EventOut]:
-    filters = [
-        "e.camera_id IN (SELECT id FROM cameras WHERE owner_id = $1)"
-    ]
-    params: list = [user["sub"]]
-    idx = 2
-
-    if event_type:
-        filters.append(f"e.event_type = ${idx}")
-        params.append(event_type)
-        idx += 1
-    if person_id:
-        filters.append(f"e.person_id = ${idx}")
-        params.append(person_id)
-        idx += 1
-    if since:
-        filters.append(f"e.timestamp >= ${idx}")
-        params.append(since)
-        idx += 1
-    if until:
-        filters.append(f"e.timestamp <= ${idx}")
-        params.append(until)
-        idx += 1
-
-    where = " AND ".join(filters)
+    where, params = _event_filters(
+        user["sub"], event_type, person_id, since, until
+    )
+    limit_idx = len(params) + 1
     params += [limit, offset]
 
     rows = await db.fetch(
@@ -80,7 +89,7 @@ async def list_events(
         LEFT JOIN tracked_objects o ON e.object_id = o.id
         WHERE {where}
         ORDER BY e.timestamp DESC
-        LIMIT ${idx} OFFSET ${idx + 1}
+        LIMIT ${limit_idx} OFFSET ${limit_idx + 1}
         """,
         *params,
     )
@@ -88,6 +97,25 @@ async def list_events(
         EventOut(**{**dict(r), "clip_path": safe_signed_clip_url(r["clip_path"])})
         for r in rows
     ]
+
+
+@router.get("/count", response_model=EventCountOut)
+async def count_events(
+    user: CurrentUser,
+    db: DB,
+    event_type: str | None = None,
+    person_id: UUID | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> EventCountOut:
+    where, params = _event_filters(
+        user["sub"], event_type, person_id, since, until
+    )
+    count = await db.fetchval(
+        f"SELECT COUNT(*) FROM events e WHERE {where}",
+        *params,
+    )
+    return EventCountOut(count=int(count or 0))
 
 
 @router.get("/{event_id}", response_model=EventOut)

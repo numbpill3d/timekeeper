@@ -1,9 +1,13 @@
 """Regression tests for auth/profile API contracts."""
 
+import os
 from datetime import UTC, datetime
+
+os.environ.setdefault("JWT_SECRET", "unit-test-secret-012345678901234567890123")
 
 import pytest
 
+from api.src.routes.events import count_events
 from api.src.routes.users import (
     LoginRequest,
     ProfileUpdate,
@@ -53,3 +57,27 @@ async def test_profile_update_returns_the_full_profile_contract():
     assert result["email"] == "alice.example@example.com"
     assert result["tier"] == "home"
     assert result["fcm_token"] == "token-2"
+
+
+class _EventCountDb:
+    def __init__(self, count: int) -> None:
+        self.count = count
+        self.params: tuple[object, ...] | None = None
+
+    async def fetchval(self, _sql: str, *params: object) -> int:
+        self.params = params
+        return self.count
+
+
+@pytest.mark.asyncio
+async def test_event_count_is_owner_scoped_and_preserves_time_filters():
+    db = _EventCountDb(321)
+    result = await count_events(
+        {"sub": "owner-1"},
+        db,
+        since=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    assert result.count == 321
+    assert db.params is not None
+    assert db.params[0] == "owner-1"
+    assert db.params[1] == datetime(2026, 1, 1, tzinfo=UTC)
