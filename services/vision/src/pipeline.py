@@ -497,12 +497,6 @@ class VisionPipeline:
         self._obj_map[key] = obj_id
         return obj_id
 
-    def update_reid_gallery(
-        self, gallery: list[tuple[str, np.ndarray]], owner_id: str
-    ) -> None:
-        """Replace one owner's gallery after a person enrollment update."""
-        self._reid_gallery[owner_id] = gallery
-
     def _remove_from_galleries(self, person_id: str) -> None:
         for gallery in (self._face_gallery, self._reid_gallery):
             remove_person_from_gallery(gallery, person_id)
