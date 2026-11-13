@@ -141,10 +141,13 @@ export function ChatScreen() {
                   ]
                     .filter(Boolean)
                     .join(" · ");
+                  const confidence = evidence.confidence == null
+                    ? ""
+                    : ` · ${Math.round(evidence.confidence * 100)}% evidence confidence`;
                   return (
                     <View key={`${item.id}-evidence-${index}`} style={styles.evidenceRow}>
                       <Text style={styles.evidenceText}>
-                        {evidenceTime(evidence.timestamp)} · {evidence.action_label ?? evidence.event_type ?? "activity"}
+                        {evidenceTime(evidence.timestamp)} · {evidence.action_label ?? evidence.event_type ?? "activity"}{confidence}
                       </Text>
                       {details ? <Text style={styles.evidenceDetail}>{details}</Text> : null}
                       {evidence.clip_url ? (

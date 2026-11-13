@@ -225,11 +225,15 @@ export function ChatPanel() {
                   ]
                     .filter(Boolean)
                     .join(" · ");
+                  const confidence = item.confidence == null
+                    ? null
+                    : `${Math.round(item.confidence * 100)}% evidence confidence`;
                   return (
                     <div className="query-evidence-row" key={`${m.id}-evidence-${index}`}>
                       <span>{evidenceTime(item.timestamp)}</span>
                       <span>{item.action_label ?? item.event_type ?? "activity"}</span>
                       {details && <span>{details}</span>}
+                      {confidence && <span className="query-evidence-confidence">{confidence}</span>}
                       {item.clip_url && (
                         <a href={item.clip_url} target="_blank" rel="noreferrer">
                           verify →
