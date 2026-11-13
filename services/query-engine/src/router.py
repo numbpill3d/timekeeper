@@ -11,7 +11,6 @@ Pipeline:
 from __future__ import annotations
 
 import logging
-import os
 import re
 
 import asyncpg
@@ -29,8 +28,6 @@ except ImportError:  # Support the repository's direct-module test harness.
     from structured_query import build_fallback_query
 
 log = logging.getLogger(__name__)
-
-_DB_URL = os.getenv("DATABASE_URL", "")
 
 # Allowlist: only SELECT statements may pass through
 _SELECT_RE = re.compile(r"^\s*SELECT\b", re.IGNORECASE)

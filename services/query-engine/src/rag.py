@@ -13,7 +13,6 @@ they are first persisted (using the same model here).
 from __future__ import annotations
 
 import logging
-import os
 
 import asyncpg
 from omniscient_shared.time import to_local
@@ -25,7 +24,6 @@ except ImportError:  # Support direct-module imports used by local tests.
 
 log = logging.getLogger(__name__)
 
-_DB_URL = os.getenv("DATABASE_URL", "")
 _TOP_K = 8
 _MODEL_NAME = "all-MiniLM-L6-v2"  # 384-dim, fast, fits on CPU
 
