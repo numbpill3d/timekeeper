@@ -128,7 +128,12 @@ export function ChatScreen() {
                 <Text style={styles.evidenceTitle}>supporting evidence</Text>
                 {item.evidence.map((evidence: QueryEvidence, index: number) => {
                   const itemName = evidence.object_label ?? evidence.object_category;
-                  const details = [evidence.person_label, itemName, evidence.location_label]
+                  const details = [
+                    evidence.person_label,
+                    itemName,
+                    evidence.location_label,
+                    evidence.camera_name,
+                  ]
                     .filter(Boolean)
                     .join(" · ");
                   return (

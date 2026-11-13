@@ -205,7 +205,12 @@ export function ChatPanel() {
                 <div className="query-evidence-title">supporting evidence</div>
                 {m.evidence.map((item, index) => {
                   const itemName = item.object_label ?? item.object_category;
-                  const details = [item.person_label, itemName, item.location_label]
+                  const details = [
+                    item.person_label,
+                    itemName,
+                    item.location_label,
+                    item.camera_name,
+                  ]
                     .filter(Boolean)
                     .join(" · ");
                   return (
