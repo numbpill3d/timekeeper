@@ -172,7 +172,18 @@ async def answer(
     except RuntimeError as exc:
         log.warning("LLM SQL planner unavailable; using structured fallback: %s", exc)
         raw_sql, fallback_params = build_fallback_query(question)
-    sql = _safe_sql(_extract_sql(raw_sql))
+    try:
+        sql = _safe_sql(_extract_sql(raw_sql))
+    except ValueError as exc:
+        # A reachable model can still return malformed or unsafe SQL. Treat
+        # that the same as planner unavailability; the local fallback is
+        # bounded and remains subject to the same validator.
+        log.warning(
+            "LLM SQL planner output rejected; using structured fallback: %s",
+            type(exc).__name__,
+        )
+        raw_sql, fallback_params = build_fallback_query(question)
+        sql = _safe_sql(_extract_sql(raw_sql))
 
     # Scope all queries to the requesting owner's cameras; owner_id passed
     # as a parameter to avoid SQL injection.

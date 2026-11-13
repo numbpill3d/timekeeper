@@ -155,3 +155,36 @@ async def test_answer_confidence_includes_zero_confidence_rows(monkeypatch):
     )
 
     assert result["confidence"] == 0.5
+
+
+@pytest.mark.asyncio
+async def test_rejected_llm_sql_uses_structured_fallback(monkeypatch):
+    seen: dict[str, object] = {}
+
+    async def fake_retrieve(_question: str, _owner_id: str) -> str:
+        return ""
+
+    async def fake_plan(_question: str, _context: str) -> str:
+        return "DELETE FROM events"
+
+    async def fake_execute(sql: str, _owner_id: str, params: list[object]):
+        seen["sql"] = sql
+        seen["params"] = params
+        return []
+
+    async def fake_synthesize(_question: str, _rows: list[dict], _context: str) -> str:
+        return "no events"
+
+    monkeypatch.setattr(router, "retrieve_context", fake_retrieve)
+    monkeypatch.setattr(router, "nl_to_sql", fake_plan)
+    monkeypatch.setattr(router, "_execute", fake_execute)
+    monkeypatch.setattr(router, "synthesize_response", fake_synthesize)
+
+    await router.answer(
+        "where were my keys today?",
+        "00000000-0000-0000-0000-000000000001",
+    )
+
+    assert "DELETE" not in str(seen["sql"])
+    assert "FROM events e" in str(seen["sql"])
+    assert seen["params"]
