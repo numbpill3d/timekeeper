@@ -128,6 +128,21 @@ def test_location_rejects_other():
     assert result is False
 
 
+def test_labels_and_locations_match_case_insensitively():
+    rule = {
+        "person_labels": ["john"],
+        "object_categories": ["keys"],
+        "location_labels": ["front door"],
+    }
+    event = _event(location_label="Front Door")
+    assert event_matches(
+        event,
+        rule,
+        person_label="John",
+        object_category="Keys",
+    ) is True
+
+
 # ── time window filter ────────────────────────────────────────────
 
 def test_time_after_within_window():
@@ -162,6 +177,13 @@ def test_time_window_inside():
 def test_time_window_outside():
     rule = {"time_after": "00:00", "time_before": "06:00"}
     assert event_matches(_event(hour=10), rule, person_label=None) is False
+
+
+def test_time_window_crossing_midnight():
+    rule = {"time_after": "22:00", "time_before": "06:00"}
+    assert event_matches(_event(hour=23), rule, person_label=None) is True
+    assert event_matches(_event(hour=2), rule, person_label=None) is True
+    assert event_matches(_event(hour=12), rule, person_label=None) is False
 
 
 # ── confidence filter ─────────────────────────────────────────────

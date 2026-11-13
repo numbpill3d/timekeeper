@@ -173,15 +173,29 @@ def event_matches(
                 return False
         else:
             # specific label(s) required
-            if person_label not in p_labels:
+            if not person_label or not any(
+                person_label.casefold() == label.casefold() for label in p_labels
+            ):
                 return False
 
     obj_cats = rule.get("object_categories")
-    if obj_cats and object_category not in obj_cats:
+    if obj_cats and (
+        not object_category
+        or not any(
+            object_category.casefold() == category.casefold()
+            for category in obj_cats
+        )
+    ):
         return False
 
     locs = rule.get("location_labels")
-    if locs and event.location_label not in locs:
+    if locs and (
+        not event.location_label
+        or not any(
+            event.location_label.casefold() == location.casefold()
+            for location in locs
+        )
+    ):
         return False
 
     time_after = rule.get("time_after")
@@ -189,19 +203,37 @@ def event_matches(
     if time_after or time_before:
         t = to_local(event.timestamp)
         hhmm = t.hour * 60 + t.minute
-        if time_after:
-            ah, am = map(int, time_after.split(":"))
-            after_mins = ah * 60 + am
-            if hhmm < after_mins:
+        after_mins = (
+            _minutes(time_after) if time_after is not None else None
+        )
+        before_mins = (
+            _minutes(time_before) if time_before is not None else None
+        )
+        if after_mins is not None and before_mins is not None:
+            # A window whose end precedes its start crosses midnight, e.g.
+            # 22:00–06:00. Boundaries remain inclusive as they were for the
+            # single-sided checks.
+            in_window = (
+                after_mins <= hhmm <= before_mins
+                if after_mins <= before_mins
+                else hhmm >= after_mins or hhmm <= before_mins
+            )
+            if not in_window:
                 return False
-        if time_before:
-            bh, bm = map(int, time_before.split(":"))
-            before_mins = bh * 60 + bm
-            if hhmm > before_mins:
-                return False
+        elif (
+            after_mins is not None and hhmm < after_mins
+        ) or (
+            before_mins is not None and hhmm > before_mins
+        ):
+            return False
 
     min_conf = rule.get("min_confidence", 0.0)
     if event.confidence < min_conf:
         return False
 
     return event.confidence >= min_conf
+
+
+def _minutes(value: str) -> int:
+    hour, minute = map(int, value.split(":"))
+    return hour * 60 + minute

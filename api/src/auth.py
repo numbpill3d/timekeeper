@@ -58,7 +58,12 @@ def hash_password(plain: str) -> str:
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return _bcrypt.checkpw(_prepare(plain), hashed.encode())
+    try:
+        return _bcrypt.checkpw(_prepare(plain), hashed.encode())
+    except (TypeError, ValueError):
+        # A corrupt legacy row must behave like any other invalid credential,
+        # not turn the login endpoint into a 500 response.
+        return False
 
 
 # ── Token utils ───────────────────────────────────────────────────

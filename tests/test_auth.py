@@ -31,6 +31,10 @@ def test_wrong_password_fails():
     assert verify_password("wrongpassword", hash_password("rightpassword")) is False
 
 
+def test_malformed_hash_fails_closed():
+    assert verify_password("any password", "not-a-bcrypt-hash") is False
+
+
 # ── JWT token ─────────────────────────────────────────────────────
 
 def test_token_roundtrip():
