@@ -69,25 +69,55 @@ async def events_stream(websocket: WebSocket) -> None:
             await websocket.close(code=1011)
             return
 
-        async for msg in consumer:
-            try:
-                event = Event.model_validate(msg.value)
-            except (TypeError, ValueError) as exc:
-                log.warning("dropping malformed live event: %s", exc)
-                continue
-            # Filter to this user's cameras on the fly.
-            # The event-processor already scoped events to real cameras;
-            # ownership check here is the security gate.
-            cam_owner = event.metadata.get("owner_id")
-            if cam_owner != owner_id:
-                continue
+        # Kafka's async iterator can wait indefinitely when the topic is idle.
+        # Race each read with a receive so an idle disconnected browser releases
+        # its consumer promptly instead of leaking a broker connection.
+        disconnect_task: asyncio.Task[object] | None = asyncio.create_task(
+            websocket.receive()
+        )
+        try:
+            while True:
+                consumer_task = asyncio.create_task(consumer.getone())
+                done, _ = await asyncio.wait(
+                    (consumer_task, disconnect_task),
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                if disconnect_task in done:
+                    consumer_task.cancel()
+                    await asyncio.gather(consumer_task, return_exceptions=True)
+                    try:
+                        message = disconnect_task.result()
+                    except WebSocketDisconnect:
+                        break
+                    if message.get("type") == "websocket.disconnect":
+                        break
+                    # Ignore client messages and continue watching for a close.
+                    disconnect_task = asyncio.create_task(websocket.receive())
+                    continue
 
-            try:
-                payload = public_event_payload(event)
-                if payload is not None:
-                    await websocket.send_json(payload)
-            except WebSocketDisconnect:
-                break
+                msg = consumer_task.result()
+                try:
+                    event = Event.model_validate(msg.value)
+                except (TypeError, ValueError) as exc:
+                    log.warning("dropping malformed live event: %s", exc)
+                    continue
+                # Filter to this user's cameras on the fly.
+                # The event-processor already scoped events to real cameras;
+                # ownership check here is the security gate.
+                cam_owner = event.metadata.get("owner_id")
+                if cam_owner != owner_id:
+                    continue
+
+                try:
+                    payload = public_event_payload(event)
+                    if payload is not None:
+                        await websocket.send_json(payload)
+                except WebSocketDisconnect:
+                    break
+        finally:
+            if not disconnect_task.done():
+                disconnect_task.cancel()
+            await asyncio.gather(disconnect_task, return_exceptions=True)
     except WebSocketDisconnect:
         pass
     except asyncio.CancelledError:
