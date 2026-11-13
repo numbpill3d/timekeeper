@@ -47,6 +47,8 @@ jobs:
         run: ruff check api services shared tests
       - name: Compile Python sources
         run: python -m compileall -q api services shared tests
+      - name: Build shared package
+        run: python -m pip wheel ./shared --no-deps --no-build-isolation --wheel-dir "$RUNNER_TEMP/timekeeper-shared-wheel"
 
   web:
     name: Web build and audit
