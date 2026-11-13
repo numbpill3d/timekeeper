@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from typing import Annotated
 
 import asyncpg
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from ..auth import (
@@ -20,6 +21,9 @@ from ..db import get_db
 router = APIRouter()
 
 DB = Annotated[asyncpg.Connection, Depends(get_db)]
+
+_AUTH_RATE_WINDOW_SECONDS = 900
+_AUTH_RATE_LIMIT = 10
 
 
 def _normalize_email(value: EmailStr) -> str:
@@ -61,8 +65,32 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+async def _check_auth_rate_limit(request: Request, email: str, action: str) -> None:
+    """Throttle public auth attempts by client address and normalized email."""
+    redis = request.app.state.redis
+    client_host = request.client.host if request.client else "unknown"
+    email_hash = hashlib.sha256(email.encode()).hexdigest()
+    keys = (
+        f"rl:auth:{action}:ip:{client_host}",
+        f"rl:auth:{action}:email:{email_hash}",
+    )
+    counts = []
+    for key in keys:
+        count = await redis.incr(key)
+        counts.append(count)
+        if count == 1:
+            await redis.expire(key, _AUTH_RATE_WINDOW_SECONDS)
+    if any(count > _AUTH_RATE_LIMIT for count in counts):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="too many authentication attempts; try again later",
+            headers={"Retry-After": str(_AUTH_RATE_WINDOW_SECONDS)},
+        )
+
+
 @router.post("/register", response_model=TokenResponse, status_code=201)
-async def register(req: RegisterRequest, db: DB) -> TokenResponse:
+async def register(req: RegisterRequest, request: Request, db: DB) -> TokenResponse:
+    await _check_auth_rate_limit(request, req.email, "register")
     existing = await db.fetchrow(
         "SELECT id FROM users WHERE email = $1", req.email
     )
@@ -88,7 +116,8 @@ async def register(req: RegisterRequest, db: DB) -> TokenResponse:
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(req: LoginRequest, db: DB) -> TokenResponse:
+async def login(req: LoginRequest, request: Request, db: DB) -> TokenResponse:
+    await _check_auth_rate_limit(request, req.email, "login")
     row = await db.fetchrow(
         "SELECT id, password_hash, subscription_tier FROM users WHERE email=$1",
         req.email,

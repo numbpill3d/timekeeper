@@ -16,6 +16,7 @@ from api.src.routes.users import (
     LoginRequest,
     ProfileUpdate,
     RegisterRequest,
+    _check_auth_rate_limit,
     update_profile,
 )
 
@@ -24,6 +25,53 @@ def test_auth_email_is_canonicalized_case_insensitively():
     assert RegisterRequest(
         email="Alice.Example@Example.COM", password="correct horse battery staple"
     ).email == "alice.example@example.com"
+
+
+class _AuthRateRedis:
+    def __init__(self, count: int = 0) -> None:
+        self.initial_count = count
+        self.counts: dict[str, int] = {}
+        self.keys: list[str] = []
+        self.expirations: list[tuple[str, int]] = []
+
+    async def incr(self, key: str) -> int:
+        self.keys.append(key)
+        count = self.counts.setdefault(key, self.initial_count) + 1
+        self.counts[key] = count
+        return count
+
+    async def expire(self, key: str, seconds: int) -> bool:
+        self.expirations.append((key, seconds))
+        return True
+
+
+@pytest.mark.asyncio
+async def test_auth_rate_limit_hashes_email_and_initializes_window():
+    redis = _AuthRateRedis()
+    request = SimpleNamespace(
+        client=SimpleNamespace(host="192.0.2.10"),
+        app=SimpleNamespace(state=SimpleNamespace(redis=redis)),
+    )
+
+    await _check_auth_rate_limit(request, "alice@example.com", "login")
+
+    assert len(redis.keys) == 2
+    assert all("alice@example.com" not in key for key in redis.keys)
+    assert redis.expirations == [(key, 900) for key in redis.keys]
+
+
+@pytest.mark.asyncio
+async def test_auth_rate_limit_rejects_after_ten_attempts():
+    redis = _AuthRateRedis(count=10)
+    request = SimpleNamespace(
+        client=SimpleNamespace(host="192.0.2.10"),
+        app=SimpleNamespace(state=SimpleNamespace(redis=redis)),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await _check_auth_rate_limit(request, "alice@example.com", "login")
+    assert exc_info.value.status_code == 429
+    assert exc_info.value.headers["Retry-After"] == "900"
     assert LoginRequest(
         email="ALICE.EXAMPLE@EXAMPLE.COM", password="correct horse battery staple"
     ).email == "alice.example@example.com"
