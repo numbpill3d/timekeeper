@@ -41,12 +41,15 @@ jobs:
           "numpy>=1.26.0"
           "opencv-python-headless>=4.8.0"
           "ruff>=0.8.0"
+          "pip-audit>=2.7.0"
       - name: Test
         run: pytest -q
       - name: Lint
         run: ruff check api services shared tests
       - name: Compile Python sources
         run: python -m compileall -q api services shared tests
+      - name: Audit Python dependencies
+        run: pip-audit --strict
       - name: Build shared package
         run: python -m pip wheel ./shared --no-deps --no-build-isolation --wheel-dir "$RUNNER_TEMP/timekeeper-shared-wheel"
 
