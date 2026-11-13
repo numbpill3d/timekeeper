@@ -65,6 +65,13 @@ Rules:
 """.strip()
 
 
+def _require_text(value: object) -> str:
+    """Treat missing or empty model content as an unavailable completion."""
+    if not isinstance(value, str) or not value.strip():
+        raise RuntimeError("model returned empty content")
+    return value.strip()
+
+
 async def _ollama_complete(system: str, user: str) -> str:
     import ollama
 
@@ -79,7 +86,7 @@ async def _ollama_complete(system: str, user: str) -> str:
         ),
         timeout=_LLM_TIMEOUT_SECONDS,
     )
-    return resp["message"]["content"].strip()
+    return _require_text(resp["message"]["content"])
 
 
 async def _openai_complete(system: str, user: str) -> str:
@@ -97,7 +104,7 @@ async def _openai_complete(system: str, user: str) -> str:
         ),
         timeout=_LLM_TIMEOUT_SECONDS,
     )
-    return resp.choices[0].message.content.strip()
+    return _require_text(resp.choices[0].message.content)
 
 
 async def _complete(system: str, user: str) -> str:
@@ -141,7 +148,7 @@ async def synthesize_response(
     if context:
         prompt = f"<conversation>\n{context}\n</conversation>\n\n{prompt}"
     try:
-        return await _complete(_SYNTH_SYSTEM, prompt)
+        return _require_text(await _complete(_SYNTH_SYSTEM, prompt))
     except RuntimeError as exc:
         log.warning("LLM synthesis unavailable; using evidence formatter: %s", exc)
         return _format_evidence_response(rows)

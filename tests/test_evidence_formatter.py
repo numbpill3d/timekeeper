@@ -39,6 +39,25 @@ def test_synthesis_falls_back_to_recorded_evidence(monkeypatch):
     assert "John picked up blue keys" in answer
 
 
+def test_empty_model_content_falls_back_to_recorded_evidence(monkeypatch):
+    async def empty(system: str, user: str) -> str:
+        return "   "
+
+    monkeypatch.setattr(llm, "_complete", empty)
+    answer = asyncio.run(
+        llm.synthesize_response(
+            "who picked up my keys?",
+            [{
+                "event_type": "object_picked_up",
+                "timestamp": datetime(2026, 11, 11, 16, 30, tzinfo=UTC),
+                "person_label": "John",
+                "object_label": "blue keys",
+            }],
+        )
+    )
+    assert "John picked up blue keys" in answer
+
+
 def test_completion_fails_closed_without_available_provider(monkeypatch):
     async def unavailable(system: str, user: str) -> str:
         raise RuntimeError("ollama unavailable")
