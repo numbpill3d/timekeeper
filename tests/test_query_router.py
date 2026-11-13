@@ -313,3 +313,14 @@ async def test_item_history_adds_related_person_exit(monkeypatch):
 
 def test_timestamp_sort_key_handles_missing_and_iso_timestamps():
     assert router._timestamp_sort_key({"timestamp": "2026-01-01T16:30:00Z"}) < router._timestamp_sort_key({})
+
+
+def test_history_rows_are_chronological_even_when_planner_returns_newest_first():
+    rows = [
+        {"event_id": "later", "timestamp": "2026-01-01T16:40:00Z"},
+        {"event_id": "earlier", "timestamp": "2026-01-01T16:30:00Z"},
+    ]
+
+    ordered = router._order_history_rows("what happened to my toolbox?", rows)
+
+    assert [row["event_id"] for row in ordered] == ["earlier", "later"]

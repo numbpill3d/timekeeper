@@ -220,10 +220,11 @@ async def answer(
 
     rows = await _execute(sql, owner_id, fallback_params)
     rows = await _append_related_exits(question, owner_id, rows)
+    rows = _order_history_rows(question, rows)
     answer_context = "\n".join(filter(None, [history_text, rag_context]))
     answer_text = await synthesize_response(question, rows, answer_context)
 
-    clips = [r["clip_path"] for r in rows if r.get("clip_path")]
+    clips = list(dict.fromkeys(r["clip_path"] for r in rows if r.get("clip_path")))
     # Zero is a valid confidence value and must not disappear from the
     # aggregate merely because it is falsey.
     confidences = [
@@ -291,6 +292,13 @@ def _timestamp_sort_key(row: dict) -> tuple[int, float]:
         except ValueError:
             pass
     return (1, 0.0)
+
+
+def _order_history_rows(question: str, rows: list[dict]) -> list[dict]:
+    """Enforce timeline order even when the planner ignores its prompt."""
+    if not _HISTORY_QUESTION_RE.search(question):
+        return rows
+    return sorted(rows, key=_timestamp_sort_key)
 
 
 def _evidence(rows: list[dict]) -> list[dict]:
