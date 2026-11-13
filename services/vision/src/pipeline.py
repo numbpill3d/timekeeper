@@ -43,6 +43,7 @@ from omniscient_shared.models.entity import (
 from .association import PersonCandidate, associate_person
 from .detector import Detector
 from .face import FaceModel
+from .frame_storage import cleanup_unpublished_frame
 from .gallery import (
     EMBEDDING_DIM,
     parse_gallery_embedding,
@@ -185,9 +186,11 @@ class VisionPipeline:
         )
 
     async def _process(self, payload: dict) -> None:
+        raw_frame_path = payload.get("frame_path") if isinstance(payload, dict) else None
         try:
             frame_msg = FrameMessage(**payload)
         except (TypeError, ValueError) as exc:
+            cleanup_unpublished_frame(raw_frame_path if isinstance(raw_frame_path, str) else None)
             log.warning("bad frame message: %s", exc)
             return
 
@@ -198,12 +201,14 @@ class VisionPipeline:
                 frame_msg.camera_id,
             )
             if not row:
+                cleanup_unpublished_frame(frame_msg.frame_path)
                 log.warning("dropping frame for unknown/inactive camera %s", camera_key)
                 return
             self._cam_owners[camera_key] = str(row["owner_id"])
 
         frame = await self._load_frame(frame_msg.frame_path)
         if frame is None:
+            cleanup_unpublished_frame(frame_msg.frame_path)
             return
         tracker = self._trackers.setdefault(camera_key, Tracker())
 
