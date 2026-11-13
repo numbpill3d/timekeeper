@@ -51,6 +51,7 @@ from .gallery import (
     remove_person_from_gallery,
     validate_embedding,
 )
+from .object_state import prune_stale_object_tracks
 from .reid import ReIDModel
 from .tracker import Tracker, stream_gap_requires_reset
 
@@ -87,6 +88,7 @@ class VisionPipeline:
         # "{camera_id}:{track_id}:{class_name}" -> tracked_object UUID
         # Session-scoped; resets on restart or a detected camera gap.
         self._obj_map: dict[str, UUID] = {}
+        self._obj_last_seen: dict[str, datetime] = {}
         self._last_frame_timestamp: dict[str, datetime] = {}
 
         self._db: asyncpg.Connection | None = None
@@ -225,8 +227,19 @@ class VisionPipeline:
                 for key, value in self._obj_map.items()
                 if not key.startswith(f"{camera_key}:")
             }
+            self._obj_last_seen = {
+                key: value
+                for key, value in self._obj_last_seen.items()
+                if not key.startswith(f"{camera_key}:")
+            }
             log.info("reset tracker state after camera gap: %s", camera_key)
         self._last_frame_timestamp[camera_key] = frame_msg.timestamp
+        prune_stale_object_tracks(
+            self._obj_map,
+            self._obj_last_seen,
+            camera_key,
+            frame_msg.timestamp,
+        )
 
         # Detector inference and tracker updates are synchronous and can be
         # expensive on CPU. Keep them off the event loop so Kafka heartbeats
@@ -260,7 +273,10 @@ class VisionPipeline:
             association_method: str | None = None
             if rd.class_name != "person":
                 object_id = await self._get_or_create_object(
-                    frame_msg.camera_id, rd.track_id, rd.class_name
+                    frame_msg.camera_id,
+                    rd.track_id,
+                    rd.class_name,
+                    frame_msg.timestamp,
                 )
                 association = associate_person(rd.bbox, person_candidates)
                 if association:
@@ -451,6 +467,7 @@ class VisionPipeline:
         camera_id: UUID,
         track_id: int,
         class_name: str,
+        seen_at: datetime,
     ) -> UUID | None:
         """Return stable UUID for this tracked object within the session."""
         key = f"{camera_id}:{track_id}:{class_name}"
@@ -469,6 +486,7 @@ class VisionPipeline:
                 UUID(owner_id_str),
             )
             if updated != "UPDATE 0":
+                self._obj_last_seen[key] = seen_at
                 return obj_id
             # Camera ownership or the object row may have changed since this
             # session cached the mapping. Recreate it instead of returning a
@@ -495,6 +513,7 @@ class VisionPipeline:
 
         obj_id = row["id"]
         self._obj_map[key] = obj_id
+        self._obj_last_seen[key] = seen_at
         return obj_id
 
     def _remove_from_galleries(self, person_id: str) -> None:
@@ -524,6 +543,11 @@ class VisionPipeline:
                     self._obj_map = {
                         key: value
                         for key, value in self._obj_map.items()
+                        if not key.startswith(f"{camera_id}:")
+                    }
+                    self._obj_last_seen = {
+                        key: value
+                        for key, value in self._obj_last_seen.items()
                         if not key.startswith(f"{camera_id}:")
                     }
                 self._cam_owners.update(active)
