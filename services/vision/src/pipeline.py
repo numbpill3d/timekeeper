@@ -180,8 +180,10 @@ class VisionPipeline:
             self._cam_owners[camera_key] = str(row["owner_id"])
         tracker = self._trackers.setdefault(camera_key, Tracker())
 
-        raw = self.detector.detect(frame)
-        tracked = tracker.update(raw, frame.shape[:2])
+        # Detector inference and tracker updates are synchronous and can be
+        # expensive on CPU. Keep them off the event loop so Kafka heartbeats
+        # and other service tasks remain responsive while one frame runs.
+        tracked = await asyncio.to_thread(self._detect_and_track, frame, tracker)
 
         person_candidates: list[PersonCandidate] = []
         person_ids: dict[int, UUID | None] = {}
@@ -249,6 +251,12 @@ class VisionPipeline:
         # The event processor still needs this shared frame to create an
         # evidence clip.  It owns cleanup after consuming the detection
         # message; deleting here races that consumer and silently loses clips.
+
+    def _detect_and_track(
+        self, frame: np.ndarray, tracker: Tracker
+    ) -> list:
+        raw = self.detector.detect(frame)
+        return tracker.update(raw, frame.shape[:2])
 
     async def _load_frame(self, path: str) -> np.ndarray | None:
         try:
