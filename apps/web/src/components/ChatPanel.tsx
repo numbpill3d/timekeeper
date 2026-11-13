@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { askQuestion } from "../api/client";
 
 interface Message {
@@ -22,6 +22,15 @@ export function ChatPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimerRef.current !== null) {
+        window.clearTimeout(scrollTimerRef.current);
+      }
+    };
+  }, []);
 
   const history = messages.slice(-6).map((m) => ({
     role: m.role,
@@ -54,7 +63,10 @@ export function ChatPanel() {
       setError("query unavailable — check that the API and query engine are running.");
     } finally {
       setLoading(false);
-      setTimeout(
+      if (scrollTimerRef.current !== null) {
+        window.clearTimeout(scrollTimerRef.current);
+      }
+      scrollTimerRef.current = window.setTimeout(
         () => bottomRef.current?.scrollIntoView({ behavior: "smooth" }),
         50
       );

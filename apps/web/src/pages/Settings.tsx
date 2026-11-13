@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   createPipedreamConnectToken,
@@ -65,6 +65,15 @@ export function Settings() {
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [connectError, setConnectError] = useState("");
+  const savedTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (savedTimerRef.current !== null) {
+        window.clearTimeout(savedTimerRef.current);
+      }
+    };
+  }, []);
 
   const { data: profile, isLoading, isError, refetch } = useQuery({
     queryKey: ["profile"],
@@ -90,7 +99,13 @@ export function Settings() {
     },
     onSuccess: () => {
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      if (savedTimerRef.current !== null) {
+        window.clearTimeout(savedTimerRef.current);
+      }
+      savedTimerRef.current = window.setTimeout(() => {
+        savedTimerRef.current = null;
+        setSaved(false);
+      }, 2000);
     },
     onError: () => setSaveError("could not save notification settings"),
   });
