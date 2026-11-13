@@ -7,8 +7,8 @@ Home/Family/Pro: unlimited.
 
 from __future__ import annotations
 
-import calendar
 import datetime
+import math
 import os
 from typing import Literal
 
@@ -23,6 +23,17 @@ router = APIRouter()
 
 _QE_URL = os.getenv("QUERY_ENGINE_URL", "http://query-engine:8001")
 _FREE_MONTHLY_LIMIT = 10
+
+
+def _seconds_until_next_month(now: datetime.datetime | None = None) -> int:
+    """Return a TTL that expires at the start of the next calendar month."""
+    current = now or datetime.datetime.now()
+    if current.month == 12:
+        next_month = datetime.date(current.year + 1, 1, 1)
+    else:
+        next_month = datetime.date(current.year, current.month + 1, 1)
+    boundary = datetime.datetime.combine(next_month, datetime.time.min)
+    return max(1, math.ceil((boundary - current).total_seconds()))
 
 
 class ConversationTurn(BaseModel):
@@ -75,9 +86,7 @@ async def _check_rate_limit(user: dict, request: Request) -> None:
     redis = request.app.state.redis
     count = await redis.incr(key)
     if count == 1:
-        _, days_in_month = calendar.monthrange(now.year, now.month)
-        days_left = days_in_month - now.day + 1
-        await redis.expire(key, days_left * 86400)
+        await redis.expire(key, _seconds_until_next_month())
     if count > _FREE_MONTHLY_LIMIT:
         raise HTTPException(
             status_code=429,

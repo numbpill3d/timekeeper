@@ -12,7 +12,7 @@ from main import EmbedRequest, EmbedResponse
 from main import QueryRequest as EngineQueryRequest
 from omniscient_shared.models.event import EventType
 
-from api.src.routes.query import QueryRequest, QueryResponse
+from api.src.routes.query import QueryRequest, QueryResponse, _seconds_until_next_month
 from api.src.routes.users import ProfileUpdate
 from api.src.ws.payload import public_event_payload
 
@@ -27,6 +27,20 @@ def test_query_history_accepts_only_bounded_conversation_turns():
     )
     assert request.conversation_history is not None
     assert request.conversation_history[0].role == "user"
+
+
+@pytest.mark.parametrize(
+    "now, expected",
+    [
+        ("2026-01-15T12:00:00", 16 * 86400 + 12 * 3600),
+        ("2026-02-28T23:59:59", 1),
+        ("2026-12-31T23:59:59", 1),
+    ],
+)
+def test_free_query_quota_expires_at_next_month_boundary(now, expected):
+    from datetime import datetime
+
+    assert _seconds_until_next_month(datetime.fromisoformat(now)) == expected
 
 
 @pytest.mark.parametrize(
