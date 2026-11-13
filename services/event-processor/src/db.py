@@ -14,6 +14,7 @@ from uuid import UUID
 import asyncpg
 import boto3
 import httpx
+from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 from omniscient_shared.models.event import Event
 
@@ -42,6 +43,11 @@ _s3 = boto3.client(
     endpoint_url=_S3_ENDPOINT,
     aws_access_key_id=_S3_KEY,
     aws_secret_access_key=_S3_SECRET,
+    config=Config(
+        connect_timeout=5,
+        read_timeout=10,
+        retries={"max_attempts": 2, "mode": "standard"},
+    ),
 )
 
 

@@ -8,6 +8,8 @@ import os
 from pathlib import PurePosixPath
 from urllib.parse import urlparse
 
+from botocore.config import Config
+
 log = logging.getLogger(__name__)
 
 _PUBLIC_ENDPOINT = os.getenv(
@@ -18,6 +20,11 @@ _KEY = os.getenv("S3_ACCESS_KEY", "")
 _SECRET = os.getenv("S3_SECRET_KEY", "")
 _BUCKET = os.getenv("MEDIA_BUCKET", "omniscient-media")
 _TTL = max(60, int(os.getenv("CLIP_URL_TTL_SECONDS", "300")))
+_S3_CONFIG = Config(
+    connect_timeout=5,
+    read_timeout=10,
+    retries={"max_attempts": 2, "mode": "standard"},
+)
 
 if os.getenv("ENVIRONMENT", "development").lower() == "production" and (
     not _KEY or not _SECRET or _KEY == "minioadmin" or _SECRET == "minioadmin"
@@ -33,6 +40,7 @@ def _client():
         endpoint_url=_PUBLIC_ENDPOINT,
         aws_access_key_id=_KEY,
         aws_secret_access_key=_SECRET,
+        config=_S3_CONFIG,
     )
 
 
@@ -44,6 +52,7 @@ def _delete_keys_sync(keys: list[str]) -> None:
         endpoint_url=_INTERNAL_ENDPOINT,
         aws_access_key_id=_KEY,
         aws_secret_access_key=_SECRET,
+        config=_S3_CONFIG,
     )
     for start in range(0, len(keys), 1000):
         response = client.delete_objects(
