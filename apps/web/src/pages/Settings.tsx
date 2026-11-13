@@ -63,6 +63,7 @@ export function Settings() {
   const [fcmToken, setFcmToken] = useState("");
   const [phone, setPhone] = useState("");
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [connectError, setConnectError] = useState("");
 
   const { data: profile, isLoading } = useQuery({
@@ -83,10 +84,15 @@ export function Settings() {
         fcm_token: fcmToken || null,
         phone: phone || null,
       }),
+    onMutate: () => {
+      setSaveError("");
+      setSaved(false);
+    },
     onSuccess: () => {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     },
+    onError: () => setSaveError("could not save notification settings"),
   });
 
   const connectPipedream = useMutation({
@@ -285,6 +291,11 @@ export function Settings() {
                     </span>
                   )}
                 </div>
+                {saveError && (
+                  <div role="alert" style={{ fontSize: 11, color: "var(--accent)" }}>
+                    ! {saveError}
+                  </div>
+                )}
               </div>
             </Section>
 

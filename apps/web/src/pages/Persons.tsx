@@ -37,16 +37,21 @@ function PersonCard({ person }: { person: Person }) {
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(person.label);
   const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState("");
 
   const update = useMutation({
     mutationFn: (data: { label?: string; is_known?: boolean }) =>
       updatePerson(person.id, data),
+    onMutate: () => setError(""),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["persons"] }),
+    onError: () => setError("could not update this person"),
   });
 
   const remove = useMutation({
     mutationFn: () => deletePerson(person.id),
+    onMutate: () => setError(""),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["persons"] }),
+    onError: () => setError("could not delete this person"),
   });
 
   return (
@@ -160,8 +165,9 @@ function PersonCard({ person }: { person: Person }) {
               className="btn btn-danger"
               style={{ padding: "4px 10px" }}
               onClick={() => remove.mutate()}
+              disabled={remove.isPending}
             >
-              delete
+              {remove.isPending ? "deleting..." : "delete"}
             </button>
             <button
               className="btn btn-ghost"
@@ -177,6 +183,7 @@ function PersonCard({ person }: { person: Person }) {
               className="btn btn-ghost"
               style={{ padding: "4px 10px" }}
               onClick={() => setEditing(!editing)}
+              disabled={update.isPending || remove.isPending}
             >
               {editing ? "cancel" : "rename"}
             </button>
@@ -199,6 +206,7 @@ function PersonCard({ person }: { person: Person }) {
               onClick={() =>
                 update.mutate({ is_known: !person.is_known })
               }
+              disabled={update.isPending || remove.isPending}
             >
               mark {person.is_known ? "unknown" : "known"}
             </button>
@@ -206,12 +214,18 @@ function PersonCard({ person }: { person: Person }) {
               className="btn btn-ghost"
               style={{ padding: "4px 10px", marginLeft: "auto", color: "var(--accent-dim)" }}
               onClick={() => setConfirming(true)}
+              disabled={update.isPending || remove.isPending}
             >
               delete
             </button>
           </>
         )}
       </div>
+      {error && (
+        <div role="alert" style={{ color: "var(--accent)", fontSize: 10 }}>
+          ! {error}
+        </div>
+      )}
     </div>
   );
 }
