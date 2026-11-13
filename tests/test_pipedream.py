@@ -35,6 +35,7 @@ def test_pipedream_rejects_invalid_environment(monkeypatch):
         "javascript:alert(1)",
         "https://user:pass@pipedream.com/connect",
         "https://pipedream.com/connect#token",
+        "https://attacker.example/connect",
         "not a URL",
     ],
 )
@@ -47,6 +48,12 @@ def test_connect_link_accepts_secure_https_url():
         pipedream._validate_connect_link(" https://pipedream.com/connect ")
         == "https://pipedream.com/connect"
     )
+
+
+def test_connect_link_accepts_pipedream_subdomains():
+    assert pipedream._validate_connect_link(
+        "https://connect.pipedream.com/connect"
+    ) == "https://connect.pipedream.com/connect"
 
 
 @pytest.mark.asyncio

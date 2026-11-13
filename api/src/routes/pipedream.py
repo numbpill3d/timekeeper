@@ -16,6 +16,7 @@ router = APIRouter(prefix="/integrations/pipedream")
 _API_URL = "https://api.pipedream.com/v1"
 _PROJECT_ID = os.getenv("PIPEDREAM_PROJECT_ID", "").strip()
 _ENVIRONMENT = os.getenv("PIPEDREAM_ENVIRONMENT", "production").strip()
+_CONNECT_HOST = "pipedream.com"
 
 
 class ConnectTokenResponse(BaseModel):
@@ -49,9 +50,11 @@ def _validate_connect_link(value: object) -> str | None:
         return None
     candidate = value.strip()
     parsed = urlparse(candidate)
+    hostname = (parsed.hostname or "").lower().rstrip(".")
     if (
         parsed.scheme != "https"
-        or not parsed.hostname
+        or not hostname
+        or not (hostname == _CONNECT_HOST or hostname.endswith(f".{_CONNECT_HOST}"))
         or parsed.username
         or parsed.password
         or parsed.fragment
