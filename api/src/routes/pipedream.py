@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, HTTPException
@@ -42,6 +43,22 @@ def _configured() -> tuple[str, str]:
             detail="Pipedream Connect is not configured on this deployment",
         )
     return client_id, client_secret
+
+
+def _validate_connect_link(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip()
+    parsed = urlparse(candidate)
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.fragment
+    ):
+        return None
+    return candidate
 
 
 @router.post("/connect-token", response_model=ConnectTokenResponse)
@@ -96,7 +113,9 @@ async def create_connect_token(user: CurrentUser) -> ConnectTokenResponse:
             detail="Pipedream returned an invalid Connect token response",
         )
     token = data.get("token")
-    connect_link_url = data.get("connect_link_url") or data.get("connectLinkUrl")
+    connect_link_url = _validate_connect_link(
+        data.get("connect_link_url") or data.get("connectLinkUrl")
+    )
     if not isinstance(token, str) or not token.strip():
         token = None
     if not isinstance(connect_link_url, str) or not connect_link_url.strip():
@@ -104,7 +123,7 @@ async def create_connect_token(user: CurrentUser) -> ConnectTokenResponse:
     if not token or not connect_link_url:
         raise HTTPException(
             status_code=502,
-            detail="Pipedream returned an incomplete Connect token response",
+            detail="Pipedream returned an incomplete or unsafe Connect token response",
         )
     return ConnectTokenResponse(
         token=token,

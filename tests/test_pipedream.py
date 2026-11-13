@@ -28,6 +28,27 @@ def test_pipedream_rejects_invalid_environment(monkeypatch):
         pipedream._configured()
 
 
+@pytest.mark.parametrize(
+    "value",
+    [
+        "http://pipedream.com/connect",
+        "javascript:alert(1)",
+        "https://user:pass@pipedream.com/connect",
+        "https://pipedream.com/connect#token",
+        "not a URL",
+    ],
+)
+def test_connect_link_must_be_safe_https(value):
+    assert pipedream._validate_connect_link(value) is None
+
+
+def test_connect_link_accepts_secure_https_url():
+    assert (
+        pipedream._validate_connect_link(" https://pipedream.com/connect ")
+        == "https://pipedream.com/connect"
+    )
+
+
 @pytest.mark.asyncio
 async def test_pipedream_rejects_non_object_oauth_response(monkeypatch):
     monkeypatch.setattr(pipedream, "_PROJECT_ID", "proj_test")
