@@ -13,9 +13,10 @@ from typing import Annotated
 from uuid import UUID
 
 import bcrypt as _bcrypt
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+from jwt import InvalidTokenError
 
 _SECRET = os.getenv("JWT_SECRET") or ""
 if not _SECRET:
@@ -92,7 +93,7 @@ def decode_token(token: str) -> dict:
         if payload.get("tier") not in _VALID_TIERS:
             raise ValueError("token tier is invalid")
         return payload
-    except (JWTError, TypeError, ValueError, AttributeError) as exc:
+    except (InvalidTokenError, TypeError, ValueError, AttributeError) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="invalid or expired token",

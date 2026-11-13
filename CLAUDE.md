@@ -126,7 +126,7 @@ environment-only and non-secret endpoint/device settings live in
 
 ### Auth (`api/src/auth.py`)
 
-JWT (python-jose + bcrypt). `CurrentUser = Annotated[dict, Depends(get_current_user)]`. Tier enforcement via `require_tier(*tiers)` factory. Camera limits: free=2, home=5, family=10, pro=9999.
+JWT (PyJWT + bcrypt). `CurrentUser = Annotated[dict, Depends(get_current_user)]`. Tier enforcement via `require_tier(*tiers)` factory. Camera limits: free=2, home=5, family=10, pro=9999.
 
 ### WebSocket live events
 
