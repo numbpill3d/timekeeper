@@ -79,6 +79,18 @@ export function CamerasScreen() {
                 ? ` · ~${item.observed_fps.toFixed(1)} fps`
                 : ""}
             </Text>
+            <View
+              style={styles.privacy}
+              accessibilityLabel={`Privacy and retention for ${item.name}`}
+            >
+              <Text style={styles.privacyTitle}>privacy &amp; retention</Text>
+              <Text style={styles.privacyText}>
+                evidence kept locally for 30 days by default
+              </Text>
+              <Text style={styles.privacyText}>
+                person-specific retention can override this window
+              </Text>
+            </View>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${item.is_active ? "Pause" : "Resume"} ${item.name}`}
@@ -115,6 +127,16 @@ const styles = StyleSheet.create({
   name: { color: "#fff", fontSize: 15, fontWeight: "600" },
   meta: { color: "#888", fontSize: 12, marginTop: 2 },
   health: { color: "#777", fontSize: 11, marginTop: 4 },
+  privacy: {
+    backgroundColor: "#171717",
+    borderColor: "#333",
+    borderWidth: 1,
+    marginTop: 10,
+    padding: 9,
+    gap: 3,
+  },
+  privacyTitle: { color: "#eee", fontSize: 10, letterSpacing: 0.4 },
+  privacyText: { color: "#888", fontSize: 10 },
   dot: { width: 8, height: 8, borderRadius: 4, marginTop: 8 },
   online: { backgroundColor: "#0c0" },
   offline: { backgroundColor: "#600" },
