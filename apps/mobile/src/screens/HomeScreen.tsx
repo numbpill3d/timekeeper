@@ -11,6 +11,7 @@ import { EventCard } from "../components/EventCard";
 
 export function HomeScreen() {
   const [liveEvents, setLiveEvents] = useState<OmniscientEvent[]>([]);
+  const [wsConnected, setWsConnected] = useState(false);
   const wsRef = useRef<EventStream | null>(null);
 
   const { data: recentEvents, isLoading, isRefetching, isError, refetch } = useQuery({
@@ -21,9 +22,14 @@ export function HomeScreen() {
 
   useEffect(() => {
     let disposed = false;
-    openEventStream((e) => {
-      if (!disposed) setLiveEvents((prev) => [e, ...prev.filter((item) => item.id !== e.id)].slice(0, 5));
-    }).then((stream) => {
+    openEventStream(
+      (e) => {
+        if (!disposed) setLiveEvents((prev) => [e, ...prev.filter((item) => item.id !== e.id)].slice(0, 5));
+      },
+      (connected) => {
+        if (!disposed) setWsConnected(connected);
+      },
+    ).then((stream) => {
       if (disposed) stream.close();
       else wsRef.current = stream;
     }).catch(() => {
@@ -49,7 +55,15 @@ export function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>recent activity</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.header}>recent activity</Text>
+        <Text
+          accessibilityLiveRegion="polite"
+          style={[styles.status, wsConnected ? styles.statusLive : styles.statusPolling]}
+        >
+          {wsConnected ? "live" : "polling"}
+        </Text>
+      </View>
       <FlatList
         data={allEvents}
         refreshing={isLoading || isRefetching}
@@ -82,6 +96,10 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000", padding: 16 },
   header: { color: "#888", fontSize: 12, letterSpacing: 1, marginBottom: 12 },
+  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  status: { fontSize: 11, letterSpacing: 1, marginBottom: 12, textTransform: "uppercase" },
+  statusLive: { color: "#73d98c" },
+  statusPolling: { color: "#c5a85b" },
   sep: { height: 1, backgroundColor: "#111" },
   emptyState: { alignItems: "center", marginTop: 32 },
   empty: { color: "#888", fontSize: 14, textAlign: "center" },

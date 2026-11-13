@@ -148,7 +148,8 @@ export interface EventStream {
 }
 
 export const openEventStream = async (
-  onEvent: (e: OmniscientEvent) => void
+  onEvent: (e: OmniscientEvent) => void,
+  onStatus?: (connected: boolean) => void,
 ): Promise<EventStream> => {
   const token = await SecureStore.getItemAsync("access_token");
   if (!token) throw new Error("not authenticated");
@@ -163,6 +164,7 @@ export const openEventStream = async (
     ws = new WebSocket(`${wsBase}/ws/events`, ["timekeeper-auth", token]);
     ws.onopen = () => {
       retryMs = 1_000;
+      onStatus?.(true);
     };
     ws.onmessage = (msg) => {
       try {
@@ -174,6 +176,7 @@ export const openEventStream = async (
     ws.onerror = () => {};
     ws.onclose = (event) => {
       ws = null;
+      onStatus?.(false);
       if (closed) return;
       if (event.code === 4001) {
         closed = true;
