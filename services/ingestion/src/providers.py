@@ -19,7 +19,7 @@ import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from queue import Empty, Full, Queue
 from typing import Any
-from urllib.parse import parse_qsl, urlparse
+from urllib.parse import parse_qsl, urljoin, urlparse
 
 import numpy as np
 from omniscient_shared.models.camera import Camera, CameraProtocol
@@ -84,6 +84,22 @@ def _control_endpoint(value: str, label: str) -> str:
             f"{label} host is not in PROVIDER_ALLOWED_CONTROL_HOSTS"
         )
     raise ProviderError(f"{label} must use HTTPS (or loopback HTTP for a local bridge)")
+
+
+def _whep_resource_url(endpoint: str, location: str | None) -> str | None:
+    """Accept only a provider session URL on the already-approved host."""
+    if not location:
+        return None
+    candidate = urljoin(endpoint, location)
+    endpoint_url = urlparse(endpoint)
+    resource_url = urlparse(candidate)
+    if (
+        resource_url.scheme != endpoint_url.scheme
+        or resource_url.hostname != endpoint_url.hostname
+        or resource_url.port != endpoint_url.port
+    ):
+        return None
+    return candidate
 
 
 async def _direct_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
@@ -359,11 +375,14 @@ async def _whep_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
     config = camera.provider_config
     credentials = _OAuthCredentials(config, provider)
     await credentials.get()
+    session_url: str | None = None
+    session_token = ""
 
     async def answer_request(offer_sdp: str) -> str:
+        nonlocal session_url, session_token
         from aiohttp import ClientSession
 
-        async def request(token: str) -> tuple[int, str, str]:
+        async def request(token: str) -> tuple[int, str, str, str | None]:
             headers = {
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/sdp",
@@ -376,16 +395,22 @@ async def _whep_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
             ) as session, session.post(
                 endpoint, data=offer_sdp, headers=headers, allow_redirects=False
             ) as response:
-                return response.status, response.content_type, await response.text()
+                return (
+                    response.status,
+                    response.content_type,
+                    await response.text(),
+                    response.headers.get("Location"),
+                )
 
         token = await credentials.get()
-        status, content_type, body = await request(token)
+        status, content_type, body, location = await request(token)
         if status == 401:
-            status, content_type, body = await request(
-                await credentials.get(force_refresh=True)
-            )
+            token = await credentials.get(force_refresh=True)
+            status, content_type, body, location = await request(token)
         if status >= 300:
             raise ProviderError(f"{provider} WHEP error {status}")
+        session_token = token
+        session_url = _whep_resource_url(endpoint, location)
         if content_type == "application/json":
             payload = json.loads(body)
             body = payload.get("answerSdp") or payload.get("sdp", "")
@@ -393,8 +418,34 @@ async def _whep_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
             raise ProviderError(f"{provider} returned an empty WebRTC answer")
         return body
 
-    async for frame in _webrtc_frames(camera, answer_request):
-        yield frame
+    try:
+        async for frame in _webrtc_frames(camera, answer_request):
+            yield frame
+    finally:
+        if session_url:
+            try:
+                from aiohttp import ClientSession, ClientTimeout
+
+                async with ClientSession(
+                    timeout=ClientTimeout(total=_PROVIDER_TIMEOUT_SECONDS)
+                ) as session, session.delete(
+                    session_url,
+                    headers={"Authorization": f"Bearer {session_token}"},
+                    allow_redirects=False,
+                ) as response:
+                    await response.read()
+                    if response.status >= 300:
+                        log.warning(
+                            "%s WHEP session cleanup returned %s",
+                            provider,
+                            response.status,
+                        )
+            except Exception as exc:  # noqa: BLE001 - cleanup must not mask stream errors
+                log.warning(
+                    "%s WHEP session cleanup failed (%s)",
+                    provider,
+                    type(exc).__name__,
+                )
 
 
 async def _nest_frames(camera: Camera) -> AsyncIterator[np.ndarray]:

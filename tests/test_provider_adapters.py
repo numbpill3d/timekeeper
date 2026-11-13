@@ -17,6 +17,7 @@ from providers import (
     _OAuthCredentials,
     _provider_endpoint,
     _token,
+    _whep_resource_url,
 )
 
 
@@ -64,6 +65,15 @@ def test_whep_endpoint_rejects_embedded_credentials():
     )
     with pytest.raises(ProviderError, match="embedded credentials"):
         _provider_endpoint(camera)
+
+
+def test_whep_cleanup_accepts_only_same_host_locations():
+    endpoint = "https://example.test/whep"
+    assert _whep_resource_url(endpoint, "/whep/session-1") == (
+        "https://example.test/whep/session-1"
+    )
+    assert _whep_resource_url(endpoint, "https://attacker.example/session") is None
+    assert _whep_resource_url(endpoint, None) is None
 
 
 def test_whep_endpoint_rejects_credential_query_parameter():
