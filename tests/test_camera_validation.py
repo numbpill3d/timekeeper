@@ -63,6 +63,34 @@ def test_device_url_rejects_a_different_explicit_protocol():
         )
 
 
+@pytest.mark.parametrize(
+    ("stream_url", "expected"),
+    [
+        ("https://camera.example/live", "https"),
+        ("http://camera.example/live", "http"),
+        ("file:///tmp/camera.mp4", "file"),
+        ("rtsps://camera.example/live", "rtsp"),
+    ],
+)
+def test_direct_source_infers_matching_protocol(stream_url, expected):
+    camera = CameraCreate(name="source", stream_url=stream_url)
+    assert camera.protocol == expected
+
+
+def test_direct_source_rejects_a_contradictory_protocol():
+    with pytest.raises(ValidationError, match="protocol='https'"):
+        CameraCreate(
+            name="source",
+            stream_url="https://camera.example/live",
+            protocol="file",
+        )
+
+
+def test_camera_update_infers_protocol_when_source_changes():
+    update = CameraUpdate(stream_url="https://camera.example/live")
+    assert update.protocol == "https"
+
+
 def test_provider_config_rejects_credentials_in_nested_endpoint():
     with pytest.raises(ValidationError, match="provider endpoint"):
         CameraCreate(

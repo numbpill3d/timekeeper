@@ -25,6 +25,13 @@ DB = Annotated[asyncpg.Connection, Depends(get_db)]
 _TIER_LIMITS = {"free": 2, "home": 5, "family": 10, "pro": 9999}
 _PROTOCOLS = {"rtsp", "http", "https", "hls", "file", "onvif", "ring", "nest", "arlo", "wyze"}
 _DEVICE_PROTOCOLS = {"ring", "nest", "arlo", "wyze"}
+_DIRECT_SCHEME_PROTOCOLS = {
+    "rtsp": "rtsp",
+    "rtsps": "rtsp",
+    "http": "http",
+    "https": "https",
+    "file": "file",
+}
 _UPDATE_ALLOWED = {
     "name", "stream_url", "protocol", "location_label", "is_active", "provider_config"
 }
@@ -205,6 +212,17 @@ class CameraCreate(BaseModel):
                 raise ValueError(
                     f"{scheme}:// sources must use protocol={scheme!r}"
                 )
+        expected = _DIRECT_SCHEME_PROTOCOLS.get(scheme)
+        if expected and self.protocol == "rtsp" and expected != "rtsp":
+            # rtsp is the backwards-compatible default, so infer a more
+            # specific direct-feed adapter when the caller leaves it alone.
+            self.protocol = expected
+        elif expected and self.protocol not in (
+            {expected, "hls"} if scheme in {"http", "https"} else {expected}
+        ):
+            raise ValueError(
+                f"{scheme}:// sources must use protocol={expected!r}"
+            )
         return self
 
 
@@ -287,6 +305,18 @@ class CameraUpdate(BaseModel):
                 raise ValueError(
                     f"{scheme}:// sources must use protocol={scheme!r}"
                 )
+        expected = _DIRECT_SCHEME_PROTOCOLS.get(scheme)
+        if expected and (
+            self.protocol is None
+            or (self.protocol == "rtsp" and expected != "rtsp")
+        ):
+            self.protocol = expected
+        elif expected and self.protocol not in (
+            {expected, "hls"} if scheme in {"http", "https"} else {expected}
+        ):
+            raise ValueError(
+                f"{scheme}:// sources must use protocol={expected!r}"
+            )
         return self
 
 

@@ -36,8 +36,9 @@ local camera evidence system.
    error codes, then show online, starting, stale, error, or paused state.
 15. **Frame diagnostics** — expose the latest observed resolution and sampled
    FPS next to freshness state without retaining extra image data.
-16. **Provider setup guardrails** — infer matching cloud adapters from device
-   URL schemes and reject contradictory explicit protocols before persistence.
+16. **Provider setup guardrails** — infer matching cloud and direct-feed
+    adapters from source URL schemes and reject contradictory explicit
+    protocols before persistence, including partial source updates.
 17. **Evidence source labels** — show camera context directly in web and mobile
    answer cards alongside matched people, objects, and locations.
 18. **Camera setup wizard** — split source naming/type from URL/location entry,
