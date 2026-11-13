@@ -41,6 +41,8 @@ Rules:
 - When returning event rows, select timestamp, action_label, location_label,
   confidence, clip_path, persons.label AS person_label, and
   tracked_objects.label/category AS object_label/object_category when useful.
+- When returning event rows, also select persons.id AS person_id when a person
+  join is present so related exit events can be correlated safely.
 - When returning event rows, select events.id AS event_id so clients can
   identify the exact evidence row for verification or authorized redaction.
 - For cross-camera movement rows, select

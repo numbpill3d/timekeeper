@@ -1,5 +1,7 @@
 """Safety and ownership tests for generated surveillance queries."""
 
+from datetime import UTC, datetime, timedelta
+
 import asyncpg
 import pytest
 import rag
@@ -254,3 +256,54 @@ async def test_rejected_llm_sql_uses_structured_fallback(monkeypatch):
     assert "DELETE" not in str(seen["sql"])
     assert "FROM events e" in str(seen["sql"])
     assert seen["params"]
+
+
+@pytest.mark.asyncio
+async def test_item_history_adds_related_person_exit(monkeypatch):
+    calls: list[tuple[str, list[object]]] = []
+    person_id = "00000000-0000-0000-0000-000000000002"
+    pickup_time = datetime(2026, 1, 1, 16, 30, tzinfo=UTC)
+
+    async def fake_retrieve(_question: str, _owner_id: str) -> str:
+        return ""
+
+    async def fake_plan(_question: str, _context: str) -> str:
+        raise RuntimeError("planner unavailable")
+
+    async def fake_execute(sql: str, _owner_id: str, params: list[object]):
+        calls.append((sql, params))
+        if len(calls) == 1:
+            return [{
+                "event_id": "pickup-1",
+                "timestamp": pickup_time,
+                "event_type": "object_picked_up",
+                "person_id": person_id,
+                "person_label": "John",
+                "object_label": "blue toolbox",
+            }]
+        return [{
+            "event_id": "exit-1",
+            "timestamp": pickup_time + timedelta(minutes=8),
+            "event_type": "person_exited",
+            "person_id": person_id,
+            "person_label": "John",
+        }]
+
+    async def fake_synthesize(_question: str, rows: list[dict], _context: str) -> str:
+        return ", ".join(row["event_type"] for row in rows)
+
+    monkeypatch.setattr(router, "retrieve_context", fake_retrieve)
+    monkeypatch.setattr(router, "nl_to_sql", fake_plan)
+    monkeypatch.setattr(router, "_execute", fake_execute)
+    monkeypatch.setattr(router, "synthesize_response", fake_synthesize)
+
+    result = await router.answer(
+        "what happened to my blue toolbox?",
+        "00000000-0000-0000-0000-000000000001",
+    )
+
+    assert len(calls) == 2
+    assert "person_exited" in calls[1][0]
+    assert [row["event_type"] for row in result["rows"]] == [
+        "object_picked_up", "person_exited"
+    ]

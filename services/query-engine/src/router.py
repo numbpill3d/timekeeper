@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import datetime, timedelta
 
 import asyncpg
 from omniscient_shared.time import LOCAL_TIMEZONE
@@ -67,6 +68,31 @@ _SQL_RESERVED = {
     "WHERE", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "FULL", "CROSS",
     "ON", "ORDER", "GROUP", "HAVING", "LIMIT", "OFFSET",
 }
+_HISTORY_QUESTION_RE = re.compile(
+    r"\b(?:what happened to|follow|track|where did .*\bgo|sequence|history)\b",
+    re.IGNORECASE,
+)
+_ITEM_EVENT_TYPES = {"object_picked_up", "object_moved", "object_placed"}
+_EXIT_EVENTS_SQL = """
+    SELECT e.id AS event_id, e.timestamp, e.event_type, e.action_label, e.location_label,
+           c.name AS camera_name,
+           e.confidence, e.clip_path,
+           NULL::text AS from_camera_name,
+           NULL::text AS to_camera_name,
+           p.id AS person_id,
+           p.label AS person_label,
+           NULL::text AS object_label,
+           NULL::text AS object_category
+    FROM events e
+    JOIN cameras c ON e.camera_id = c.id
+    JOIN persons p ON p.id = e.person_id
+    WHERE e.event_type = 'person_exited'
+      AND e.person_id = ANY($2::uuid[])
+      AND e.timestamp >= $3
+      AND e.timestamp <= $4
+    ORDER BY e.timestamp ASC
+    LIMIT 20
+"""
 
 
 def _relations(sql: str) -> list[tuple[str, str]]:
@@ -193,6 +219,7 @@ async def answer(
     sql = _inject_owner_scope(sql)
 
     rows = await _execute(sql, owner_id, fallback_params)
+    rows = await _append_related_exits(question, owner_id, rows)
     answer_context = "\n".join(filter(None, [history_text, rag_context]))
     answer_text = await synthesize_response(question, rows, answer_context)
 
@@ -212,6 +239,47 @@ async def answer(
         "confidence": avg_conf,
         "evidence": _evidence(rows),
     }
+
+
+async def _append_related_exits(
+    question: str, owner_id: str, rows: list[dict]
+) -> list[dict]:
+    """Add nearby exits for people attached to an item's history.
+
+    Object events often carry the person relationship while a detector's exit
+    event has no object_id. A bounded, owner-scoped follow-up query lets the
+    local fallback answer the useful "what happened to X?" version of a story
+    without guessing that every exit belongs to the item.
+    """
+    if not _HISTORY_QUESTION_RE.search(question):
+        return rows
+    if not any(row.get("event_type") in _ITEM_EVENT_TYPES for row in rows):
+        return rows
+
+    person_ids: list[object] = []
+    seen_person_ids: set[str] = set()
+    timestamps: list[datetime] = []
+    for row in rows:
+        person_id = row.get("person_id")
+        if person_id is not None and str(person_id) not in seen_person_ids:
+            person_ids.append(person_id)
+            seen_person_ids.add(str(person_id))
+        timestamp = row.get("timestamp")
+        if isinstance(timestamp, datetime):
+            timestamps.append(timestamp)
+    if not person_ids or not timestamps:
+        return rows
+
+    start = min(timestamps) - timedelta(minutes=30)
+    end = max(timestamps) + timedelta(minutes=30)
+    exit_sql = _inject_owner_scope(_safe_sql(_EXIT_EVENTS_SQL))
+    exits = await _execute(exit_sql, owner_id, [person_ids, start, end])
+    existing_ids = {row.get("event_id") for row in rows}
+    merged = rows + [row for row in exits if row.get("event_id") not in existing_ids]
+    return sorted(
+        merged,
+        key=lambda row: row.get("timestamp") or datetime.min,
+    )
 
 
 def _evidence(rows: list[dict]) -> list[dict]:

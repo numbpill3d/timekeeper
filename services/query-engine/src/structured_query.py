@@ -277,6 +277,7 @@ def build_fallback_query(question: str) -> tuple[str, list[object]]:
                e.confidence, e.clip_path,
                e.metadata->>'from_camera_name' AS from_camera_name,
                e.metadata->>'to_camera_name' AS to_camera_name,
+               p.id AS person_id,
                p.label AS person_label,
                o.label AS object_label,
                o.category AS object_category
