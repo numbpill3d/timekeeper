@@ -98,6 +98,17 @@ export const getProfile = () => api.get<UserProfile>("/auth/me");
 export const updateProfile = (data: { fcm_token?: string | null; phone?: string | null }) =>
   api.patch<UserProfile>("/auth/me", data);
 
+// ── Integrations ─────────────────────────────────────────────────
+
+export interface PipedreamConnectToken {
+  token: string;
+  connect_link_url: string;
+  expires_at: string | null;
+}
+
+export const createPipedreamConnectToken = () =>
+  api.post<PipedreamConnectToken>("/integrations/pipedream/connect-token");
+
 // ── Events ────────────────────────────────────────────────────────
 
 export const listEvents = (params?: Record<string, unknown>) =>

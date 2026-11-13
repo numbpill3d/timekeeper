@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { getProfile, updateProfile } from "../api/client";
+import {
+  createPipedreamConnectToken,
+  getProfile,
+  updateProfile,
+} from "../api/client";
 
 const TIER_INFO: Record<
   string,
@@ -63,6 +67,7 @@ export function Settings() {
   const [fcmToken, setFcmToken] = useState("");
   const [phone, setPhone] = useState("");
   const [saved, setSaved] = useState(false);
+  const [connectError, setConnectError] = useState("");
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["profile"],
@@ -85,6 +90,20 @@ export function Settings() {
     onSuccess: () => {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+    },
+  });
+
+  const connectPipedream = useMutation({
+    mutationFn: createPipedreamConnectToken,
+    onSuccess: ({ data }) => {
+      setConnectError("");
+      window.location.assign(data.connect_link_url);
+    },
+    onError: (error: unknown) => {
+      const detail =
+        (error as { response?: { data?: { detail?: string } } })?.response?.data
+          ?.detail;
+      setConnectError(detail ?? "could not start the Pipedream Connect flow");
     },
   });
 
@@ -268,6 +287,29 @@ export function Settings() {
                     </span>
                   )}
                 </div>
+              </div>
+            </Section>
+
+            {/* Integrations */}
+            <Section title="integrations">
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ fontSize: 12, color: "var(--text-dim)" }}>
+                  connect an account through Pipedream. credentials stay with
+                  Pipedream and are never stored in Timekeeper.
+                </div>
+                <button
+                  className="btn btn-primary"
+                  style={{ alignSelf: "flex-start" }}
+                  onClick={() => connectPipedream.mutate()}
+                  disabled={connectPipedream.isPending}
+                >
+                  {connectPipedream.isPending ? "starting..." : "connect an app"}
+                </button>
+                {connectError && (
+                  <div style={{ fontSize: 11, color: "var(--accent)" }}>
+                    ! {connectError}
+                  </div>
+                )}
               </div>
             </Section>
 

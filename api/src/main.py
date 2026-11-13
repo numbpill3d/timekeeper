@@ -22,6 +22,7 @@ from .routes.alerts import router as alerts_router
 from .routes.cameras import router as cameras_router
 from .routes.events import router as events_router
 from .routes.persons import router as persons_router
+from .routes.pipedream import router as pipedream_router
 from .routes.query import router as query_router
 from .routes.users import router as users_router
 from .ws.stream import router as ws_router
@@ -97,6 +98,7 @@ app.include_router(events_router, prefix="/events", tags=["events"])
 app.include_router(query_router, prefix="/query", tags=["query"])
 app.include_router(alerts_router, prefix="/alerts", tags=["alerts"])
 app.include_router(persons_router, prefix="/persons", tags=["persons"])
+app.include_router(pipedream_router, tags=["integrations"])
 app.include_router(ws_router, tags=["websocket"])
 
 
