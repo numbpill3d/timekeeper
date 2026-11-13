@@ -291,7 +291,7 @@ class VisionPipeline:
             frame_path=frame_msg.frame_path,
             detections=detections,
         )
-        await self._producer.send(
+        await self._producer.send_and_wait(
             DETECTIONS,
             key=str(frame_msg.camera_id).encode(),
             value=out.model_dump(mode="json"),

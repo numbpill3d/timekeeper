@@ -136,7 +136,7 @@ async def main() -> None:
                             det_msg.frame_path, event.id
                         )
                     await persist_event(db, event)
-                    await producer.send(
+                    await producer.send_and_wait(
                         EVENTS,
                         key=str(event.camera_id).encode(),
                         value=event.model_dump(mode="json"),

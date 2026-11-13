@@ -26,7 +26,7 @@ class FramePublisher:
         await self._producer.stop()
 
     async def publish(self, msg: FrameMessage) -> None:
-        await self._producer.send(
+        await self._producer.send_and_wait(
             FRAMES,
             key=str(msg.camera_id).encode(),
             value=msg.model_dump(mode="json"),
