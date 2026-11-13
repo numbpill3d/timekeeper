@@ -175,11 +175,18 @@ events for that account without connecting a camera:
 
 ```bash
 DATABASE_URL=postgresql://omniscient:changeme@127.0.0.1:5432/omniscient \
-TIMEKEEPER_DEMO_OWNER_ID="<your-user-uuid>" \
+TIMEKEEPER_DEMO_OWNER_EMAIL="you@example.com" \
 .venv/bin/python scripts/seed_synthetic.py
 ```
 
-The fixture is inactive, uses no camera credentials, and is safe to rerun.
+Or, with `DATABASE_URL` already exported:
+
+```bash
+make synthetic-fixture OWNER_EMAIL="you@example.com"
+```
+
+The fixture is inactive, uses no camera credentials, never creates an account,
+and is safe to rerun.
 Ask the UI: `What happened to the blue toolbox?` or
 `Who picked up the blue toolbox?`.
 

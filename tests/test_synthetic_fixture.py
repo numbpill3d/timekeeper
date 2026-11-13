@@ -24,3 +24,9 @@ def test_demo_sequence_uses_a_stable_five_step_story():
     assert '"object_moved"' in source
     assert '"object_placed"' in source
     assert '"person_exited"' in source
+
+
+def test_fixture_supports_email_owner_lookup_without_account_creation():
+    source = Path("scripts/seed_synthetic.py").read_text(encoding="utf-8")
+    assert "lower(email) = lower($1)" in source
+    assert "INSERT INTO users" not in source
