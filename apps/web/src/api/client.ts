@@ -28,6 +28,7 @@ api.interceptors.response.use(
 
 export interface OmniscientEvent {
   id: string;
+  camera_id: string;
   event_type: string;
   timestamp: string;
   action_label: string;
