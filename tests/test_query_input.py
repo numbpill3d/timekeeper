@@ -8,6 +8,7 @@ os.environ.setdefault("JWT_SECRET", "unit-test-secret-012345678901234567890123")
 
 import main as query_main
 import pytest
+from fastapi import HTTPException
 from main import EmbedRequest, EmbedResponse
 from main import QueryRequest as EngineQueryRequest
 from omniscient_shared.models.event import EventType
@@ -97,6 +98,15 @@ def test_embedding_endpoint_runs_model_inference_off_event_loop(monkeypatch):
 
     assert len(response.embedding) == 384
     assert seen_threads and seen_threads[0] != caller_thread
+
+
+def test_embedding_endpoint_rejects_invalid_model_dimensions(monkeypatch):
+    monkeypatch.setattr(query_main, "embed_text", lambda _text: [0.0] * 383)
+
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(query_main.embed(EmbedRequest(text="event text")))
+
+    assert exc_info.value.status_code == 503
 
 
 def test_notification_profile_explicit_nulls_are_preserved_for_clear():

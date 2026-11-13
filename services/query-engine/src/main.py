@@ -17,7 +17,7 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 try:
     from .db import close_pool, get_pool, init_pool
@@ -145,7 +145,13 @@ async def embed(req: EmbedRequest) -> EmbedResponse:
     except Exception as exc:
         log.exception("embedding failed")
         raise HTTPException(status_code=503, detail="embedding service unavailable") from exc
-    return EmbedResponse(embedding=vec)
+    try:
+        return EmbedResponse(embedding=vec)
+    except ValidationError as exc:
+        log.error("embedding service returned an invalid vector")
+        raise HTTPException(
+            status_code=503, detail="embedding service returned an invalid vector"
+        ) from exc
 
 
 @app.get("/health")
