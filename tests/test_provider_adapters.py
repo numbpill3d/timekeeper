@@ -76,6 +76,17 @@ def test_whep_endpoint_rejects_credential_query_parameter():
         _provider_endpoint(camera)
 
 
+@pytest.mark.parametrize("key", ["client_secret", "refresh_token"])
+def test_provider_endpoint_rejects_all_credential_query_parameters(key):
+    camera = _camera(
+        CameraProtocol.wyze,
+        "wyze://cam-1",
+        {"whep_url": f"https://example.test/whep?{key}=secret"},
+    )
+    with pytest.raises(ProviderError, match="credential-like"):
+        _provider_endpoint(camera)
+
+
 def test_arlo_can_use_a_local_rtsp_bridge():
     camera = _camera(
         CameraProtocol.arlo,

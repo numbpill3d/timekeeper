@@ -40,6 +40,14 @@ _DEFAULT_CONTROL_HOSTS = {
 _ENV_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 
 
+def _is_secret_key(key: object) -> bool:
+    normalized = "".join(char for char in str(key).lower() if char.isalnum())
+    return normalized in {
+        "accesstoken", "apikey", "auth", "authorization", "clientsecret",
+        "password", "secret", "signature", "token",
+    } or normalized.endswith("token")
+
+
 def _safe_provider_env_name(value: str, provider: str) -> str:
     """Prevent camera config from selecting unrelated process secrets."""
     name = value.strip()
@@ -62,16 +70,9 @@ def _allowed_control_hosts() -> set[str]:
 
 def _control_endpoint(value: str, label: str) -> str:
     parsed = urlparse(value)
-    secret_keys = {
-        "accesstoken", "apikey", "auth", "authorization", "password", "secret",
-        "signature", "token",
-    }
     if parsed.username or parsed.password or parsed.fragment or not parsed.hostname:
         raise ProviderError(f"{label} must be a URL without embedded credentials")
-    if any(
-        "".join(char for char in key.lower() if char.isalnum()) in secret_keys
-        for key, _ in parse_qsl(parsed.query, keep_blank_values=True)
-    ):
+    if any(_is_secret_key(key) for key, _ in parse_qsl(parsed.query, keep_blank_values=True)):
         raise ProviderError(f"{label} must not contain credential-like query parameters")
     hostname = parsed.hostname.lower().rstrip(".")
     if parsed.scheme == "https" and hostname in _allowed_control_hosts():
