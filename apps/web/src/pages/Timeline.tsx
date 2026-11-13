@@ -96,6 +96,26 @@ export function Timeline() {
   const hasNextPage = isCountError
     ? data.length === PAGE
     : countData !== undefined && offset + data.length < total;
+  useEffect(() => {
+    function handlePagingShortcut(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.isContentEditable
+        || ["INPUT", "SELECT", "TEXTAREA", "BUTTON"].includes(target?.tagName ?? "")
+      ) {
+        return;
+      }
+      if (event.key === "j" && hasNextPage) {
+        event.preventDefault();
+        setOffset((current) => current + PAGE);
+      } else if (event.key === "k" && offset > 0) {
+        event.preventDefault();
+        setOffset((current) => Math.max(0, current - PAGE));
+      }
+    }
+    window.addEventListener("keydown", handlePagingShortcut);
+    return () => window.removeEventListener("keydown", handlePagingShortcut);
+  }, [hasNextPage, offset]);
   const groupedEvents = data.reduce<Array<{ key: string; label: string; events: OmniscientEvent[] }>>(
     (groups, event) => {
       const date = new Date(event.timestamp);
@@ -518,6 +538,12 @@ export function Timeline() {
         </button>
         <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
           {firstResult}–{lastResult}
+        </span>
+        <span
+          aria-label="Timeline keyboard shortcuts"
+          style={{ marginLeft: "auto", fontSize: 10, color: "var(--text-dim)" }}
+        >
+          j/k pages
         </span>
         <button
           className="btn btn-ghost"
