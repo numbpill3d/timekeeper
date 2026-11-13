@@ -59,6 +59,7 @@ async def list_persons(user: CurrentUser, db: DB) -> list[PersonOut]:
                COUNT(e.id) AS event_count
         FROM persons p
         LEFT JOIN events e ON e.person_id = p.id
+             AND e.camera_id IN (SELECT id FROM cameras WHERE owner_id = $1)
         WHERE p.owner_id = $1
         GROUP BY p.id
         ORDER BY p.last_seen_at DESC NULLS LAST, p.created_at DESC
@@ -77,6 +78,7 @@ async def get_person(person_id: UUID, user: CurrentUser, db: DB) -> PersonOut:
                COUNT(e.id) AS event_count
         FROM persons p
         LEFT JOIN events e ON e.person_id = p.id
+             AND e.camera_id IN (SELECT id FROM cameras WHERE owner_id = $2)
         WHERE p.id = $1 AND p.owner_id = $2
         GROUP BY p.id
         """,

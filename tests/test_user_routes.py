@@ -238,6 +238,20 @@ async def test_person_list_normalizes_legacy_null_appearance_tags():
     assert result[0].appearance_tags == []
 
 
+@pytest.mark.asyncio
+async def test_person_event_count_scopes_events_to_owner_cameras():
+    class PersonListDb:
+        sql = ""
+
+        async def fetch(self, sql: str, _user_id: str) -> list[dict]:
+            self.sql = sql
+            return []
+
+    db = PersonListDb()
+    await list_persons({"sub": "owner-1"}, db)
+    assert "e.camera_id IN (SELECT id FROM cameras WHERE owner_id = $1)" in db.sql
+
+
 class _PersonDeleteTransaction:
     async def __aenter__(self):
         return self
