@@ -27,6 +27,7 @@ _STOPWORDS = {
     "are", "was", "were", "to", "a", "an", "at", "in", "on", "of", "today",
     "yesterday", "recently", "last", "hours", "hour", "minutes", "minute",
     "this", "morning", "afternoon", "evening", "tonight", "night",
+    "am", "pm",
 }
 _LOCATION_RE = re.compile(
     r"\b(?:in|at|near)\s+(?:(?:the|my|our)\s+)?"
@@ -38,7 +39,10 @@ _LOCATION_RE = re.compile(
 def _terms(question: str) -> list[str]:
     quoted = re.findall(r"[\"']([^\"']+)[\"']", question)
     words = re.findall(r"[a-z0-9][a-z0-9_-]{1,31}", question.lower())
-    candidates = quoted + [word for word in words if word not in _STOPWORDS]
+    candidates = quoted + [
+        word for word in words
+        if word not in _STOPWORDS and not word.isdigit()
+    ]
     return list(dict.fromkeys(term.strip() for term in candidates if term.strip()))
 
 
@@ -66,6 +70,41 @@ def _time_predicates(question: str, start_param: int) -> tuple[list[str], list[o
         return [f"e.timestamp >= ${start_param}"], [now - delta]
 
     day = (now - timedelta(days=1)).date() if "yesterday" in lowered else now.date()
+    clock = re.search(
+        r"\b(?:at\s+)?(?P<hour>\d{1,2})(?::(?P<minute>[0-5]\d))?\s*"
+        r"(?P<ampm>a\.?m\.?|p\.?m\.?)\b",
+        lowered,
+    )
+    if clock:
+        hour = int(clock.group("hour"))
+        minute = int(clock.group("minute") or 0)
+        if hour < 1 or hour > 12:
+            return [], []
+        if clock.group("ampm").startswith("p") and hour != 12:
+            hour += 12
+        if clock.group("ampm").startswith("a") and hour == 12:
+            hour = 0
+        start = datetime.combine(day, time(hour, minute), tzinfo=now.tzinfo)
+        return [
+            f"e.timestamp >= ${start_param}",
+            f"e.timestamp < ${start_param + 1}",
+        ], [start, start + timedelta(minutes=1)]
+
+    clock_24 = re.search(
+        r"\b(?:at\s+)?(?P<hour>[01]?\d|2[0-3]):(?P<minute>[0-5]\d)\b",
+        lowered,
+    )
+    if clock_24:
+        start = datetime.combine(
+            day,
+            time(int(clock_24.group("hour")), int(clock_24.group("minute"))),
+            tzinfo=now.tzinfo,
+        )
+        return [
+            f"e.timestamp >= ${start_param}",
+            f"e.timestamp < ${start_param + 1}",
+        ], [start, start + timedelta(minutes=1)]
+
     day_parts = (
         ("morning", time(0, 0), time(12, 0)),
         ("afternoon", time(12, 0), time(18, 0)),

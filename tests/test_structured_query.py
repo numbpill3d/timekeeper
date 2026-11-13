@@ -1,5 +1,7 @@
 """Tests for the no-LLM event search fallback."""
 
+from datetime import timedelta
+
 from structured_query import build_fallback_query
 
 
@@ -52,3 +54,21 @@ def test_fallback_query_filters_location_and_day_part():
     assert params[1].hour == 12
     assert params[2].hour == 18
     assert "p.label ILIKE" not in sql
+
+
+def test_fallback_query_filters_an_exact_clock_minute():
+    sql, params = build_fallback_query("who grabbed my keys at 4:30 pm?")
+    assert "o.category ILIKE $2" in sql
+    assert "e.timestamp >= $3" in sql
+    assert "e.timestamp < $4" in sql
+    assert params[1].hour == 16
+    assert params[1].minute == 30
+    assert params[2] - params[1] == timedelta(minutes=1)
+    assert "p.label ILIKE" not in sql
+
+
+def test_fallback_query_supports_24_hour_clock():
+    _, params = build_fallback_query("what happened at 21:05 yesterday?")
+    assert params[0].hour == 21
+    assert params[0].minute == 5
+    assert params[1] - params[0] == timedelta(minutes=1)
