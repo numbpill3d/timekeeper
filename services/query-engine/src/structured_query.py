@@ -70,9 +70,10 @@ def build_fallback_query(question: str) -> tuple[str, list[object]]:
     ]
     person_terms = [term for term in terms if term not in object_sources]
 
-    clauses = [
-        "e.camera_id IN (SELECT id FROM cameras WHERE owner_id = $1::uuid)",
-    ]
+    # The query router injects the owner scope centrally after validating this
+    # single-level SELECT. Keeping it out here prevents a second, unscoped
+    # subquery from becoming part of the trusted fallback contract.
+    clauses: list[str] = []
     params: list[object] = []
     next_param = 2
 

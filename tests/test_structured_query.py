@@ -6,6 +6,7 @@ from structured_query import build_fallback_query
 def test_fallback_query_searches_item_and_today():
     sql, params = build_fallback_query("did john pick up my keys today?")
     assert "FROM events e" in sql
+    assert "owner_id" not in sql
     assert "o.category ILIKE $2" in sql
     assert "p.label ILIKE $3" in sql
     assert params[0] == "%keys%"

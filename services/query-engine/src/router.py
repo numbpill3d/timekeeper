@@ -63,6 +63,8 @@ def _extract_sql(raw: str) -> str:
 def _safe_sql(sql: str) -> str:
     if not _SELECT_RE.match(sql):
         raise ValueError(f"non-SELECT statement rejected: {sql[:80]}")
+    if len(re.findall(r"\bSELECT\b", sql, re.IGNORECASE)) != 1:
+        raise ValueError("nested SELECT queries are not allowed")
     if ";" in sql or "--" in sql or "/*" in sql or "*/" in sql:
         raise ValueError("multiple statements and SQL comments are not allowed")
     if re.search(

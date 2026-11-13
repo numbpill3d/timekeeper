@@ -30,6 +30,7 @@ def test_safe_sql_rejects_privileged_functions_and_select_into(sql):
     "sql",
     [
         "SELECT id FROM events WHERE id IN (SELECT id FROM users)",
+        "SELECT (SELECT action_label FROM events) FROM events",
         "SELECT id FROM events UNION SELECT id FROM users",
         "WITH leaked AS (SELECT * FROM users) SELECT id FROM events",
         "SELECT e.id FROM events e, users u",
