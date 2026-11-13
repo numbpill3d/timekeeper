@@ -46,8 +46,15 @@ services:
     command:
       - >-
         for migration in /migrations/*.sql; do
-          echo "applying $$migration";
-          psql -v ON_ERROR_STOP=1 -f "$$migration" || exit 1;
+          version=$${migration##*/};
+          version=$${version%.sql};
+          applied=$$(psql -Atqc "SELECT 1 FROM schema_migrations WHERE version = '$$version'" 2>/dev/null || true);
+          if [ "$$applied" = "1" ]; then
+            echo "skipping applied migration $$version";
+          else
+            echo "applying $$migration";
+            psql -v ON_ERROR_STOP=1 -f "$$migration" || exit 1;
+          fi;
         done
 
   kafka:

@@ -7,8 +7,9 @@ from types import SimpleNamespace
 os.environ.setdefault("JWT_SECRET", "unit-test-secret-012345678901234567890123")
 
 import pytest
+from fastapi import HTTPException
 
-from api.src.routes.events import count_events
+from api.src.routes.events import count_events, list_events
 from api.src.routes.persons import delete_person, list_persons
 from api.src.routes.query import _check_rate_limit
 from api.src.routes.users import (
@@ -70,6 +71,47 @@ class _EventCountDb:
     async def fetchval(self, _sql: str, *params: object) -> int:
         self.params = params
         return self.count
+
+
+class _EventListDb:
+    def __init__(self) -> None:
+        self.sql = ""
+
+    async def fetch(self, sql: str, *_params: object) -> list[dict]:
+        self.sql = sql
+        return []
+
+
+@pytest.mark.asyncio
+async def test_event_list_scopes_joined_identity_labels_to_owner():
+    db = _EventListDb()
+    await list_events({"sub": "owner-1"}, db)
+    assert "p.owner_id = $1" in db.sql
+    assert "o.owner_id = $1" in db.sql
+
+
+@pytest.mark.asyncio
+async def test_event_detail_scopes_joined_identity_labels_to_owner():
+    # The detail query shares the same tenant boundary, with the owner in $2.
+    class DetailDb:
+        sql = ""
+
+        async def fetchrow(self, sql: str, *_params: object) -> None:
+            self.sql = sql
+
+    db = DetailDb()
+    from api.src.routes.events import get_event
+
+    with pytest.raises(HTTPException) as exc_info:
+        # The route raises its normal 404 after recording the query.
+        await get_event(
+            "00000000-0000-0000-0000-000000000001",
+            {"sub": "owner-1"},
+            db,
+        )
+    assert exc_info.value.status_code == 404
+    assert "p.owner_id = $2" in db.sql
+    assert "o.owner_id = $2" in db.sql
 
 
 @pytest.mark.asyncio

@@ -1,8 +1,11 @@
 # Database migrations
 
-The migration directory contains idempotent upgrades for databases created by
-older timekeeper revisions. Apply migrations before starting application
-services:
+The migration directory contains upgrades for databases created by older
+timekeeper revisions. The Compose `db-migrate` sidecar consults
+`schema_migrations` and applies each numbered file once; a failed migration
+stops startup and is retried on the next run.
+
+For a manual run, apply migrations before starting application services:
 
 ```bash
 for migration in infra/db/migrations/*.sql; do
@@ -10,6 +13,10 @@ for migration in infra/db/migrations/*.sql; do
     psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f - < "$migration"
 done
 ```
+
+The manual loop is intentionally simple and relies on each migration's
+idempotent SQL. To get the same skip behavior as Compose, check the ledger
+before invoking `psql` for each file.
 
 `001_provider_attribution.sql` adds provider configuration and attribution
 fields. If an older database has 768-dimensional event embeddings, it retains

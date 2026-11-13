@@ -75,12 +75,11 @@ async def retrieve_context(question: str, owner_id: str) -> str:
                o.label AS object_label,
                o.category AS object_category
         FROM events e
-        LEFT JOIN persons p ON e.person_id = p.id
-        LEFT JOIN tracked_objects o ON e.object_id = o.id
-        WHERE e.camera_id IN (
-            SELECT id FROM cameras WHERE owner_id = $1::uuid
-        )
-          AND e.embedding IS NOT NULL
+        JOIN cameras c ON c.id = e.camera_id AND c.owner_id = $1::uuid
+        LEFT JOIN persons p ON e.person_id = p.id AND p.owner_id = c.owner_id
+        LEFT JOIN tracked_objects o
+            ON e.object_id = o.id AND o.owner_id = c.owner_id
+        WHERE e.embedding IS NOT NULL
         ORDER BY e.embedding <=> $2::vector
         LIMIT $3
     """
