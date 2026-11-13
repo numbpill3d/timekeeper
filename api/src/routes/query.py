@@ -14,6 +14,7 @@ from typing import Literal
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
+from omniscient_shared.time import local_now
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from ..auth import CurrentUser
@@ -27,12 +28,16 @@ _FREE_MONTHLY_LIMIT = 10
 
 def _seconds_until_next_month(now: datetime.datetime | None = None) -> int:
     """Return a TTL that expires at the start of the next calendar month."""
-    current = now or datetime.datetime.now()
+    current = now or local_now()
     if current.month == 12:
         next_month = datetime.date(current.year + 1, 1, 1)
     else:
         next_month = datetime.date(current.year, current.month + 1, 1)
-    boundary = datetime.datetime.combine(next_month, datetime.time.min)
+    boundary = datetime.datetime.combine(
+        next_month,
+        datetime.time.min,
+        tzinfo=current.tzinfo,
+    )
     return max(1, math.ceil((boundary - current).total_seconds()))
 
 
@@ -81,7 +86,7 @@ async def _check_rate_limit(user: dict, request: Request) -> None:
         raise HTTPException(status_code=401, detail="user not found")
     if tier != "free":
         return
-    now = datetime.date.today()
+    now = local_now().date()
     key = f"rl:query:{user['sub']}:{now.year}:{now.month}"
     redis = request.app.state.redis
     count = await redis.incr(key)

@@ -57,3 +57,15 @@ def test_event_text_includes_object_category_for_embedding_recall():
     )
 
     assert "item: toolbox" in event.to_text()
+
+
+def test_event_text_uses_configured_local_timezone(monkeypatch):
+    monkeypatch.setattr(time_utils, "LOCAL_TIMEZONE", ZoneInfo("America/New_York"))
+    event = Event(
+        camera_id="00000000-0000-0000-0000-000000000001",
+        event_type=EventType.person_entered,
+        timestamp="2026-07-01T16:30:00Z",
+        action_label="Person entered",
+    )
+
+    assert "[2026-07-01 12:30:00]" in event.to_text()

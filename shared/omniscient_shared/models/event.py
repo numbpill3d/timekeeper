@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
 
-from omniscient_shared.time import to_utc
+from omniscient_shared.time import to_local, to_utc
 
 
 class EventType(str, Enum):
@@ -56,7 +56,8 @@ class Event(BaseModel):
 
     def to_text(self) -> str:
         """Human-readable event description for LLM context."""
-        parts = [f"[{self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}]"]
+        local_timestamp = to_local(self.timestamp)
+        parts = [f"[{local_timestamp.strftime('%Y-%m-%d %H:%M:%S')}]"]
         parts.append(self.action_label)
         object_category = self.metadata.get("object_category")
         if (

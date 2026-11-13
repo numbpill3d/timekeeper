@@ -44,6 +44,13 @@ def test_free_query_quota_expires_at_next_month_boundary(now, expected):
     assert _seconds_until_next_month(datetime.fromisoformat(now)) == expected
 
 
+def test_free_query_quota_ttl_accepts_aware_datetimes():
+    from datetime import UTC, datetime
+
+    now = datetime(2026, 1, 31, 23, 59, 59, tzinfo=UTC)
+    assert _seconds_until_next_month(now) == 1
+
+
 @pytest.mark.parametrize(
     "history",
     [
