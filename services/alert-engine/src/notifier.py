@@ -126,7 +126,7 @@ async def _send_fcm_legacy(token: str, title: str, body: str) -> bool:
         async with httpx.AsyncClient(
             timeout=5.0, follow_redirects=False
         ) as client:
-            r = await client.post(
+            response = await client.post(
                 _FCM_URL,
                 json=payload,
                 headers={
@@ -134,8 +134,12 @@ async def _send_fcm_legacy(token: str, title: str, body: str) -> bool:
                     "Content-Type": "application/json",
                 },
             )
-            return r.status_code == 200
-    except httpx.HTTPError as exc:
+            if response.status_code != 200:
+                return False
+            result = response.json()
+            success = result.get("success") if isinstance(result, dict) else None
+            return isinstance(success, int) and not isinstance(success, bool) and success > 0
+    except (httpx.HTTPError, ValueError, TypeError) as exc:
         log.warning("fcm delivery failed: %s", exc)
         return False
 

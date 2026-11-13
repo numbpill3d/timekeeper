@@ -48,3 +48,35 @@ async def test_sms_is_not_attempted_with_partial_twilio_configuration(monkeypatc
 
     assert await notifier.deliver(["sms"], "title", "body", phone="+15551234567") == []
     assert called is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        ({"success": 1, "failure": 0}, True),
+        ({"success": 0, "failure": 1}, False),
+        ({"message_id": "accepted-but-not-legacy-result"}, False),
+    ],
+)
+async def test_legacy_fcm_requires_a_successful_response_body(
+    monkeypatch, body, expected
+):
+    class Response:
+        status_code = 200
+
+        def json(self):
+            return body
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return False
+
+        async def post(self, *_args, **_kwargs):
+            return Response()
+
+    monkeypatch.setattr(notifier.httpx, "AsyncClient", lambda **_kwargs: Client())
+    assert await notifier._send_fcm_legacy("device-token", "title", "body") is expected
