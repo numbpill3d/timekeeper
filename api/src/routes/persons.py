@@ -104,7 +104,6 @@ async def update_person(
     if not updates:
         return await get_person(person_id, user, db)
 
-    assert set(updates) <= _ALLOWED
     sets = ", ".join(f"{col} = ${i + 3}" for i, col in enumerate(updates))
     result = await db.execute(
         f"UPDATE persons SET {sets} WHERE id = $1 AND owner_id = $2",

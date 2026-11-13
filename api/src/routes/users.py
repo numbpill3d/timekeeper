@@ -181,7 +181,6 @@ async def update_profile(
         updates["phone"] = req.phone
     if not updates:
         return await me(user, db)
-    assert set(updates) <= _ALLOWED
     sets = ", ".join(
         f"{col} = ${i + 2}" for i, col in enumerate(updates)
     )

@@ -152,7 +152,8 @@ class VisionPipeline:
 
     async def _load_gallery(self) -> None:
         """Populate in-memory ReID gallery and camera-owner map from DB."""
-        assert self._db is not None
+        if self._db is None:
+            raise RuntimeError("vision database pool is not initialized")
         cam_rows = await self._db.fetch(
             "SELECT id, owner_id FROM cameras WHERE is_active = TRUE"
         )
