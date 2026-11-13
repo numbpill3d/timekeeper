@@ -30,6 +30,7 @@ class ProviderError(RuntimeError):
 
 
 log = logging.getLogger(__name__)
+_PROVIDER_TIMEOUT_SECONDS = 15
 
 
 _ENV_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
@@ -207,7 +208,11 @@ class _OAuthCredentials:
                 "client_id": client_id,
                 "client_secret": client_secret,
             }
-            async with ClientSession() as session, session.post(
+            from aiohttp import ClientTimeout
+
+            async with ClientSession(
+                timeout=ClientTimeout(total=_PROVIDER_TIMEOUT_SECONDS)
+            ) as session, session.post(
                 self.token_url, data=payload, allow_redirects=False
             ) as response:
                 body = await response.text()
@@ -345,7 +350,11 @@ async def _whep_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
                 "Content-Type": "application/sdp",
                 "Accept": "application/sdp, application/json",
             }
-            async with ClientSession() as session, session.post(
+            from aiohttp import ClientTimeout
+
+            async with ClientSession(
+                timeout=ClientTimeout(total=_PROVIDER_TIMEOUT_SECONDS)
+            ) as session, session.post(
                 endpoint, data=offer_sdp, headers=headers, allow_redirects=False
             ) as response:
                 return response.status, response.content_type, await response.text()
@@ -399,7 +408,11 @@ async def _nest_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
         }
         async def request(token: str) -> tuple[int, str]:
             headers = {"Authorization": f"Bearer {token}"}
-            async with ClientSession() as session, session.post(
+            from aiohttp import ClientTimeout
+
+            async with ClientSession(
+                timeout=ClientTimeout(total=_PROVIDER_TIMEOUT_SECONDS)
+            ) as session, session.post(
                 command_url, json=payload, headers=headers, allow_redirects=False
             ) as response:
                 return response.status, await response.text()

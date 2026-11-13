@@ -72,7 +72,7 @@ async def _evaluate(event: Event, db: asyncpg.Connection) -> None:
         SELECT ar.*
         FROM alert_rules ar
         JOIN cameras c ON c.owner_id = ar.owner_id
-        WHERE c.id = $1 AND ar.is_active = TRUE
+        WHERE c.id = $1 AND c.is_active = TRUE AND ar.is_active = TRUE
         """,
         event.camera_id,
     )
@@ -81,7 +81,11 @@ async def _evaluate(event: Event, db: asyncpg.Connection) -> None:
     person_is_known: bool = False
     if event.person_id:
         row = await db.fetchrow(
-            "SELECT label, is_known FROM persons WHERE id = $1", event.person_id
+            "SELECT p.label, p.is_known FROM persons p "
+            "JOIN cameras c ON c.owner_id = p.owner_id "
+            "WHERE p.id = $1 AND c.id = $2",
+            event.person_id,
+            event.camera_id,
         )
         if row:
             person_label = row["label"]
@@ -90,7 +94,11 @@ async def _evaluate(event: Event, db: asyncpg.Connection) -> None:
     object_category: str | None = None
     if event.object_id:
         row = await db.fetchrow(
-            "SELECT category FROM tracked_objects WHERE id = $1", event.object_id
+            "SELECT o.category FROM tracked_objects o "
+            "JOIN cameras c ON c.owner_id = o.owner_id "
+            "WHERE o.id = $1 AND c.id = $2",
+            event.object_id,
+            event.camera_id,
         )
         if row:
             object_category = row["category"]
