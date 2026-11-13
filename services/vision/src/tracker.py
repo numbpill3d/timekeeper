@@ -30,8 +30,9 @@ def stream_gap_requires_reset(
     try:
         return current - previous > TRACKER_RESET_GAP
     except TypeError:
-        # Do not turn a malformed naive/aware timestamp mix into a replay loop.
-        return False
+        # A malformed timestamp boundary cannot establish continuity safely.
+        # Reset state rather than carrying identities across an unknown gap.
+        return True
 
 
 @dataclass

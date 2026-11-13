@@ -89,9 +89,9 @@ def test_reset_does_not_reuse_scoped_track_ids(monkeypatch):
     assert first != second
 
 
-def test_stream_gap_requires_reset_but_malformed_timezone_does_not():
+def test_stream_gap_requires_reset_on_malformed_timezone_boundary():
     current = datetime(2026, 1, 1, tzinfo=UTC)
     assert stream_gap_requires_reset(current, current + timedelta(seconds=6))
-    assert not stream_gap_requires_reset(
+    assert stream_gap_requires_reset(
         current.replace(tzinfo=None), current + timedelta(seconds=6)
     )
