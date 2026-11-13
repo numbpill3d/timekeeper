@@ -25,6 +25,8 @@ def test_stream_url_rejects_embedded_credentials():
     "stream_url",
     [
         "rtsp://camera.example/live?access_token=secret",
+        "https://camera.example/live?client_secret=secret",
+        "https://camera.example/live?refresh_token=secret",
         "https://camera.example/live#secret",
     ],
 )
@@ -73,6 +75,7 @@ def test_legacy_camera_output_redacts_credentials():
             "provider_config": {
                 "access_token": "secret",
                 "whep_url": "https://camera.example/live?token=secret",
+                "refresh_token": "secret",
             },
         }
     )

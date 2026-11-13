@@ -22,10 +22,6 @@ DB = Annotated[asyncpg.Connection, Depends(get_db)]
 _TIER_LIMITS = {"free": 2, "home": 5, "family": 10, "pro": 9999}
 _PROTOCOLS = {"rtsp", "http", "https", "hls", "file", "onvif", "ring", "nest", "arlo", "wyze"}
 _UPDATE_ALLOWED = {"name", "location_label", "is_active", "provider_config"}
-_SECRET_URL_KEYS = {
-    "accesstoken", "apikey", "auth", "authorization", "password", "secret",
-    "signature", "token",
-}
 _URL_CONFIG_KEYS = {
     "whepurl", "rtspurl", "streamurl", "apiurl", "commandurl", "tokenurl",
 }
@@ -48,10 +44,7 @@ def _validate_endpoint_value(value: str) -> None:
     parsed = urlparse(value)
     if parsed.username or parsed.password or parsed.fragment:
         raise ValueError("provider endpoint must not contain embedded credentials")
-    if any(
-        "".join(char for char in key.lower() if char.isalnum()) in _SECRET_URL_KEYS
-        for key, _ in parse_qsl(parsed.query, keep_blank_values=True)
-    ):
+    if any(_is_secret_key(key) for key, _ in parse_qsl(parsed.query, keep_blank_values=True)):
         raise ValueError(
             "provider endpoint must not contain credential-like query parameters"
         )
@@ -102,7 +95,7 @@ def _redact_url(value: str) -> str:
     query = [
         (key, item)
         for key, item in parse_qsl(parsed.query, keep_blank_values=True)
-        if _normalized_key(key) not in _SECRET_URL_KEYS
+        if not _is_secret_key(key)
     ]
     netloc = parsed.netloc.rsplit("@", 1)[-1]
     return urlunparse(
@@ -179,7 +172,7 @@ class CameraCreate(BaseModel):
                 "stream_url must not contain embedded credentials; use secret files"
             )
         if parsed.fragment or any(
-            "".join(char for char in key.lower() if char.isalnum()) in _SECRET_URL_KEYS
+            _is_secret_key(key)
             for key, _ in parse_qsl(parsed.query, keep_blank_values=True)
         ):
             raise ValueError(
