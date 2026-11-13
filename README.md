@@ -185,8 +185,10 @@ Or, with `DATABASE_URL` already exported:
 make synthetic-fixture OWNER_EMAIL="you@example.com"
 ```
 
-The fixture is inactive, uses no camera credentials, never creates an account,
-and is safe to rerun.
+The fixture creates two inactive cameras (kitchen and garage), uses no camera
+credentials, never creates an account, and is safe to rerun. Its movement event
+also carries the source and destination camera names so the demo exercises the
+same handoff evidence shown by a live multi-camera setup.
 Ask the UI: `What happened to the blue toolbox?` or
 `Who picked up the blue toolbox?`.
 

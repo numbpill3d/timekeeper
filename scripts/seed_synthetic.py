@@ -1,7 +1,7 @@
 """Seed deterministic, hardware-free events for a local Timekeeper demo.
 
 The script never creates users, changes camera credentials, or deletes data.
-It upserts one inactive fixture camera and five events owned by an existing
+It upserts two inactive fixture cameras and five events owned by an existing
 account. Re-running it is safe because IDs are deterministic per fixture.
 """
 
@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import os
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid5
@@ -48,59 +49,45 @@ async def seed(
             owner_id = UUID(str(row["id"]))
 
         camera_id = _id(owner_id, fixture, "camera")
+        garage_camera_id = _id(owner_id, fixture, "camera-garage")
         person_id = _id(owner_id, fixture, "person-john")
         object_id = _id(owner_id, fixture, "object-blue-toolbox")
         await _seed_rows(
-            conn, owner_id, camera_id, person_id, object_id, fixture, start
+            conn,
+            owner_id,
+            camera_id,
+            garage_camera_id,
+            person_id,
+            object_id,
+            fixture,
+            start,
         )
     finally:
         await conn.close()
 
     print(f"seeded synthetic fixture '{fixture}' for owner {owner_id}")
-    print(f"camera: {camera_id}")
+    print(f"cameras: {camera_id}, {garage_camera_id}")
     print(f"events: 5 from {start.isoformat()}")
 
 
 async def _seed_rows(
     conn: asyncpg.Connection,
     owner_id: UUID,
-    camera_id: UUID,
+    kitchen_camera_id: UUID,
+    garage_camera_id: UUID,
     person_id: UUID,
     object_id: UUID,
     fixture: str,
     start: datetime,
 ) -> None:
-    events = [
-        ("person_entered", start, "John entered the kitchen", "kitchen", None),
-        (
-            "object_picked_up",
-            start + timedelta(minutes=5),
-            "John picked up the blue toolbox",
-            "kitchen",
-            object_id,
-        ),
-        (
-            "object_moved",
-            start + timedelta(minutes=9),
-            "John moved the blue toolbox from the kitchen to the garage",
-            "garage",
-            object_id,
-        ),
-        (
-            "object_placed",
-            start + timedelta(minutes=11),
-            "John placed the blue toolbox in the garage",
-            "garage",
-            object_id,
-        ),
-        (
-            "person_exited",
-            start + timedelta(minutes=15),
-            "John left the garage",
-            "garage",
-            None,
-        ),
-    ]
+    events = _story_events(
+        start,
+        kitchen_camera_id,
+        garage_camera_id,
+        person_id,
+        object_id,
+        fixture,
+    )
 
     async with conn.transaction():
         await conn.execute(
@@ -113,11 +100,27 @@ async def _seed_rows(
                     location_label = EXCLUDED.location_label,
                     is_active = FALSE
                 """,
-            camera_id,
+            kitchen_camera_id,
             owner_id,
-            f"Synthetic demo · {fixture}",
+            f"Synthetic demo · {fixture} · kitchen",
             "file:///tmp/timekeeper-synthetic-fixture.mp4",
-            "kitchen → garage",
+            "kitchen",
+        )
+        await conn.execute(
+            """
+                INSERT INTO cameras
+                    (id, owner_id, name, stream_url, protocol, location_label, is_active)
+                VALUES ($1, $2, $3, $4, 'file', $5, FALSE)
+                ON CONFLICT (id) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    location_label = EXCLUDED.location_label,
+                    is_active = FALSE
+                """,
+            garage_camera_id,
+            owner_id,
+            f"Synthetic demo · {fixture} · garage",
+            "file:///tmp/timekeeper-synthetic-fixture.mp4",
+            "garage",
         )
         await conn.execute(
             """
@@ -139,16 +142,10 @@ async def _seed_rows(
                 """,
             object_id,
             owner_id,
-            camera_id,
-            events[-1][1],
+            garage_camera_id,
+            events[-1]["timestamp"],
         )
-        for index, (
-            event_type,
-            timestamp,
-            action,
-            location,
-            event_object_id,
-        ) in enumerate(events):
+        for index, event in enumerate(events):
             event_id = _id(owner_id, fixture, f"event-{index}")
             await conn.execute(
                 """
@@ -166,15 +163,82 @@ async def _seed_rows(
                         metadata = EXCLUDED.metadata
                     """,
                 event_id,
-                camera_id,
-                event_type,
-                timestamp,
-                person_id,
-                event_object_id,
-                location,
-                action,
-                '{"fixture":"synthetic"}',
+                event["camera_id"],
+                event["event_type"],
+                event["timestamp"],
+                event["person_id"],
+                event["object_id"],
+                event["location"],
+                event["action"],
+                json.dumps(event["metadata"]),
             )
+
+
+def _story_events(
+    start: datetime,
+    kitchen_camera_id: UUID,
+    garage_camera_id: UUID,
+    person_id: UUID,
+    object_id: UUID,
+    fixture: str,
+) -> list[dict]:
+    """Return the deterministic five-event investigation story."""
+    return [
+        {
+            "event_type": "person_entered",
+            "timestamp": start,
+            "action": "John entered the kitchen",
+            "location": "kitchen",
+            "camera_id": kitchen_camera_id,
+            "person_id": person_id,
+            "object_id": None,
+            "metadata": {"fixture": "synthetic"},
+        },
+        {
+            "event_type": "object_picked_up",
+            "timestamp": start + timedelta(minutes=5),
+            "action": "John picked up the blue toolbox",
+            "location": "kitchen",
+            "camera_id": kitchen_camera_id,
+            "person_id": person_id,
+            "object_id": object_id,
+            "metadata": {"fixture": "synthetic"},
+        },
+        {
+            "event_type": "object_moved",
+            "timestamp": start + timedelta(minutes=9),
+            "action": "John moved the blue toolbox from the kitchen to the garage",
+            "location": "garage",
+            "camera_id": garage_camera_id,
+            "person_id": person_id,
+            "object_id": object_id,
+            "metadata": {
+                "fixture": "synthetic",
+                "from_camera_name": f"Synthetic demo · {fixture} · kitchen",
+                "to_camera_name": f"Synthetic demo · {fixture} · garage",
+            },
+        },
+        {
+            "event_type": "object_placed",
+            "timestamp": start + timedelta(minutes=11),
+            "action": "John placed the blue toolbox in the garage",
+            "location": "garage",
+            "camera_id": garage_camera_id,
+            "person_id": person_id,
+            "object_id": object_id,
+            "metadata": {"fixture": "synthetic"},
+        },
+        {
+            "event_type": "person_exited",
+            "timestamp": start + timedelta(minutes=15),
+            "action": "John left the garage",
+            "location": "garage",
+            "camera_id": garage_camera_id,
+            "person_id": person_id,
+            "object_id": None,
+            "metadata": {"fixture": "synthetic"},
+        },
+    ]
 
 
 def main() -> None:
