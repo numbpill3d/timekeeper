@@ -8,6 +8,7 @@ object retains identity even through brief occlusions.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 import numpy as np
 
@@ -15,6 +16,22 @@ try:
     import supervision as sv
 except ImportError:  # Keep the lightweight tracking contract importable in CI.
     sv = None
+
+TRACKER_RESET_GAP = timedelta(seconds=5)
+
+
+def stream_gap_requires_reset(
+    previous: datetime | None,
+    current: datetime,
+) -> bool:
+    """Return whether a timestamp gap is long enough for a new session."""
+    if previous is None:
+        return False
+    try:
+        return current - previous > TRACKER_RESET_GAP
+    except TypeError:
+        # Do not turn a malformed naive/aware timestamp mix into a replay loop.
+        return False
 
 
 @dataclass
@@ -43,6 +60,16 @@ class Tracker:
         # one stateful tracker per class preserves IDs while preventing
         # cross-class identity swaps.
         self._trackers: dict[str, sv.ByteTrack] = {}
+        # ByteTrack IDs can restart when its state is reset. Keep a worker
+        # scoped ID namespace so downstream aggregation never joins two
+        # camera sessions merely because both used the same numeric ID.
+        self._scoped_ids: dict[int, int] = {}
+        self._next_scoped_id = 1
+
+    def reset(self) -> None:
+        """Forget all assignments after a camera stream session gap."""
+        self._trackers.clear()
+        self._scoped_ids.clear()
 
     def _tracker_for(self, class_name: str) -> sv.ByteTrack:
         if sv is None:
@@ -125,7 +152,24 @@ class Tracker:
         # A detector box without a ByteTrack assignment is not safe to emit:
         # downstream aggregation treats track IDs as stable identities. Drop
         # those boxes instead of publishing the sentinel -1.
-        return [detection for detection in updated if detection.track_id >= 0]
+        scoped: list[RawDetection] = []
+        for detection in updated:
+            if detection.track_id < 0:
+                continue
+            scoped_id = self._scoped_ids.get(detection.track_id)
+            if scoped_id is None:
+                scoped_id = self._next_scoped_id
+                self._next_scoped_id += 1
+                self._scoped_ids[detection.track_id] = scoped_id
+            scoped.append(
+                RawDetection(
+                    track_id=scoped_id,
+                    class_name=detection.class_name,
+                    confidence=detection.confidence,
+                    bbox=detection.bbox,
+                )
+            )
+        return scoped
 
 
 def _iou(left: np.ndarray, right: np.ndarray) -> float:

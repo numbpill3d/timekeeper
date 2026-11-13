@@ -21,6 +21,7 @@ import asyncio
 import json
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -51,7 +52,7 @@ from .gallery import (
     validate_embedding,
 )
 from .reid import ReIDModel
-from .tracker import Tracker
+from .tracker import Tracker, stream_gap_requires_reset
 
 log = logging.getLogger(__name__)
 
@@ -83,8 +84,9 @@ class VisionPipeline:
         self._cam_owners: dict[str, str] = {}
 
         # "{camera_id}:{track_id}:{class_name}" -> tracked_object UUID
-        # Session-scoped; resets on restart (objects get new IDs per session)
+        # Session-scoped; resets on restart or a detected camera gap.
         self._obj_map: dict[str, UUID] = {}
+        self._last_frame_timestamp: dict[str, datetime] = {}
 
         self._db: asyncpg.Connection | None = None
         self._camera_refresh_task: asyncio.Task | None = None
@@ -211,6 +213,16 @@ class VisionPipeline:
             cleanup_unpublished_frame(frame_msg.frame_path)
             return
         tracker = self._trackers.setdefault(camera_key, Tracker())
+        previous_timestamp = self._last_frame_timestamp.get(camera_key)
+        if stream_gap_requires_reset(previous_timestamp, frame_msg.timestamp):
+            tracker.reset()
+            self._obj_map = {
+                key: value
+                for key, value in self._obj_map.items()
+                if not key.startswith(f"{camera_key}:")
+            }
+            log.info("reset tracker state after camera gap: %s", camera_key)
+        self._last_frame_timestamp[camera_key] = frame_msg.timestamp
 
         # Detector inference and tracker updates are synchronous and can be
         # expensive on CPU. Keep them off the event loop so Kafka heartbeats
@@ -498,6 +510,7 @@ class VisionPipeline:
                 for camera_id in set(self._cam_owners) - set(active):
                     self._cam_owners.pop(camera_id, None)
                     self._trackers.pop(camera_id, None)
+                    self._last_frame_timestamp.pop(camera_id, None)
                     self._obj_map = {
                         key: value
                         for key, value in self._obj_map.items()
