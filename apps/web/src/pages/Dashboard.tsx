@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { ChatPanel } from "../components/ChatPanel";
@@ -31,6 +31,7 @@ export function Dashboard() {
   const [live, setLive] = useState<OmniscientEvent[]>([]);
   const [selected, setSelected] = useState<OmniscientEvent | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
+  const closeSelected = useCallback(() => setSelected(null), []);
 
   const { data: recent = [] } = useQuery({
     queryKey: ["events", "dashboard"],
@@ -179,7 +180,7 @@ export function Dashboard() {
       </div>
 
       {selected && (
-        <ClipModal event={selected} onClose={() => setSelected(null)} />
+        <ClipModal event={selected} onClose={closeSelected} />
       )}
     </div>
   );

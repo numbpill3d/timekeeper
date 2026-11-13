@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ClipModal } from "../components/ClipModal";
@@ -31,6 +31,7 @@ export function Timeline() {
   const [selected, setSelected] = useState<OmniscientEvent | null>(null);
   const [offset, setOffset] = useState(0);
   const PAGE = 50;
+  const closeSelected = useCallback(() => setSelected(null), []);
 
   const params: Record<string, unknown> = { limit: PAGE, offset };
   if (eventType) params.event_type = eventType;
@@ -331,7 +332,7 @@ export function Timeline() {
       </div>
 
       {selected && (
-        <ClipModal event={selected} onClose={() => setSelected(null)} />
+        <ClipModal event={selected} onClose={closeSelected} />
       )}
     </div>
   );
