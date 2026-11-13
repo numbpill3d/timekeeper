@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from ..auth import CurrentUser
 from ..db import get_db
+from ..media import delete_clip_objects
 
 router = APIRouter()
 
@@ -315,10 +316,33 @@ async def update_camera(
 async def delete_camera(
     camera_id: UUID, user: CurrentUser, db: DB
 ) -> None:
-    result = await db.execute(
-        "DELETE FROM cameras WHERE id = $1 AND owner_id = $2",
-        camera_id,
-        user["sub"],
-    )
-    if result == "DELETE 0":
-        raise HTTPException(status_code=404, detail="camera not found")
+    # Camera history is keyed to the camera, so remove dependent rows in one
+    # transaction before deleting the camera itself. Clip objects are removed
+    # after commit because object storage cannot participate in this DB txn.
+    async with db.transaction():
+        camera_exists = await db.fetchval(
+            "SELECT 1 FROM cameras WHERE id = $1 AND owner_id = $2 FOR UPDATE",
+            camera_id,
+            user["sub"],
+        )
+        if not camera_exists:
+            raise HTTPException(status_code=404, detail="camera not found")
+        events = await db.fetch(
+            "SELECT id, clip_path FROM events WHERE camera_id = $1 FOR UPDATE",
+            camera_id,
+        )
+        event_ids = [row["id"] for row in events]
+        if event_ids:
+            await db.execute(
+                "DELETE FROM alert_deliveries WHERE event_id = ANY($1::uuid[])",
+                event_ids,
+            )
+        await db.execute("DELETE FROM detections WHERE camera_id = $1", camera_id)
+        await db.execute("DELETE FROM events WHERE camera_id = $1", camera_id)
+        await db.execute(
+            "UPDATE tracked_objects SET last_camera_id = NULL "
+            "WHERE last_camera_id = $1",
+            camera_id,
+        )
+        await db.execute("DELETE FROM cameras WHERE id = $1", camera_id)
+    await delete_clip_objects([row["clip_path"] for row in events])

@@ -5,7 +5,12 @@ from omniscient_shared.models.entity import Detection, DetectionMessage, FrameMe
 from omniscient_shared.models.event import Event, EventType
 from pydantic import ValidationError
 
-from api.src.routes.cameras import CameraCreate, CameraUpdate, _public_camera
+from api.src.routes.cameras import (
+    CameraCreate,
+    CameraUpdate,
+    _public_camera,
+    delete_camera,
+)
 
 
 def test_stream_url_rejects_embedded_credentials():
@@ -154,3 +159,50 @@ def test_event_contract_rejects_oversized_or_non_json_metadata():
         Event(**base, metadata={"payload": "x" * 16385})
     with pytest.raises(ValidationError):
         Event(**base, metadata={"payload": object()})
+
+
+class _CameraDeleteTransaction:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_args):
+        return False
+
+
+class _CameraDeleteDb:
+    def __init__(self) -> None:
+        self.queries: list[tuple[str, tuple[object, ...]]] = []
+
+    def transaction(self) -> _CameraDeleteTransaction:
+        return _CameraDeleteTransaction()
+
+    async def fetchval(self, sql: str, *params: object) -> int:
+        self.queries.append((sql, params))
+        return 1
+
+    async def fetch(self, sql: str, *params: object) -> list[dict]:
+        self.queries.append((sql, params))
+        return [{"id": "event-1", "clip_path": "clips/event-1.jpg"}]
+
+    async def execute(self, sql: str, *params: object) -> str:
+        self.queries.append((sql, params))
+        return "DELETE 1"
+
+
+@pytest.mark.asyncio
+async def test_camera_delete_removes_history_and_clips_after_commit(monkeypatch):
+    db = _CameraDeleteDb()
+    deleted: list[list[str | None]] = []
+
+    async def fake_delete(values: list[str | None]) -> None:
+        deleted.append(values)
+
+    monkeypatch.setattr("api.src.routes.cameras.delete_clip_objects", fake_delete)
+
+    await delete_camera("camera-1", {"sub": "owner-1"}, db)
+
+    statements = [query for query, _ in db.queries]
+    assert "DELETE FROM detections WHERE camera_id = $1" in statements
+    assert "DELETE FROM events WHERE camera_id = $1" in statements
+    assert "DELETE FROM cameras WHERE id = $1" in statements
+    assert deleted == [["clips/event-1.jpg"]]

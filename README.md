@@ -109,6 +109,10 @@ repository does not include an external edge agent; new edge-only cameras are
 rejected and existing ones are skipped by ingestion until such an agent is
 connected.
 
+Removing a camera is destructive: its detections, events, alert-delivery
+records, and private evidence clips are removed as part of the operation.
+Deactivate or retain the camera if its history must remain available.
+
 ## Query behavior
 
 The evidence answer includes the timestamp, action, person/object label,

@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import os
 from pathlib import PurePosixPath
 from urllib.parse import urlparse
+
+log = logging.getLogger(__name__)
 
 _PUBLIC_ENDPOINT = os.getenv(
     "S3_PUBLIC_ENDPOINT_URL", os.getenv("S3_ENDPOINT_URL", "http://minio:9000")
@@ -30,6 +34,49 @@ def _client():
         aws_access_key_id=_KEY,
         aws_secret_access_key=_SECRET,
     )
+
+
+def _delete_keys_sync(keys: list[str]) -> None:
+    import boto3
+
+    client = boto3.client(
+        "s3",
+        endpoint_url=_INTERNAL_ENDPOINT,
+        aws_access_key_id=_KEY,
+        aws_secret_access_key=_SECRET,
+    )
+    for start in range(0, len(keys), 1000):
+        response = client.delete_objects(
+            Bucket=_BUCKET,
+            Delete={"Objects": [{"Key": key} for key in keys[start:start + 1000]]},
+        )
+        errors = response.get("Errors", [])
+        if errors:
+            raise RuntimeError(f"object storage rejected {len(errors)} deletions")
+
+
+async def delete_clip_objects(values: list[str | None]) -> None:
+    """Best-effort removal of private clip objects after DB deletion."""
+    keys: list[str] = []
+    for value in values:
+        if not value:
+            continue
+        try:
+            key = object_key(value)
+        except ValueError:
+            log.warning("skipping invalid clip key during camera removal")
+            continue
+        if key not in keys:
+            keys.append(key)
+    if not keys:
+        return
+    try:
+        await asyncio.to_thread(_delete_keys_sync, keys)
+    except Exception as exc:  # noqa: BLE001 - storage SDK failures are non-fatal
+        # The database deletion is already committed. Surface the orphan for
+        # operators to clean up without turning a completed DB delete into a
+        # misleading API failure.
+        log.error("camera clip cleanup failed for %d objects: %s", len(keys), exc)
 
 
 def object_key(value: str | None) -> str | None:
