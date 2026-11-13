@@ -271,7 +271,10 @@ class VisionPipeline:
         async with aiofiles.open(p, "rb") as f:
             data = await f.read()
         arr = np.frombuffer(data, dtype=np.uint8)
-        frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        # JPEG decoding is synchronous native work. Keep it off the event
+        # loop so a large frame cannot delay Kafka heartbeats or other camera
+        # messages while the async file read itself remains non-blocking.
+        frame = await asyncio.to_thread(cv2.imdecode, arr, cv2.IMREAD_COLOR)
         if frame is None:
             log.warning("could not decode frame: %s", path)
         return frame
