@@ -22,9 +22,19 @@ router = APIRouter()
 DB = Annotated[asyncpg.Connection, Depends(get_db)]
 
 
+def _normalize_email(value: EmailStr) -> str:
+    """Use one case-insensitive identity for registration and login."""
+    return str(value).strip().casefold()
+
+
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
+
+    @field_validator("email")
+    @classmethod
+    def _canonical_email(cls, value: EmailStr) -> str:
+        return _normalize_email(value)
 
     @field_validator("password")
     @classmethod
@@ -37,6 +47,11 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+    @field_validator("email")
+    @classmethod
+    def _canonical_email(cls, value: EmailStr) -> str:
+        return _normalize_email(value)
 
 
 class TokenResponse(BaseModel):
@@ -142,7 +157,7 @@ async def update_profile(
     if "phone" in req.model_fields_set:
         updates["phone"] = req.phone
     if not updates:
-        return {"user_id": user["sub"]}
+        return await me(user, db)
     assert set(updates) <= _ALLOWED
     sets = ", ".join(
         f"{col} = ${i + 2}" for i, col in enumerate(updates)
@@ -152,4 +167,4 @@ async def update_profile(
         user["sub"],
         *updates.values(),
     )
-    return {"user_id": user["sub"], **updates}
+    return await me(user, db)
