@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { formatDistanceToNow } from "date-fns";
 import { OmniscientEvent } from "../api/client";
 
@@ -25,6 +25,17 @@ export function EventCard({ event }: Props) {
       {event.person_label && (
         <Text style={styles.tag}>{event.person_label}</Text>
       )}
+      {event.clip_path && (
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel="Open event evidence"
+          onPress={() => {
+            void Linking.openURL(event.clip_path!).catch(() => undefined);
+          }}
+        >
+          <Text style={styles.clip}>view evidence →</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -45,5 +56,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 4,
     fontWeight: "600",
+  },
+  clip: {
+    color: "#c00",
+    fontSize: 11,
+    marginTop: 6,
+    textDecorationLine: "underline",
   },
 });

@@ -178,6 +178,7 @@ export const openEventStream = (
   let ws: WebSocket | null = null;
   let closed = false;
   let retryMs = 1_000;
+  let retryTimer: number | null = null;
 
   const connect = () => {
     if (closed) return;
@@ -205,12 +206,22 @@ export const openEventStream = (
         return;
       }
       if (!closed) {
-        setTimeout(connect, retryMs);
+        retryTimer = window.setTimeout(() => {
+          retryTimer = null;
+          connect();
+        }, retryMs);
         retryMs = Math.min(retryMs * 2, 30_000);
       }
     };
   };
 
   connect();
-  return { close: () => { closed = true; ws?.close(); } };
+  return {
+    close: () => {
+      closed = true;
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+      retryTimer = null;
+      ws?.close();
+    },
+  };
 };
