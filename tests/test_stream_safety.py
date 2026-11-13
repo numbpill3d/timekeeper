@@ -2,7 +2,7 @@
 
 from uuid import uuid4
 
-from config import safe_stream_error_context
+from config import NORMAL_RECONNECT_DELAY_S, safe_stream_error_context
 from omniscient_shared.models.camera import Camera, CameraProtocol
 
 
@@ -21,3 +21,7 @@ def test_stream_error_context_omits_url_and_exception_text():
     assert context == "front door (rtsp): RuntimeError"
     assert "password" not in context
     assert "example.test" not in context
+
+
+def test_normal_stream_completion_has_a_reconnect_delay():
+    assert NORMAL_RECONNECT_DELAY_S >= 1.0

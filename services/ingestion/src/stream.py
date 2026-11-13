@@ -19,7 +19,11 @@ import cv2
 from omniscient_shared.models.camera import Camera
 from omniscient_shared.models.entity import FrameMessage
 
-from .config import parse_frame_interval, safe_stream_error_context
+from .config import (
+    NORMAL_RECONNECT_DELAY_S,
+    parse_frame_interval,
+    safe_stream_error_context,
+)
 from .providers import ProviderError, frames_for
 
 log = logging.getLogger(__name__)
@@ -47,6 +51,9 @@ async def stream_camera(
         try:
             await _read_loop(camera, publish_cb)
             backoff = 1.0
+            # A clean EOF is common for local-file feeds. Avoid a hot loop
+            # that reopens and replays the source continuously at full CPU.
+            await asyncio.sleep(NORMAL_RECONNECT_DELAY_S)
         except (ProviderError, OSError) as exc:
             log.warning(
                 "stream error for %s — retrying in %.0fs",

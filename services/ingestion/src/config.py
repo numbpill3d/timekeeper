@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from omniscient_shared.models.camera import Camera
 
+NORMAL_RECONNECT_DELAY_S = 1.0
+
 
 def parse_frame_interval(raw: str) -> float:
     try:
