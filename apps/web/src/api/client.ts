@@ -152,6 +152,8 @@ export const updateCamera = (
   id: string,
   data: {
     name?: string;
+    stream_url?: string;
+    protocol?: string;
     location_label?: string | null;
     is_active?: boolean;
     provider_config?: Record<string, unknown>;

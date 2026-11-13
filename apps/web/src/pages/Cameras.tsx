@@ -14,16 +14,61 @@ function CameraCard({
   cam,
   onToggle,
   onDelete,
+  onSave,
   togglePending,
   deletePending,
+  savePending,
 }: {
   cam: Camera;
   onToggle: () => void;
   onDelete: () => void;
+  onSave: (data: {
+    name: string;
+    stream_url: string;
+    protocol: string;
+    location_label: string | null;
+  }) => Promise<unknown>;
   togglePending: boolean;
   deletePending: boolean;
+  savePending: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(cam.name);
+  const [editUrl, setEditUrl] = useState(cam.stream_url);
+  const [editLocation, setEditLocation] = useState(cam.location_label ?? "");
+  const [editProtocol, setEditProtocol] = useState(cam.protocol);
+  const [editError, setEditError] = useState("");
+
+  function startEditing() {
+    setEditName(cam.name);
+    setEditUrl(cam.stream_url);
+    setEditLocation(cam.location_label ?? "");
+    setEditProtocol(cam.protocol);
+    setEditError("");
+    setEditing(true);
+  }
+
+  async function save() {
+    const name = editName.trim();
+    const stream_url = editUrl.trim();
+    if (!name || !stream_url) {
+      setEditError("name and stream URL are required");
+      return;
+    }
+    setEditError("");
+    try {
+      await onSave({
+        name,
+        stream_url,
+        protocol: editProtocol,
+        location_label: editLocation.trim() || null,
+      });
+      setEditing(false);
+    } catch {
+      setEditError("could not save camera changes");
+    }
+  }
 
   return (
     <div
@@ -87,22 +132,58 @@ function CameraCard({
         </div>
       </div>
 
-      {/* URL + badges */}
-      <div
-        style={{
-          fontSize: 11,
-          color: "var(--text-dim)",
-          fontFamily: "var(--font)",
-          wordBreak: "break-all",
-          borderLeft: "2px solid var(--border-hi)",
-          paddingLeft: 8,
-        }}
-      >
-        {cam.stream_url}
-      </div>
+      {editing ? (
+        <div style={{ display: "grid", gap: 8 }}>
+          <input
+            aria-label={`Edit name for ${cam.name}`}
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            style={{ width: "100%", padding: "6px 8px" }}
+          />
+          <input
+            aria-label={`Edit stream URL for ${cam.name}`}
+            value={editUrl}
+            onChange={(e) => setEditUrl(e.target.value)}
+            style={{ width: "100%", padding: "6px 8px" }}
+          />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <input
+              aria-label={`Edit location for ${cam.name}`}
+              value={editLocation}
+              onChange={(e) => setEditLocation(e.target.value)}
+              placeholder="location (optional)"
+              style={{ width: "100%", padding: "6px 8px" }}
+            />
+            <select
+              aria-label={`Edit protocol for ${cam.name}`}
+              value={editProtocol}
+              onChange={(e) => setEditProtocol(e.target.value)}
+              style={{ width: "100%", padding: "6px 8px" }}
+            >
+              {PROTOCOLS.map((protocol) => (
+                <option key={protocol} value={protocol}>{protocol}</option>
+              ))}
+            </select>
+          </div>
+          {editError && <div role="alert" style={{ color: "var(--accent)", fontSize: 11 }}>{editError}</div>}
+        </div>
+      ) : (
+        <div
+          style={{
+            fontSize: 11,
+            color: "var(--text-dim)",
+            fontFamily: "var(--font)",
+            wordBreak: "break-all",
+            borderLeft: "2px solid var(--border-hi)",
+            paddingLeft: 8,
+          }}
+        >
+          {cam.stream_url}
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        <span className="badge badge-dim">{cam.protocol}</span>
+        <span className="badge badge-dim">{editing ? editProtocol : cam.protocol}</span>
         {cam.is_edge_only && (
           <span className="badge badge-amber">external agent required</span>
         )}
@@ -117,7 +198,26 @@ function CameraCard({
           gap: 8,
         }}
       >
-        {confirming ? (
+        {editing ? (
+          <>
+            <button
+              className="btn btn-primary"
+              style={{ padding: "4px 10px" }}
+              onClick={() => void save()}
+              disabled={savePending}
+            >
+              {savePending ? "saving..." : "save"}
+            </button>
+            <button
+              className="btn btn-ghost"
+              style={{ padding: "4px 10px" }}
+              onClick={() => setEditing(false)}
+              disabled={savePending}
+            >
+              cancel
+            </button>
+          </>
+        ) : confirming ? (
           <>
             <span
               style={{
@@ -148,6 +248,14 @@ function CameraCard({
           </>
         ) : (
           <>
+            <button
+              className="btn btn-ghost"
+              style={{ padding: "4px 10px" }}
+              onClick={startEditing}
+              disabled={togglePending || deletePending}
+            >
+              edit
+            </button>
             <button
               className="btn btn-ghost"
               style={{ padding: "4px 10px" }}
@@ -234,6 +342,19 @@ export function Cameras() {
       updateCamera(id, { is_active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["cameras"] }),
     onError: () => setError("failed to update camera status"),
+  });
+
+  const update = useMutation({
+    mutationFn: ({ id, data }: {
+      id: string;
+      data: {
+        name: string;
+        stream_url: string;
+        protocol: string;
+        location_label: string | null;
+      };
+    }) => updateCamera(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["cameras"] }),
   });
 
   const activeCams = cameras.filter((c) => c.is_active).length;
@@ -428,8 +549,10 @@ export function Cameras() {
                   toggle.mutate({ id: c.id, is_active: !c.is_active });
                 }}
                 onDelete={() => remove.mutate(c.id)}
+                onSave={(data) => update.mutateAsync({ id: c.id, data })}
                 togglePending={toggle.isPending && toggle.variables?.id === c.id}
                 deletePending={remove.isPending && remove.variables === c.id}
+                savePending={update.isPending && update.variables?.id === c.id}
               />
             ))}
           </div>
