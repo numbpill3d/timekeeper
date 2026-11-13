@@ -9,6 +9,7 @@ test:
 
 lint:
 	ruff check api services shared tests
+	ruff check --select B api services shared tests
 
 web-build:
 	cd apps/web && npm ci && npm run build

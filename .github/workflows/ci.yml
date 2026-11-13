@@ -47,6 +47,8 @@ jobs:
         run: pytest -q
       - name: Lint
         run: ruff check api services shared tests
+      - name: Bug-pattern lint
+        run: ruff check --select B api services shared tests
       - name: Compile Python sources
         run: python -m compileall -q api services shared tests
       - name: Audit Python dependencies
@@ -98,3 +100,27 @@ jobs:
         env:
           TIMEKEEPER_ENV_FILE: .env.example
         run: docker compose --env-file .env.example config --quiet
+
+  runtime-audit:
+    name: Runtime dependency audit (${{ matrix.requirements }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        requirements:
+          - requirements.txt
+          - api/requirements.txt
+          - services/alert-engine/requirements.txt
+          - services/event-processor/requirements.txt
+          - services/ingestion/requirements.txt
+          - services/query-engine/requirements.txt
+          - services/vision/requirements.txt
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install audit tool
+        run: python -m pip install "pip-audit>=2.7.0" "setuptools>=84.1.0"
+      - name: Audit declared runtime requirements
+        run: pip-audit --strict -r "${{ matrix.requirements }}"
