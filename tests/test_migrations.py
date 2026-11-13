@@ -61,3 +61,13 @@ def test_event_annotation_migration_keeps_notes_owner_scoped_and_bounded():
     assert "char_length(note) BETWEEN 1 AND 2000" in migration
     assert "PRIMARY KEY (event_id, owner_id)" in migration
     assert "VALUES ('009_event_annotations')" in migration
+
+
+def test_event_lookup_indexes_cover_camera_person_and_object_histories():
+    migration = (MIGRATION_DIR / "010_event_lookup_indexes.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "events_camera_timestamp_idx" in migration
+    assert "events_person_timestamp_idx" in migration
+    assert "events_object_timestamp_idx" in migration
+    assert "VALUES ('010_event_lookup_indexes')" in migration
