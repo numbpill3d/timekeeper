@@ -62,8 +62,8 @@ async def retrieve_context(question: str, owner_id: str) -> str:
         # Keep it off the query service event loop so one embedding cannot
         # stall concurrent queries or health checks.
         vec = await asyncio.to_thread(embed_text, question)
-    except (ImportError, OSError, RuntimeError, ValueError) as exc:
-        log.warning("embedding failed: %s", exc)
+    except Exception as exc:  # noqa: BLE001 - optional model failures are non-fatal
+        log.warning("embedding failed (%s); continuing without RAG", type(exc).__name__)
         return ""
 
     vec_literal = "[" + ",".join(f"{v:.6f}" for v in vec) + "]"

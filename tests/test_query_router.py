@@ -1,6 +1,7 @@
 """Safety and ownership tests for generated surveillance queries."""
 
 import pytest
+import rag
 import router
 from router import _inject_owner_scope, _safe_sql
 
@@ -129,6 +130,18 @@ async def test_rag_context_is_not_sent_to_sql_planner(monkeypatch):
 
     assert "stored label" not in seen["planner"]
     assert "stored label" in seen["answer"]
+
+
+@pytest.mark.asyncio
+async def test_rag_model_failure_is_fail_soft(monkeypatch):
+    def broken_embed(_question: str) -> list[float]:
+        raise TypeError("model output is malformed")
+
+    monkeypatch.setattr(rag, "embed_text", broken_embed)
+
+    assert await rag.retrieve_context(
+        "what happened?", "00000000-0000-0000-0000-000000000001"
+    ) == ""
 
 
 @pytest.mark.asyncio

@@ -8,7 +8,9 @@ const BASE_URL =
   // must set EXPO_PUBLIC_API_URL to a LAN-reachable URL.
   (Platform.OS === "android" ? "http://10.0.2.2:8000" : "http://localhost:8000");
 
-export const api = axios.create({ baseURL: BASE_URL });
+// Keep offline or unreachable cameras from leaving screens in a perpetual
+// loading state. Individual calls can still override this when needed.
+export const api = axios.create({ baseURL: BASE_URL, timeout: 15_000 });
 
 let _onUnauthorized: (() => void) | null = null;
 export function setUnauthorizedCallback(cb: () => void) {
