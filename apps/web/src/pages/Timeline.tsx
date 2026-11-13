@@ -1,6 +1,7 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { useSearchParams } from "react-router-dom";
 import { ClipModal } from "../components/ClipModal";
 import { listEvents, OmniscientEvent } from "../api/client";
 
@@ -26,14 +27,27 @@ const CONF_COLOR = (c: number) => {
 };
 
 export function Timeline() {
-  const [eventType, setEventType] = useState("");
-  const [sinceDate, setSinceDate] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const eventType = searchParams.get("event_type") ?? "";
+  const sinceDate = searchParams.get("since") ?? "";
+  const search = searchParams.get("search") ?? "";
   const [searchDraft, setSearchDraft] = useState("");
-  const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<OmniscientEvent | null>(null);
   const [offset, setOffset] = useState(0);
   const PAGE = 50;
   const closeSelected = useCallback(() => setSelected(null), []);
+
+  useEffect(() => {
+    setSearchDraft(search);
+  }, [search]);
+
+  function updateFilter(key: string, value: string) {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set(key, value);
+    else next.delete(key);
+    setSearchParams(next);
+    setOffset(0);
+  }
 
   const params: Record<string, unknown> = { limit: PAGE, offset };
   if (eventType) params.event_type = eventType;
@@ -46,10 +60,8 @@ export function Timeline() {
   });
 
   function reset() {
-    setEventType("");
-    setSinceDate("");
     setSearchDraft("");
-    setSearch("");
+    setSearchParams(new URLSearchParams());
     setOffset(0);
   }
 
@@ -81,8 +93,7 @@ export function Timeline() {
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              setSearch(searchDraft.trim());
-              setOffset(0);
+              updateFilter("search", searchDraft.trim());
             }}
             style={{ display: "flex", gap: 4 }}
           >
@@ -115,8 +126,7 @@ export function Timeline() {
             aria-label="Filter by event type"
             value={eventType}
             onChange={(e) => {
-              setEventType(e.target.value);
-              setOffset(0);
+              updateFilter("event_type", e.target.value);
             }}
             style={{
               padding: "5px 10px",
@@ -145,8 +155,7 @@ export function Timeline() {
             type="datetime-local"
             value={sinceDate}
             onChange={(e) => {
-              setSinceDate(e.target.value);
-              setOffset(0);
+              updateFilter("since", e.target.value);
             }}
             style={{
               padding: "5px 10px",

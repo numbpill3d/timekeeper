@@ -30,20 +30,22 @@ local camera evidence system.
    immediately attributable to a source.
 12. **Timeline search** — search event type, action, location, person, and
    object/category text with wildcard-safe matching and an explicit web form.
+13. **Shareable timeline state** — persist timeline filters in the URL so a
+   refresh, browser navigation, or shared link preserves the operator’s view.
 
 ## Next high-value improvements
 
-13. **Camera setup wizard** — guide operators through source type, location,
+14. **Camera setup wizard** — guide operators through source type, location,
     credentials, connectivity test, retention, and a first-frame preview. Keep
     secrets masked and never echo them in validation errors.
-14. **Camera diagnostics** — show last frame, last successful connection,
+15. **Camera diagnostics** — show last frame, last successful connection,
     reconnect attempts, codec/fps, clock skew, and a clear remediation path.
-15. **Evidence-first answer cards** — show the answer, confidence, event time,
+16. **Evidence-first answer cards** — show the answer, confidence, event time,
     matched person/object labels, camera, and one-click clip preview together.
     Make “not enough evidence” a first-class state.
-16. **Timeline grouping and navigation** — group events by hour/location, add
+17. **Timeline grouping and navigation** — group events by hour/location, add
     date presets, keyboard shortcuts, and URL-persisted filters.
-17. **Trust and retention controls** — add per-camera retention previews,
+18. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins.
 
