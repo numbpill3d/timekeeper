@@ -119,7 +119,9 @@ async def main() -> None:
                         )
                     await persist_event(db, event)
                     await producer.send(
-                        EVENTS, value=event.model_dump(mode="json")
+                        EVENTS,
+                        key=str(event.camera_id).encode(),
+                        value=event.model_dump(mode="json"),
                     )
                 processed = True
             except _DropDetection:
