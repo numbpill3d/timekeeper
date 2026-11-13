@@ -22,8 +22,13 @@ def local_now() -> datetime:
     return datetime.now(tz=LOCAL_TIMEZONE)
 
 
+def to_utc(value: datetime) -> datetime:
+    """Normalize an input timestamp to an aware UTC datetime."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 def to_local(value: datetime) -> datetime:
     """Convert an aware timestamp to the configured display/query zone."""
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=UTC)
-    return value.astimezone(LOCAL_TIMEZONE)
+    return to_utc(value).astimezone(LOCAL_TIMEZONE)

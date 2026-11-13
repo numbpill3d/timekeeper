@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from omniscient_shared.time import to_utc
 
 
 class Detection(BaseModel):
@@ -19,6 +21,11 @@ class Detection(BaseModel):
     object_id: UUID | None = None
     association_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     association_method: str | None = Field(default=None, max_length=80)
+
+    @field_validator("timestamp")
+    @classmethod
+    def _timestamp_utc(cls, value: datetime) -> datetime:
+        return to_utc(value)
 
     @model_validator(mode="after")
     def _valid_bbox(self) -> Detection:
@@ -39,6 +46,11 @@ class FrameMessage(BaseModel):
     width: int = Field(gt=0, le=16384)
     height: int = Field(gt=0, le=16384)
 
+    @field_validator("timestamp")
+    @classmethod
+    def _timestamp_utc(cls, value: datetime) -> datetime:
+        return to_utc(value)
+
 
 class DetectionMessage(BaseModel):
     """Published by vision to the 'detections' topic."""
@@ -47,6 +59,11 @@ class DetectionMessage(BaseModel):
     frame_id: str = Field(min_length=1, max_length=200)
     frame_path: str | None = Field(default=None, max_length=1024)  # propagated from FrameMessage for clip extraction
     detections: list[Detection] = Field(default_factory=list, max_length=512)
+
+    @field_validator("timestamp")
+    @classmethod
+    def _timestamp_utc(cls, value: datetime) -> datetime:
+        return to_utc(value)
 
     @model_validator(mode="after")
     def _detections_match_frame(self) -> DetectionMessage:
@@ -66,7 +83,7 @@ class Person(BaseModel):
     appearance_tags: list[str] = Field(default_factory=list)
     retention_days: int = Field(default=30, ge=1, le=3650)
     last_seen_at: datetime | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class TrackedObject(BaseModel):
@@ -76,4 +93,4 @@ class TrackedObject(BaseModel):
     label: str | None = Field(default=None, max_length=120)
     last_camera_id: UUID | None = None
     last_seen_at: datetime | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

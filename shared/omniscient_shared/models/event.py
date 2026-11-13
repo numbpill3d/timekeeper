@@ -7,6 +7,8 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
 
+from omniscient_shared.time import to_utc
+
 
 class EventType(str, Enum):
     person_entered = "person_entered"
@@ -35,6 +37,11 @@ class Event(BaseModel):
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
     metadata: dict = Field(default_factory=dict)
     clip_path: str | None = Field(default=None, max_length=2048)
+
+    @field_validator("timestamp")
+    @classmethod
+    def _timestamp_utc(cls, value: datetime) -> datetime:
+        return to_utc(value)
 
     @field_validator("metadata")
     @classmethod
