@@ -33,7 +33,14 @@ class Correlator:
         for event in events:
             if event.event_type != EventType.object_picked_up or not event.object_id:
                 continue
-            self._pending_pickups[str(event.object_id)] = (
+            key = str(event.object_id)
+            existing = self._pending_pickups.get(key)
+            # Database recovery queries may be newest-first, and replayed
+            # events can contain more than one pickup for a track id. Keep the
+            # newest candidate so a stale row cannot win after a restart.
+            if existing and existing[2] >= event.timestamp:
+                continue
+            self._pending_pickups[key] = (
                 str(event.camera_id),
                 event,
                 event.timestamp,

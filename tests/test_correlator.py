@@ -158,6 +158,43 @@ def test_restore_rehydrates_recent_pickup_for_a_restart():
     assert extra[0].event_type == EventType.object_moved
 
 
+def test_restore_keeps_newest_duplicate_pickup():
+    correlator = Correlator()
+    obj_id = uuid4()
+    cam_a, cam_b, cam_c = uuid4(), uuid4(), uuid4()
+    t = datetime.now(tz=UTC)
+    older = _event(
+        EventType.object_picked_up,
+        cam_a,
+        obj_id,
+        ts=t,
+        location_label="kitchen",
+    )
+    newer = _event(
+        EventType.object_picked_up,
+        cam_b,
+        obj_id,
+        ts=t + timedelta(seconds=4),
+        location_label="hallway",
+    )
+
+    # Match the event processor's newest-first recovery query.
+    correlator.restore([newer, older])
+    extra = correlator.process(
+        _event(
+            EventType.object_placed,
+            cam_c,
+            obj_id,
+            ts=t + timedelta(seconds=6),
+            location_label="garage",
+        )
+    )
+
+    assert len(extra) == 1
+    assert extra[0].metadata["from_camera_id"] == str(cam_b)
+    assert extra[0].metadata["from_location"] == "hallway"
+
+
 def test_category_fallback_correlates_camera_scoped_object_ids():
     correlator = Correlator()
     cam_a, cam_b = uuid4(), uuid4()
