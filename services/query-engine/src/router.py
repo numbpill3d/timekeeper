@@ -162,9 +162,12 @@ async def answer(
     # RAG: retrieve semantically relevant past events as extra context
     rag_context = await retrieve_context(question, owner_id)
 
-    llm_context = "\n".join(filter(None, [history_text, rag_context]))
+    # Retrieved event text is evidence for the final answer, not instructions
+    # for the SQL planner. Keeping it out of this prompt prevents stored labels
+    # or action text from steering query generation.
+    planner_context = history_text
     try:
-        raw_sql = await nl_to_sql(question, llm_context)
+        raw_sql = await nl_to_sql(question, planner_context)
         fallback_params: list[object] = []
     except RuntimeError as exc:
         log.warning("LLM SQL planner unavailable; using structured fallback: %s", exc)
@@ -176,7 +179,8 @@ async def answer(
     sql = _inject_owner_scope(sql)
 
     rows = await _execute(sql, owner_id, fallback_params)
-    answer_text = await synthesize_response(question, rows, llm_context)
+    answer_context = "\n".join(filter(None, [history_text, rag_context]))
+    answer_text = await synthesize_response(question, rows, answer_context)
 
     clips = [r["clip_path"] for r in rows if r.get("clip_path")]
     confidences = [r["confidence"] for r in rows if r.get("confidence")]
