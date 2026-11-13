@@ -271,5 +271,8 @@ async def _execute(
                 )
             return [dict(r) for r in rows]
         except asyncpg.PostgresError as exc:
-            log.error("query failed: %s | sql: %s", exc, sql)
+            # Generated SQL can contain private names, locations, and other
+            # home labels. Keep operational logs useful without copying that
+            # surveillance content into a long-lived log sink.
+            log.error("query execution failed (%s)", type(exc).__name__)
             raise RuntimeError("query execution unavailable") from exc

@@ -1,5 +1,6 @@
 """Safety and ownership tests for generated surveillance queries."""
 
+import asyncpg
 import pytest
 import rag
 import router
@@ -168,6 +169,37 @@ async def test_answer_confidence_includes_zero_confidence_rows(monkeypatch):
     )
 
     assert result["confidence"] == 0.5
+
+
+@pytest.mark.asyncio
+async def test_query_failures_do_not_log_generated_sql(monkeypatch, caplog):
+    class Pool:
+        def acquire(self):
+            return self
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return False
+
+        def transaction(self):
+            return self
+
+        async def execute(self, *_args):
+            return None
+
+        async def fetch(self, *_args):
+            raise asyncpg.PostgresError("database unavailable")
+
+    monkeypatch.setattr(router, "get_pool", lambda: Pool())
+    sql = "SELECT e.id FROM events e WHERE e.location_label = 'private garage'"
+
+    with pytest.raises(RuntimeError, match="query execution unavailable"):
+        await router._execute(sql, "00000000-0000-0000-0000-000000000001")
+
+    assert "private garage" not in caplog.text
+    assert "query execution failed (PostgresError)" in caplog.text
 
 
 @pytest.mark.asyncio
