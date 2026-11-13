@@ -59,12 +59,12 @@ def test_unassigned_boxes_are_not_published(monkeypatch):
 def test_reset_forgets_class_trackers():
     tracker = Tracker()
     tracker._trackers["person"] = object()
-    tracker._scoped_ids[1] = 1
+    tracker._max_scoped_id = 1
 
     tracker.reset()
 
     assert tracker._trackers == {}
-    assert tracker._scoped_ids == {}
+    assert tracker._track_id_base == 2
 
 
 def test_reset_does_not_reuse_scoped_track_ids(monkeypatch):

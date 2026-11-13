@@ -63,13 +63,13 @@ class Tracker:
         # ByteTrack IDs can restart when its state is reset. Keep a worker
         # scoped ID namespace so downstream aggregation never joins two
         # camera sessions merely because both used the same numeric ID.
-        self._scoped_ids: dict[int, int] = {}
-        self._next_scoped_id = 1
+        self._track_id_base = 0
+        self._max_scoped_id = -1
 
     def reset(self) -> None:
         """Forget all assignments after a camera stream session gap."""
         self._trackers.clear()
-        self._scoped_ids.clear()
+        self._track_id_base = self._max_scoped_id + 1
 
     def _tracker_for(self, class_name: str) -> sv.ByteTrack:
         if sv is None:
@@ -156,11 +156,8 @@ class Tracker:
         for detection in updated:
             if detection.track_id < 0:
                 continue
-            scoped_id = self._scoped_ids.get(detection.track_id)
-            if scoped_id is None:
-                scoped_id = self._next_scoped_id
-                self._next_scoped_id += 1
-                self._scoped_ids[detection.track_id] = scoped_id
+            scoped_id = self._track_id_base + detection.track_id
+            self._max_scoped_id = max(self._max_scoped_id, scoped_id)
             scoped.append(
                 RawDetection(
                     track_id=scoped_id,
