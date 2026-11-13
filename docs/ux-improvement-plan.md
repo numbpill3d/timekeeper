@@ -54,10 +54,13 @@ local camera evidence system.
    retain URL-persisted filters plus keyboard/touch clip access.
 23. **Timeline CSV snapshot** — export the currently filtered visible page with
    timestamps, sources, labels, confidence, and clip paths for an audit handoff.
+24. **Intent-aware local answers** — constrain the no-LLM fallback to an explicit
+   pickup, placement, movement, entry, or exit event when the question names
+   that action, while preserving open-ended “what happened” searches.
 
 ## Next high-value improvements
 
-24. **Trust and retention controls** — add per-camera retention previews,
+25. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins. Camera cards now surface the local
     30-day default and person-specific override behavior. Individual timeline

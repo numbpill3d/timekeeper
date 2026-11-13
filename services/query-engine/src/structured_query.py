@@ -39,6 +39,13 @@ _LOCATION_RE = re.compile(
 _GENERIC_OBJECT_QUESTION_RE = re.compile(
     r"\b(?:what happened to|where (?:is|was|were))\b", re.IGNORECASE
 )
+_ACTION_EVENT_TYPES = (
+    (re.compile(r"\b(?:pick|picked|pickup|grab|grabbed|take|took)\b", re.IGNORECASE), "object_picked_up"),
+    (re.compile(r"\b(?:place|placed|put|set)\b", re.IGNORECASE), "object_placed"),
+    (re.compile(r"\b(?:move|moved|carry|carried)\b", re.IGNORECASE), "object_moved"),
+    (re.compile(r"\b(?:leave|left|exit|exited)\b", re.IGNORECASE), "person_exited"),
+    (re.compile(r"\b(?:enter|entered|arrive|arrived|came)\b", re.IGNORECASE), "person_entered"),
+)
 _TIME_RANGE_RE = re.compile(
     r"\b(?:between|from)\s+"
     r"(?P<start_hour>\d{1,2})(?::(?P<start_minute>[0-5]\d))?\s*"
@@ -73,6 +80,14 @@ def _location_term(question: str) -> str | None:
             break
         words.append(word)
     return " ".join(words) or None
+
+
+def _action_event_type(question: str) -> str | None:
+    """Constrain explicit action questions without guessing for open-ended ones."""
+    for pattern, event_type in _ACTION_EVENT_TYPES:
+        if pattern.search(question):
+            return event_type
+    return None
 
 
 def _clock_datetime(
@@ -233,6 +248,11 @@ def build_fallback_query(question: str) -> tuple[str, list[object]]:
     time_clauses, time_params = _time_predicates(question, next_param)
     clauses.extend(time_clauses)
     params.extend(time_params)
+    action_event_type = _action_event_type(question)
+    if action_event_type:
+        action_param = next_param + len(time_params)
+        clauses.append(f"e.event_type = ${action_param}")
+        params.append(action_event_type)
 
     sql = f"""
         SELECT e.timestamp, e.event_type, e.action_label, e.location_label,

@@ -142,7 +142,9 @@ An empty or low-confidence result is reported as uncertain rather than being
 presented as a fact. An Ollama model or configured OpenAI-compatible provider
 is required for richer natural-language synthesis; the structured fallback does
 not require either provider and understands common bounded time ranges,
-including overnight ranges such as “between 11 pm and 1 am.”
+including overnight ranges such as “between 11 pm and 1 am.” When a fallback
+question explicitly asks who picked up, placed, moved, entered, or left, it also
+filters to that recorded event type instead of mixing unrelated activity.
 
 ## Verification
 

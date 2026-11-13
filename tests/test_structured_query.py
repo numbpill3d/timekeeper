@@ -14,6 +14,8 @@ def test_fallback_query_searches_item_and_today():
     assert params[0] == "%keys%"
     assert params[1] == "%john%"
     assert params[2].tzinfo is not None
+    assert "e.event_type = $5" in sql
+    assert params[3] == "object_picked_up"
 
 
 def test_fallback_query_uses_yesterday_range_without_interpolating_text():
@@ -53,6 +55,17 @@ def test_fallback_query_does_not_require_a_search_term():
     sql, params = build_fallback_query("what happened today?")
     assert "e.timestamp >= $2" in sql
     assert params[0].tzinfo is not None
+
+
+def test_fallback_query_does_not_guess_an_action_for_open_ended_questions():
+    sql, _ = build_fallback_query("what happened to my keys today?")
+    assert "e.event_type =" not in sql
+
+
+def test_fallback_query_filters_explicit_movement_intent():
+    sql, params = build_fallback_query("where did John move the toolbox today?")
+    assert "e.event_type = $5" in sql
+    assert params[-1] == "object_moved"
 
 
 def test_fallback_query_maps_detector_alias_to_object_category():
