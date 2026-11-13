@@ -1,5 +1,9 @@
 -- Idempotent upgrade for databases created before provider attribution support.
 
+-- Older fresh schemas used PostgreSQL's default events_embedding_idx name.
+-- Remove that known duplicate before creating the canonical 384-dim index.
+DROP INDEX IF EXISTS events_embedding_idx;
+
 CREATE TABLE IF NOT EXISTS schema_migrations (
     version    TEXT PRIMARY KEY,
     applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -47,7 +51,6 @@ BEGIN
        AND NOT a.attisdropped;
 
     IF embedding_type = 'vector(768)' THEN
-        DROP INDEX IF EXISTS events_embedding_idx;
         ALTER TABLE events RENAME COLUMN embedding TO embedding_legacy_768;
         ALTER TABLE events ADD COLUMN embedding VECTOR(384);
     ELSIF embedding_type IS NULL THEN

@@ -27,3 +27,14 @@ def test_compose_migration_runner_uses_the_ledger():
     assert "schema_migrations" in contents
     assert "SELECT 1 FROM schema_migrations" in contents
     assert "skipping applied migration" in contents
+
+
+def test_fresh_and_upgraded_embedding_indexes_use_one_canonical_name():
+    init = (MIGRATION_DIR.parent / "init.sql").read_text(encoding="utf-8")
+    migration = (MIGRATION_DIR / "001_provider_attribution.sql").read_text(
+        encoding="utf-8"
+    )
+
+    assert "CREATE INDEX events_embedding_384_idx" in init
+    assert "DROP INDEX IF EXISTS events_embedding_idx" in migration
+    assert "CREATE INDEX IF NOT EXISTS events_embedding_384_idx" in migration

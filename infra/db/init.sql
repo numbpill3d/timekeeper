@@ -138,7 +138,7 @@ CREATE INDEX ON detections (camera_id, timestamp DESC);
 CREATE INDEX ON detections (track_id, camera_id, timestamp DESC);
 
 -- vector similarity indexes for RAG and ReID queries
-CREATE INDEX ON events USING ivfflat (embedding vector_cosine_ops)
+CREATE INDEX events_embedding_384_idx ON events USING ivfflat (embedding vector_cosine_ops)
     WITH (lists = 100);
 CREATE INDEX ON persons USING ivfflat (face_embedding vector_cosine_ops)
     WITH (lists = 50);
