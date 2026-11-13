@@ -115,7 +115,9 @@ async def _complete(system: str, user: str) -> str:
             raise RuntimeError(
                 "Ollama unavailable and OPENAI_API_KEY not set"
             ) from exc
-        log.warning("ollama failed (%s), falling back to openai", exc)
+        log.warning(
+            "ollama failed (%s), falling back to openai", type(exc).__name__
+        )
         try:
             return await _openai_complete(system, user)
         except Exception as openai_exc:
@@ -150,7 +152,10 @@ async def synthesize_response(
     try:
         return _require_text(await _complete(_SYNTH_SYSTEM, prompt))
     except RuntimeError as exc:
-        log.warning("LLM synthesis unavailable; using evidence formatter: %s", exc)
+        log.warning(
+            "LLM synthesis unavailable (%s); using evidence formatter",
+            type(exc).__name__,
+        )
         return _format_evidence_response(rows)
 
 

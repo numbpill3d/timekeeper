@@ -71,7 +71,7 @@ async def _send_fcm_v1(token: str, title: str, body: str) -> bool:
     try:
         access_token = await asyncio.to_thread(_fcm_access_token)
     except Exception as exc:  # noqa: BLE001 - Google auth SDK errors vary
-        log.warning("FCM credential setup failed: %s", exc)
+        log.warning("FCM credential setup failed (%s)", type(exc).__name__)
         return False
     payload = {
         "message": {
@@ -91,7 +91,7 @@ async def _send_fcm_v1(token: str, title: str, body: str) -> bool:
             )
             return 200 <= response.status_code < 300
     except httpx.HTTPError as exc:
-        log.warning("FCM HTTP v1 delivery failed: %s", exc)
+        log.warning("FCM HTTP v1 delivery failed (%s)", type(exc).__name__)
         return False
 
 
@@ -140,7 +140,7 @@ async def _send_fcm_legacy(token: str, title: str, body: str) -> bool:
             success = result.get("success") if isinstance(result, dict) else None
             return isinstance(success, int) and not isinstance(success, bool) and success > 0
     except (httpx.HTTPError, ValueError, TypeError) as exc:
-        log.warning("fcm delivery failed: %s", exc)
+        log.warning("fcm delivery failed (%s)", type(exc).__name__)
         return False
 
 
@@ -149,7 +149,7 @@ async def _send_sms(to: str, message: str) -> bool:
         await asyncio.to_thread(_send_sms_sync, to, message)
         return True
     except Exception as exc:  # noqa: BLE001 - provider SDK errors are not stable
-        log.warning("sms delivery failed: %s", exc)
+        log.warning("sms delivery failed (%s)", type(exc).__name__)
         return False
 
 

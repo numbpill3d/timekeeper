@@ -197,7 +197,7 @@ class VisionPipeline:
             frame_msg = FrameMessage(**payload)
         except (TypeError, ValueError) as exc:
             cleanup_unpublished_frame(raw_frame_path if isinstance(raw_frame_path, str) else None)
-            log.warning("bad frame message: %s", exc)
+            log.warning("bad frame message (%s)", type(exc).__name__)
             return
 
         camera_key = str(frame_msg.camera_id)
@@ -312,10 +312,10 @@ class VisionPipeline:
             p = Path(path).resolve()
             p.relative_to(_FRAME_ROOT)
         except (OSError, ValueError):
-            log.warning("rejected frame path outside frame store: %s", path)
+            log.warning("rejected frame path outside frame store")
             return None
         if not p.exists():
-            log.warning("frame not found: %s", path)
+            log.warning("frame not found in frame store")
             return None
         async with aiofiles.open(p, "rb") as f:
             data = await f.read()
@@ -325,7 +325,7 @@ class VisionPipeline:
         # messages while the async file read itself remains non-blocking.
         frame = await asyncio.to_thread(cv2.imdecode, arr, cv2.IMREAD_COLOR)
         if frame is None:
-            log.warning("could not decode frame: %s", path)
+            log.warning("could not decode frame from frame store")
         return frame
 
     async def _reid_person(
@@ -351,10 +351,18 @@ class VisionPipeline:
             return_exceptions=True,
         )
         if isinstance(face_emb, Exception):
-            log.warning("face extraction failed for camera %s: %s", camera_id, face_emb)
+            log.warning(
+                "face extraction failed for camera %s (%s)",
+                camera_id,
+                type(face_emb).__name__,
+            )
             face_emb = None
         if isinstance(reid_emb, Exception):
-            log.warning("ReID extraction failed for camera %s: %s", camera_id, reid_emb)
+            log.warning(
+                "ReID extraction failed for camera %s (%s)",
+                camera_id,
+                type(reid_emb).__name__,
+            )
             reid_emb = None
         face_emb = validate_embedding(face_emb)
         reid_emb = validate_embedding(reid_emb)
@@ -526,7 +534,9 @@ class VisionPipeline:
             except asyncio.CancelledError:
                 raise
             except (OSError, asyncpg.PostgresError, TimeoutError) as exc:
-                log.warning("camera state refresh unavailable: %s", exc)
+                log.warning(
+                    "camera state refresh unavailable (%s)", type(exc).__name__
+                )
             finally:
                 if refresh_db:
                     await refresh_db.close()

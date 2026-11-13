@@ -89,7 +89,7 @@ async def retrieve_context(question: str, owner_id: str) -> str:
         async with pool.acquire() as conn:
             rows = await conn.fetch(sql, owner_id, vec_literal, _TOP_K)
     except (asyncpg.PostgresError, OSError, RuntimeError, ValueError) as exc:
-        log.warning("rag retrieval failed: %s", exc)
+        log.warning("rag retrieval failed (%s)", type(exc).__name__)
         return ""
 
     if not rows:

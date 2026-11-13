@@ -139,7 +139,9 @@ async def events_stream(websocket: WebSocket) -> None:
                 try:
                     event = Event.model_validate(msg.value)
                 except (TypeError, ValueError) as exc:
-                    log.warning("dropping malformed live event: %s", exc)
+                    log.warning(
+                        "dropping malformed live event (%s)", type(exc).__name__
+                    )
                     continue
                 # Filter to this user's cameras on the fly.
                 # The event-processor already scoped events to real cameras;

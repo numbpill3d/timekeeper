@@ -86,7 +86,9 @@ async def main() -> None:
             try:
                 det_msg = DetectionMessage(**msg.value)
             except (TypeError, ValueError) as exc:
-                log.warning("dropping malformed detection message: %s", exc)
+                log.warning(
+                    "dropping malformed detection message (%s)", type(exc).__name__
+                )
                 await consumer.commit()
                 continue
             cam_key = str(det_msg.camera_id)
@@ -179,7 +181,7 @@ async def _retention_loop() -> None:
         except asyncio.CancelledError:
             raise
         except (OSError, asyncpg.PostgresError, TimeoutError) as exc:
-            log.warning("retention sweep unavailable: %s", exc)
+            log.warning("retention sweep unavailable (%s)", type(exc).__name__)
         finally:
             if retention_db:
                 await retention_db.close()
@@ -220,7 +222,9 @@ async def _camera_refresh_loop(
         except asyncio.CancelledError:
             raise
         except (OSError, asyncpg.PostgresError, TimeoutError) as exc:
-            log.warning("camera state refresh unavailable: %s", exc)
+            log.warning(
+                "camera state refresh unavailable (%s)", type(exc).__name__
+            )
         finally:
             if refresh_db:
                 await refresh_db.close()

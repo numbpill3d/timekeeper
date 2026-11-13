@@ -170,7 +170,7 @@ async def compile_rule_llm(rule_text: str) -> dict:
                 raw = "\n".join(lines).strip()
         return normalize_rule(json.loads(raw))
     except Exception as exc:  # noqa: BLE001 - optional LLM failures must not block alerts
-        log.warning("llm rule compilation failed: %s", exc)
+        log.warning("llm rule compilation failed (%s)", type(exc).__name__)
         return {}
 
 

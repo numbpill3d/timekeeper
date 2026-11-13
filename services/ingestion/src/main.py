@@ -72,8 +72,8 @@ async def main() -> None:
                 reload_backoff = 1.0
             except (OSError, asyncpg.PostgresError, TimeoutError) as exc:
                 log.warning(
-                    "camera reload failed: %s — retrying in %.0fs",
-                    exc,
+                    "camera reload failed (%s) — retrying in %.0fs",
+                    type(exc).__name__,
                     reload_backoff,
                 )
                 await asyncio.sleep(reload_backoff)
@@ -89,7 +89,11 @@ async def main() -> None:
                     if task.done() and not task.cancelled():
                         error = task.exception()
                         if error:
-                            log.warning("stream task failed for camera %s: %s", cid, error)
+                            log.warning(
+                                "stream task failed for camera %s (%s)",
+                                cid,
+                                type(error).__name__,
+                            )
                     if cid not in active_ids:
                         task.cancel()
                         try:

@@ -44,7 +44,9 @@ async def main() -> None:
             try:
                 event = Event(**msg.value)
             except (TypeError, ValueError) as exc:
-                log.warning("dropping malformed event message: %s", exc)
+                log.warning(
+                    "dropping malformed event message (%s)", type(exc).__name__
+                )
                 await consumer.commit()
                 continue
             try:

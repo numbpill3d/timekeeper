@@ -86,7 +86,11 @@ async def delete_clip_objects(values: list[str | None]) -> None:
         # The database deletion is already committed. Surface the orphan for
         # operators to clean up without turning a completed DB delete into a
         # misleading API failure.
-        log.error("camera clip cleanup failed for %d objects: %s", len(keys), exc)
+        log.error(
+            "camera clip cleanup failed for %d objects (%s)",
+            len(keys),
+            type(exc).__name__,
+        )
 
 
 def object_key(value: str | None) -> str | None:

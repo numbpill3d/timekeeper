@@ -170,7 +170,10 @@ async def answer(
         raw_sql = await nl_to_sql(question, planner_context)
         fallback_params: list[object] = []
     except RuntimeError as exc:
-        log.warning("LLM SQL planner unavailable; using structured fallback: %s", exc)
+        log.warning(
+            "LLM SQL planner unavailable (%s); using structured fallback",
+            type(exc).__name__,
+        )
         raw_sql, fallback_params = build_fallback_query(question)
     try:
         sql = _safe_sql(_extract_sql(raw_sql))

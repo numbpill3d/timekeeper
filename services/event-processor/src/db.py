@@ -71,7 +71,7 @@ async def store_clip(frame_path: str, event_id: UUID) -> str | None:
         path = Path(frame_path).resolve()
         path.relative_to(_FRAME_ROOT)
     except (OSError, ValueError):
-        log.warning("rejected clip path outside frame store: %s", frame_path)
+        log.warning("rejected clip path outside frame store")
         return None
     if not path.exists():
         return None
@@ -82,7 +82,9 @@ async def store_clip(frame_path: str, event_id: UUID) -> str | None:
         )
         return url
     except (BotoCoreError, ClientError, OSError) as exc:
-        log.warning("clip upload failed for event %s: %s", event_id, exc)
+        log.warning(
+            "clip upload failed for event %s (%s)", event_id, type(exc).__name__
+        )
         return None
 
 
@@ -152,9 +154,9 @@ async def purge_expired_events(conn: asyncpg.Connection) -> int:
             )
         except (BotoCoreError, ClientError, OSError, RuntimeError) as exc:
             log.warning(
-                "retention clip cleanup failed; preserving %d event rows: %s",
+                "retention clip cleanup failed; preserving %d event rows (%s)",
                 len(keys_by_id),
-                exc,
+                type(exc).__name__,
             )
         else:
             deletable_ids.extend(keys_by_id)
@@ -209,5 +211,7 @@ async def _get_embedding(event: Event) -> str | None:
                 raise ValueError("embedding must contain 384 finite numbers")
             return "[" + ",".join(f"{v:.6f}" for v in vec) + "]"
     except (httpx.HTTPError, KeyError, TypeError, ValueError, RuntimeError) as exc:
-        log.warning("embedding skipped for event %s: %s", event.id, exc)
+        log.warning(
+            "embedding skipped for event %s (%s)", event.id, type(exc).__name__
+        )
         return None

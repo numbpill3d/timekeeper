@@ -37,7 +37,10 @@ class FaceModel:
             ).eval().to(target)
             log.info("FaceNet recognition enabled on %s", target)
         except Exception as exc:  # noqa: BLE001 - optional model initialization
-            log.warning("FaceNet unavailable; using appearance ReID only: %s", exc)
+            log.warning(
+                "FaceNet unavailable (%s); using appearance ReID only",
+                type(exc).__name__,
+            )
 
     def extract(self, crop: np.ndarray) -> np.ndarray | None:
         if self._detector is None or self._model is None or crop.size == 0:
