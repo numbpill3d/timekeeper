@@ -1,9 +1,12 @@
 """Public query input contract tests."""
 
+import asyncio
 import os
+import threading
 
 os.environ.setdefault("JWT_SECRET", "unit-test-secret-012345678901234567890123")
 
+import main as query_main
 import pytest
 from main import EmbedRequest, EmbedResponse
 from main import QueryRequest as EngineQueryRequest
@@ -65,6 +68,21 @@ def test_embedding_response_requires_database_vector_dimension():
         EmbedResponse(embedding=[0.0] * 385)
     with pytest.raises(ValueError, match="finite"):
         EmbedResponse(embedding=[float("nan")] + [0.0] * 383)
+
+
+def test_embedding_endpoint_runs_model_inference_off_event_loop(monkeypatch):
+    caller_thread = threading.get_ident()
+    seen_threads: list[int] = []
+
+    def fake_embed(_text: str) -> list[float]:
+        seen_threads.append(threading.get_ident())
+        return [0.0] * 384
+
+    monkeypatch.setattr(query_main, "embed_text", fake_embed)
+    response = asyncio.run(query_main.embed(EmbedRequest(text="event text")))
+
+    assert len(response.embedding) == 384
+    assert seen_threads and seen_threads[0] != caller_thread
 
 
 def test_notification_profile_explicit_nulls_are_preserved_for_clear():

@@ -12,6 +12,7 @@ they are first persisted (using the same model here).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 import asyncpg
@@ -48,7 +49,10 @@ def embed_text(text: str) -> list[float]:
 async def retrieve_context(question: str, owner_id: str) -> str:
     """Return a text block of the k most relevant past events for `question`."""
     try:
-        vec = embed_text(question)
+        # Sentence-transformers inference is synchronous CPU/native work.
+        # Keep it off the query service event loop so one embedding cannot
+        # stall concurrent queries or health checks.
+        vec = await asyncio.to_thread(embed_text, question)
     except (ImportError, OSError, RuntimeError, ValueError) as exc:
         log.warning("embedding failed: %s", exc)
         return ""

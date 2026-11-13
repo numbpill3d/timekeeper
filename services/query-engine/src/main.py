@@ -9,6 +9,7 @@ Endpoints:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
 from contextlib import asynccontextmanager
@@ -138,7 +139,9 @@ async def query(req: QueryRequest) -> QueryResponse:
 @app.post("/embed", response_model=EmbedResponse)
 async def embed(req: EmbedRequest) -> EmbedResponse:
     try:
-        vec = embed_text(req.text)
+        # Model inference is synchronous; isolate it from FastAPI's event
+        # loop so internal embedding requests remain concurrency-safe.
+        vec = await asyncio.to_thread(embed_text, req.text)
     except Exception as exc:
         log.exception("embedding failed")
         raise HTTPException(status_code=503, detail="embedding service unavailable") from exc
