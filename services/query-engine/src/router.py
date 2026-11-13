@@ -238,7 +238,13 @@ def _inject_owner_scope(sql: str) -> str:
     ]
     for table, relation_alias in _relations(sql):
         if table in {"persons", "tracked_objects", "cameras"}:
-            scopes.append(f"{relation_alias}.owner_id = $1::uuid")
+            # Preserve LEFT JOIN semantics for events without an associated
+            # person/object while rejecting a related row owned by another
+            # tenant. For an INNER JOIN the NULL branch is impossible.
+            scopes.append(
+                f"({relation_alias}.owner_id = $1::uuid "
+                f"OR {relation_alias}.id IS NULL)"
+            )
     statement = sql.rstrip(";").rstrip()
     # Filters must be added before ORDER BY/GROUP BY/LIMIT/OFFSET. Appending
     # after LIMIT produces invalid SQL and can make the caller mistake an

@@ -102,6 +102,8 @@ def test_owner_scope_covers_joined_relations():
     )
     assert "p.owner_id = $1::uuid" in sql
     assert "o.owner_id = $1::uuid" in sql
+    assert "OR p.id IS NULL" in sql
+    assert "OR o.id IS NULL" in sql
 
 
 @pytest.mark.asyncio
