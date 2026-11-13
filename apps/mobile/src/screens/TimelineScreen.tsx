@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
@@ -40,14 +41,17 @@ function localDateTimeValue(date: Date): string {
 export function TimelineScreen() {
   const [filter, setFilter] = useState("");
   const [since, setSince] = useState("");
+  const [searchDraft, setSearchDraft] = useState("");
+  const [search, setSearch] = useState("");
 
   const { data, isLoading, isRefetching, isError, refetch } = useQuery({
-    queryKey: ["events", "timeline", filter, since],
+    queryKey: ["events", "timeline", filter, since, search],
     queryFn: () =>
       listEvents({
         limit: 100,
         event_type: filter || undefined,
         since: since || undefined,
+        search: search || undefined,
       }).then((r) => r.data),
   });
   const timelineItems = (data ?? []).reduce<TimelineItem[]>((items, event) => {
@@ -75,6 +79,40 @@ export function TimelineScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.searchRow}>
+        <TextInput
+          style={styles.searchInput}
+          value={searchDraft}
+          onChangeText={setSearchDraft}
+          onSubmitEditing={() => setSearch(searchDraft.trim())}
+          placeholder="person, item, location"
+          placeholderTextColor="#555"
+          maxLength={120}
+          returnKeyType="search"
+          accessibilityLabel="Search timeline evidence"
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Search timeline evidence"
+          onPress={() => setSearch(searchDraft.trim())}
+          style={styles.searchButton}
+        >
+          <Text style={styles.searchButtonText}>find</Text>
+        </Pressable>
+        {(search || searchDraft) ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Clear timeline search"
+            onPress={() => {
+              setSearchDraft("");
+              setSearch("");
+            }}
+            style={styles.clearButton}
+          >
+            <Text style={styles.clearButtonText}>×</Text>
+          </Pressable>
+        ) : null}
+      </View>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -172,6 +210,21 @@ export function TimelineScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000", padding: 16 },
   filters: { gap: 8, paddingBottom: 12 },
+  searchRow: { flexDirection: "row", gap: 6, alignItems: "center", paddingBottom: 10 },
+  searchInput: {
+    flex: 1,
+    backgroundColor: "#111",
+    borderColor: "#333",
+    borderWidth: 1,
+    color: "#fff",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 12,
+  },
+  searchButton: { borderColor: "#555", borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8 },
+  searchButtonText: { color: "#ccc", fontSize: 11 },
+  clearButton: { paddingHorizontal: 3, paddingVertical: 5 },
+  clearButtonText: { color: "#888", fontSize: 18 },
   filter: {
     borderColor: "#333",
     borderWidth: 1,

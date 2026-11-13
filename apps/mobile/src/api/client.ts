@@ -98,6 +98,7 @@ export const listEvents = (params?: {
   limit?: number;
   event_type?: string;
   since?: string;
+  search?: string;
 }) => api.get<OmniscientEvent[]>("/events", { params });
 
 export interface Camera {

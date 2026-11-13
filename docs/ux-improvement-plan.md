@@ -29,7 +29,7 @@ local camera evidence system.
    rows, mobile activity cards, and query evidence so multi-camera answers are
    immediately attributable to a source.
 12. **Timeline search** — search event type, action, location, person, and
-   object/category text with wildcard-safe matching and an explicit web form.
+   object/category text with wildcard-safe matching and explicit web/mobile forms.
 13. **Shareable timeline state** — persist timeline filters in the URL so a
    refresh, browser navigation, or shared link preserves the operator’s view.
 14. **Camera health visibility** — record throttled frame heartbeats and safe
