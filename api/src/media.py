@@ -19,6 +19,7 @@ _INTERNAL_ENDPOINT = os.getenv("S3_ENDPOINT_URL", _PUBLIC_ENDPOINT)
 _KEY = os.getenv("S3_ACCESS_KEY", "")
 _SECRET = os.getenv("S3_SECRET_KEY", "")
 _BUCKET = os.getenv("MEDIA_BUCKET", "omniscient-media")
+_CLIP_PREFIX = "clips/"
 _TTL = max(60, int(os.getenv("CLIP_URL_TTL_SECONDS", "300")))
 _S3_CONFIG = Config(
     connect_timeout=5,
@@ -104,7 +105,12 @@ def object_key(value: str | None) -> str | None:
         raise ValueError("media URL does not belong to the configured bucket")
     key = value.lstrip("/")
     path = PurePosixPath(key)
-    if not key or ".." in path.parts or "\\" in key:
+    if (
+        not key
+        or not key.startswith(_CLIP_PREFIX)
+        or ".." in path.parts
+        or "\\" in key
+    ):
         raise ValueError("invalid media object key")
     return key
 

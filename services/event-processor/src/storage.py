@@ -7,6 +7,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 _BUCKET = os.getenv("MEDIA_BUCKET", "omniscient-media")
+_CLIP_PREFIX = "clips/"
 _ALLOWED_HOSTS = {
     urlparse(os.getenv("S3_ENDPOINT_URL", "http://minio:9000")).hostname,
     urlparse(os.getenv("S3_PUBLIC_ENDPOINT_URL", "")).hostname,
@@ -29,7 +30,12 @@ def object_key(value: str) -> str:
         raise ValueError("clip URL does not belong to the configured bucket")
     else:
         key = value.lstrip("/")
-    if not key or ".." in Path(key).parts or "\\" in key:
+    if (
+        not key
+        or not key.startswith(_CLIP_PREFIX)
+        or ".." in Path(key).parts
+        or "\\" in key
+    ):
         raise ValueError("invalid clip object key")
     return key
 

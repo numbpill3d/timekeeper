@@ -33,6 +33,12 @@ def test_object_key_rejects_traversal():
         object_key("clips/../../private.jpg")
 
 
+@pytest.mark.parametrize("value", ["private/secret", "secret.jpg"])
+def test_object_key_rejects_non_clip_namespaces(value):
+    with pytest.raises(ValueError):
+        object_key(value)
+
+
 def test_object_key_rejects_foreign_url():
     with pytest.raises(ValueError):
         object_key("https://example.test/omniscient-media/clips/a.jpg")
