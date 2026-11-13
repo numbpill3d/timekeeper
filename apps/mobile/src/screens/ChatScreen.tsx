@@ -4,7 +4,7 @@
  * with optional video clip thumbnails.
  */
 
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -16,6 +16,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import * as SecureStore from "expo-secure-store";
 import { askQuestion, QueryEvidence } from "../api/client";
 
 interface Message {
@@ -26,6 +27,9 @@ interface Message {
   clips?: string[];
   evidence?: QueryEvidence[];
 }
+
+const SAVED_QUESTIONS_KEY = "timekeeper_saved_questions";
+const MAX_SAVED_QUESTIONS = 12;
 
 function evidenceTime(timestamp: string | null): string {
   if (!timestamp) return "unknown time";
@@ -43,7 +47,43 @@ export function ChatScreen() {
   const [loading, setLoading] = useState(false);
   const [queryError, setQueryError] = useState("");
   const [failedQuestion, setFailedQuestion] = useState("");
+  const [savedQuestions, setSavedQuestions] = useState<string[]>([]);
+  const [savedQuestionsLoaded, setSavedQuestionsLoaded] = useState(false);
   const listRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    let active = true;
+    void SecureStore.getItemAsync(SAVED_QUESTIONS_KEY)
+      .then((raw) => {
+        if (!active) return;
+        try {
+          const parsed: unknown = raw ? JSON.parse(raw) : [];
+          const questions = Array.isArray(parsed)
+            ? parsed
+                .filter((question): question is string => typeof question === "string")
+                .map((question) => question.trim())
+                .filter(Boolean)
+                .filter((question, index, items) => items.indexOf(question) === index)
+                .slice(0, MAX_SAVED_QUESTIONS)
+            : [];
+          setSavedQuestions(questions);
+        } catch {
+          setSavedQuestions([]);
+        }
+        setSavedQuestionsLoaded(true);
+      })
+      .catch(() => {
+        if (active) setSavedQuestionsLoaded(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!savedQuestionsLoaded) return;
+    void SecureStore.setItemAsync(SAVED_QUESTIONS_KEY, JSON.stringify(savedQuestions)).catch(() => undefined);
+  }, [savedQuestions, savedQuestionsLoaded]);
 
   const history = messages.slice(-6).map((m) => ({
     role: m.role,
@@ -83,6 +123,16 @@ export function ChatScreen() {
       setLoading(false);
       listRef.current?.scrollToEnd({ animated: true });
     }
+  }
+
+  function saveQuestion() {
+    const question = input.trim();
+    if (!question) return;
+    setSavedQuestions((current) => [question, ...current.filter((item) => item !== question)].slice(0, MAX_SAVED_QUESTIONS));
+  }
+
+  function removeSavedQuestion(question: string) {
+    setSavedQuestions((current) => current.filter((item) => item !== question));
   }
 
   return (
@@ -166,6 +216,32 @@ export function ChatScreen() {
         )}
       />
 
+      {savedQuestions.length > 0 ? (
+        <View style={styles.savedRow} accessibilityLabel="Saved questions">
+          <Text style={styles.savedLabel}>saved</Text>
+          {savedQuestions.map((question) => (
+            <View style={styles.savedQuestion} key={question}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Ask saved question: ${question}`}
+                onPress={() => void send(question)}
+                disabled={loading}
+              >
+                <Text style={styles.savedText} numberOfLines={1}>{question}</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Remove saved question: ${question}`}
+                onPress={() => removeSavedQuestion(question)}
+                disabled={loading}
+              >
+                <Text style={styles.removeSavedText}>×</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       {queryError ? (
         <View style={styles.errorRow} accessibilityRole="alert">
           <Text style={styles.errorText}>{queryError}</Text>
@@ -201,6 +277,15 @@ export function ChatScreen() {
           disabled={loading}
         >
           <Text style={styles.sendText}>{loading ? "..." : "ask"}</Text>
+        </Pressable>
+        <Pressable
+          style={styles.saveBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Save question"
+          onPress={saveQuestion}
+          disabled={loading || !input.trim()}
+        >
+          <Text style={styles.saveText}>save</Text>
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -253,6 +338,28 @@ const styles = StyleSheet.create({
   },
   errorText: { color: "#c66", fontSize: 11, flex: 1 },
   retryText: { color: "#ccc", fontSize: 12 },
+  savedRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  savedLabel: { color: "#777", fontSize: 10, textTransform: "uppercase" },
+  savedQuestion: {
+    flexDirection: "row",
+    alignItems: "center",
+    maxWidth: "82%",
+    backgroundColor: "#111",
+    borderWidth: 1,
+    borderColor: "#282828",
+    borderRadius: 4,
+  },
+  savedText: { color: "#ccc", fontSize: 11, paddingHorizontal: 7, paddingVertical: 5 },
+  removeSavedText: { color: "#777", fontSize: 14, paddingHorizontal: 5 },
+  saveBtn: { justifyContent: "center", paddingHorizontal: 4 },
+  saveText: { color: "#aaa", fontSize: 11 },
   inputRow: {
     flexDirection: "row",
     padding: 12,
