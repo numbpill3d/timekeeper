@@ -20,7 +20,12 @@ export function EventCard({ event }: Props) {
         <Text style={styles.time}>{ago}</Text>
       </View>
       {event.location_label && (
-        <Text style={styles.loc}>{event.location_label}</Text>
+        <Text style={styles.loc}>
+          {event.camera_name} · {event.location_label}
+        </Text>
+      )}
+      {!event.location_label && (
+        <Text style={styles.loc}>{event.camera_name}</Text>
       )}
       {event.person_label && (
         <Text style={styles.tag}>{event.person_label}</Text>

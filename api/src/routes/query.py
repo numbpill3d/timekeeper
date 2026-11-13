@@ -76,6 +76,7 @@ class EvidenceOut(BaseModel):
     event_type: str | None = None
     action_label: str | None = None
     location_label: str | None = None
+    camera_name: str | None = None
     confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     person_label: str | None = None
     object_label: str | None = None
@@ -90,6 +91,7 @@ class QueryEvidenceIn(BaseModel):
     event_type: str | None = None
     action_label: str | None = None
     location_label: str | None = None
+    camera_name: str | None = None
     confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     person_label: str | None = None
     object_label: str | None = None
@@ -195,6 +197,7 @@ async def query(
             event_type=item.event_type,
             action_label=item.action_label,
             location_label=item.location_label,
+            camera_name=item.camera_name,
             confidence=item.confidence,
             person_label=item.person_label,
             object_label=item.object_label,

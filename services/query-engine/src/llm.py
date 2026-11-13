@@ -41,6 +41,8 @@ Rules:
 - When returning event rows, select timestamp, action_label, location_label,
   confidence, clip_path, persons.label AS person_label, and
   tracked_objects.label/category AS object_label/object_category when useful.
+- When returning event rows, join cameras ON events.camera_id = cameras.id and
+  select cameras.name AS camera_name when camera context helps identify the source.
 - For object/person questions, always include those person and object fields
   in the SELECT so the answer can name the evidence-bearing entities.
 - Limit results to 50 unless the user asks for more.

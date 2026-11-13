@@ -172,11 +172,13 @@ def build_fallback_query(question: str) -> tuple[str, list[object]]:
 
     sql = f"""
         SELECT e.timestamp, e.event_type, e.action_label, e.location_label,
+               c.name AS camera_name,
                e.confidence, e.clip_path,
                p.label AS person_label,
                o.label AS object_label,
                o.category AS object_category
         FROM events e
+        JOIN cameras c ON e.camera_id = c.id
         LEFT JOIN persons p ON e.person_id = p.id
         LEFT JOIN tracked_objects o ON e.object_id = o.id
         WHERE {' AND '.join(clauses)}

@@ -221,7 +221,7 @@ export function Timeline() {
                   borderBottom: "1px solid var(--border-hi)",
                 }}
               >
-                {["timestamp", "event", "location", "person", "item", "conf", "clip"].map(
+                {["timestamp", "camera", "event", "location", "person", "item", "conf", "clip"].map(
                   (h) => (
                     <th
                       key={h}
@@ -278,6 +278,9 @@ export function Timeline() {
                     }}
                   >
                     {format(new Date(e.timestamp), "MMM d HH:mm:ss")}
+                  </td>
+                  <td style={{ padding: "8px 12px", color: "var(--text-dim)" }}>
+                    {e.camera_name}
                   </td>
                   <td style={{ padding: "8px 12px", color: "var(--text)" }}>
                     {e.action_label}

@@ -25,20 +25,25 @@ local camera evidence system.
    tactile button feedback without making the interface distracting.
 10. **Semantic interaction labels** — add navigation landmarks, button labels,
     form semantics, live query status, and dialog semantics for assistive tech.
+11. **Camera-aware evidence** — include the configured camera name in timeline
+   rows, mobile activity cards, and query evidence so multi-camera answers are
+   immediately attributable to a source.
+12. **Timeline search** — search event type, action, location, person, and
+   object/category text with wildcard-safe matching and an explicit web form.
 
 ## Next high-value improvements
 
-11. **Camera setup wizard** — guide operators through source type, location,
+13. **Camera setup wizard** — guide operators through source type, location,
     credentials, connectivity test, retention, and a first-frame preview. Keep
     secrets masked and never echo them in validation errors.
-12. **Camera diagnostics** — show last frame, last successful connection,
+14. **Camera diagnostics** — show last frame, last successful connection,
     reconnect attempts, codec/fps, clock skew, and a clear remediation path.
-13. **Evidence-first answer cards** — show the answer, confidence, event time,
+15. **Evidence-first answer cards** — show the answer, confidence, event time,
     matched person/object labels, camera, and one-click clip preview together.
     Make “not enough evidence” a first-class state.
-14. **Timeline grouping and search** — group events by hour/location, add full
-    text search, date presets, keyboard shortcuts, and URL-persisted filters.
-15. **Trust and retention controls** — add per-camera retention previews,
+16. **Timeline grouping and navigation** — group events by hour/location, add
+    date presets, keyboard shortcuts, and URL-persisted filters.
+17. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins.
 

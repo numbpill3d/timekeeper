@@ -177,6 +177,8 @@ async def test_event_list_scopes_joined_identity_labels_to_owner():
     await list_events({"sub": "owner-1"}, db)
     assert "p.owner_id = $1" in db.sql
     assert "o.owner_id = $1" in db.sql
+    assert "c.name AS camera_name" in db.sql
+    assert "c.owner_id = $1" in db.sql
     assert "COALESCE(o.label, o.category) AS object_label" in db.sql
     assert "ORDER BY e.timestamp DESC, e.id DESC" in db.sql
 
@@ -203,6 +205,8 @@ async def test_event_detail_scopes_joined_identity_labels_to_owner():
     assert exc_info.value.status_code == 404
     assert "p.owner_id = $2" in db.sql
     assert "o.owner_id = $2" in db.sql
+    assert "c.name AS camera_name" in db.sql
+    assert "c.owner_id = $2" in db.sql
 
 
 @pytest.mark.asyncio

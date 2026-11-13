@@ -23,6 +23,7 @@ DB = Annotated[asyncpg.Connection, Depends(get_db)]
 class EventOut(BaseModel):
     id: UUID
     camera_id: UUID
+    camera_name: str
     event_type: str
     timestamp: datetime
     action_label: str
@@ -97,11 +98,12 @@ async def list_events(
 
     rows = await db.fetch(
         f"""
-        SELECT e.id, e.camera_id, e.event_type, e.timestamp,
+        SELECT e.id, e.camera_id, c.name AS camera_name, e.event_type, e.timestamp,
                e.action_label, e.location_label, e.confidence, e.clip_path,
                p.label AS person_label,
                COALESCE(o.label, o.category) AS object_label
         FROM events e
+        JOIN cameras c ON c.id = e.camera_id AND c.owner_id = $1
         LEFT JOIN persons p ON e.person_id = p.id AND p.owner_id = $1
         LEFT JOIN tracked_objects o ON e.object_id = o.id AND o.owner_id = $1
         WHERE {where}
@@ -140,9 +142,10 @@ async def get_event(
 ) -> EventOut:
     row = await db.fetchrow(
         """
-        SELECT e.*, p.label AS person_label,
+        SELECT e.*, c.name AS camera_name, p.label AS person_label,
                COALESCE(o.label, o.category) AS object_label
         FROM events e
+        JOIN cameras c ON c.id = e.camera_id AND c.owner_id = $2
         LEFT JOIN persons p ON e.person_id = p.id AND p.owner_id = $2
         LEFT JOIN tracked_objects o ON e.object_id = o.id AND o.owner_id = $2
         WHERE e.id = $1

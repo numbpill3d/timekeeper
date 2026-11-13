@@ -86,6 +86,7 @@ class Evidence(BaseModel):
     event_type: str | None = None
     action_label: str | None = None
     location_label: str | None = None
+    camera_name: str | None = None
     confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     person_label: str | None = None
     object_label: str | None = None

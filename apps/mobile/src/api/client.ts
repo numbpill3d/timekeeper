@@ -61,6 +61,7 @@ export interface QueryEvidence {
   event_type: string | null;
   action_label: string | null;
   location_label: string | null;
+  camera_name: string | null;
   confidence: number | null;
   person_label: string | null;
   object_label: string | null;
@@ -82,6 +83,7 @@ export const askQuestion = (
 export interface OmniscientEvent {
   id: string;
   camera_id: string;
+  camera_name: string;
   event_type: string;
   timestamp: string;
   action_label: string;
