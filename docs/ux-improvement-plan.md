@@ -62,7 +62,8 @@ local camera evidence system.
     status indicator before recording begins. Camera cards now surface the local
     30-day default and person-specific override behavior. Individual timeline
     events can be deliberately redacted from web and mobile, with an
-    owner-scoped audit record, clip cleanup, and a settings audit-log view/export.
+    owner-scoped audit record, clip cleanup, and web/mobile audit-history views
+    with web CSV export.
     Event redaction controls now ship; broader redaction policies remain follow-on work.
 
 ## Product-level follow-ons

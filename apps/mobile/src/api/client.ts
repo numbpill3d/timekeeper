@@ -47,6 +47,18 @@ export const register = (email: string, password: string) =>
 export const updateProfile = (data: { fcm_token?: string | null; phone?: string | null }) =>
   api.patch("/auth/me", data);
 
+export interface AuditRecord {
+  id: string;
+  action: string;
+  resource_type: string;
+  resource_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export const listAuditLog = (limit = 50) =>
+  api.get<AuditRecord[]>("/audit", { params: { limit } });
+
 // ── Query ─────────────────────────────────────────────────────────
 
 export interface QueryResponse {

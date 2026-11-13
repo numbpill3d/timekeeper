@@ -9,6 +9,7 @@ import * as Notifications from "expo-notifications";
 
 import { setUnauthorizedCallback, updateProfile } from "./src/api/client";
 import { CamerasScreen } from "./src/screens/CamerasScreen";
+import { AuditScreen } from "./src/screens/AuditScreen";
 import { ChatScreen } from "./src/screens/ChatScreen";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
@@ -89,6 +90,7 @@ export default function App() {
           <Tab.Screen name="Chat" component={ChatScreen} />
           <Tab.Screen name="Timeline" component={TimelineScreen} />
           <Tab.Screen name="Cameras" component={CamerasScreen} />
+          <Tab.Screen name="Audit" component={AuditScreen} />
         </Tab.Navigator>
       </NavigationContainer>
     </QueryClientProvider>
