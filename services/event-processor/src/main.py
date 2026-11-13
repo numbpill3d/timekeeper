@@ -82,20 +82,22 @@ async def main() -> None:
         cam_locations = {str(r["id"]): r["location_label"] for r in cam_rows}
         cam_names = {str(r["id"]): r["name"] for r in cam_rows}
         cam_owners = {str(r["id"]): str(r["owner_id"]) for r in cam_rows}
-        recent_pickups = await db.fetch(
+        recent_handoff_events = await db.fetch(
             """
             SELECT id, camera_id, event_type, timestamp, person_id, object_id,
                    location_label, action_label, confidence, metadata, clip_path
-            FROM events
-            WHERE event_type = $1
-              AND timestamp >= NOW() - ($2 * INTERVAL '1 second')
-            ORDER BY timestamp DESC
-            LIMIT 1000
+            FROM events e
+            JOIN cameras c ON c.id = e.camera_id AND c.is_active = TRUE
+            WHERE e.event_type IN ($1, $2)
+              AND e.timestamp >= NOW() - ($3 * INTERVAL '1 second')
+            ORDER BY e.timestamp DESC
+            LIMIT 2000
             """,
             EventType.object_picked_up.value,
+            EventType.object_placed.value,
             int(CROSS_CAMERA_WINDOW.total_seconds()),
         )
-        correlator.restore([Event(**dict(row)) for row in recent_pickups])
+        correlator.restore([Event(**dict(row)) for row in recent_handoff_events])
 
         log.info("event processor started")
         # Retention uses its own connection. asyncpg connections do not allow

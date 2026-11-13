@@ -195,6 +195,39 @@ def test_restore_keeps_newest_duplicate_pickup():
     assert extra[0].metadata["from_location"] == "hallway"
 
 
+def test_restore_does_not_resurrect_completed_placement():
+    correlator = Correlator()
+    obj_id = uuid4()
+    cam_a, cam_b = uuid4(), uuid4()
+    t = datetime.now(tz=UTC)
+    pickup = _event(
+        EventType.object_picked_up,
+        cam_a,
+        obj_id,
+        ts=t,
+        location_label="kitchen",
+    )
+    placement = _event(
+        EventType.object_placed,
+        cam_b,
+        obj_id,
+        ts=t + timedelta(seconds=5),
+        location_label="garage",
+    )
+
+    # Recovery is intentionally allowed to receive newest-first rows.
+    correlator.restore([placement, pickup])
+    later_placement = _event(
+        EventType.object_placed,
+        cam_b,
+        obj_id,
+        ts=t + timedelta(seconds=10),
+        location_label="garage",
+    )
+
+    assert correlator.process(later_placement) == []
+
+
 def test_category_fallback_correlates_camera_scoped_object_ids():
     correlator = Correlator()
     cam_a, cam_b = uuid4(), uuid4()

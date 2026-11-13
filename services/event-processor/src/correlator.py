@@ -29,8 +29,18 @@ class Correlator:
         self._pending_pickups: dict[str, tuple[str, Event, datetime]] = {}
 
     def restore(self, events: list[Event]) -> None:
-        """Restore recent persisted pickups after a processor restart."""
-        for event in events:
+        """Restore recent pickup/placement state after a processor restart.
+
+        Recovery rows may be returned in any order and can include a placement
+        that already consumed a pickup before the process restarted. Replaying
+        the bounded history keeps only genuinely pending handoffs.
+        """
+        for event in sorted(events, key=lambda item: item.timestamp):
+            if event.event_type == EventType.object_placed:
+                match = self._find_pickup(event)
+                if match:
+                    self._pending_pickups.pop(match[0], None)
+                continue
             if event.event_type != EventType.object_picked_up or not event.object_id:
                 continue
             key = str(event.object_id)
