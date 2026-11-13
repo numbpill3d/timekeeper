@@ -25,16 +25,25 @@ const EVENT_TYPES = [
   "unknown_person",
   "fall_detected",
 ] as const;
+const TIME_RANGES = ["", "today", "24h", "7d"] as const;
+
+function localDateTimeValue(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+    + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
 export function TimelineScreen() {
   const [filter, setFilter] = useState("");
+  const [since, setSince] = useState("");
 
   const { data, isLoading, isRefetching, isError, refetch } = useQuery({
-    queryKey: ["events", "timeline", filter],
+    queryKey: ["events", "timeline", filter, since],
     queryFn: () =>
       listEvents({
         limit: 100,
         event_type: filter || undefined,
+        since: since || undefined,
       }).then((r) => r.data),
   });
 
@@ -59,6 +68,42 @@ export function TimelineScreen() {
             >
               <Text style={[styles.filterText, selected && styles.filterTextSelected]}>
                 {eventType ? eventType.replaceAll("_", " ") : "all"}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filters}
+        accessibilityLabel="Timeline time ranges"
+      >
+        {TIME_RANGES.map((range) => {
+          const selected = since === range;
+          return (
+            <Pressable
+              key={range || "any-time"}
+              accessibilityRole="button"
+              accessibilityLabel={range ? `Show events from ${range}` : "Show events from any time"}
+              accessibilityState={{ selected }}
+              onPress={() => {
+                if (!range) {
+                  setSince("");
+                  return;
+                }
+                const date = new Date();
+                if (range === "today") {
+                  date.setHours(0, 0, 0, 0);
+                } else {
+                  date.setHours(date.getHours() - (range === "24h" ? 24 : 24 * 7));
+                }
+                setSince(localDateTimeValue(date));
+              }}
+              style={[styles.filter, selected && styles.filterSelected]}
+            >
+              <Text style={[styles.filterText, selected && styles.filterTextSelected]}>
+                {range || "any time"}
               </Text>
             </Pressable>
           );
