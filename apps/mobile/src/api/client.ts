@@ -123,6 +123,7 @@ export interface OmniscientEvent {
 export const listEvents = (params?: {
   limit?: number;
   event_type?: string;
+  camera_id?: string;
   since?: string;
   search?: string;
 }) => api.get<OmniscientEvent[]>("/events", { params });
@@ -147,6 +148,8 @@ export interface Camera {
   observed_fps: number | null;
   default_retention_days: number;
 }
+
+export const listCameras = () => api.get<Camera[]>("/cameras");
 
 export const updateCamera = (id: string, is_active: boolean) =>
   api.patch<Camera>(`/cameras/${id}`, { is_active });

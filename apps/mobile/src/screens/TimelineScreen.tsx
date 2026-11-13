@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listEvents, OmniscientEvent, redactEvent } from "../api/client";
+import { listCameras, listEvents, OmniscientEvent, redactEvent } from "../api/client";
 import { EventCard } from "../components/EventCard";
 
 const EVENT_TYPES = [
@@ -42,6 +42,7 @@ function localDateTimeValue(date: Date): string {
 export function TimelineScreen() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("");
+  const [cameraId, setCameraId] = useState("");
   const [since, setSince] = useState("");
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
@@ -76,14 +77,19 @@ export function TimelineScreen() {
   }
 
   const { data, isLoading, isRefetching, isError, refetch } = useQuery({
-    queryKey: ["events", "timeline", filter, since, search],
+    queryKey: ["events", "timeline", filter, cameraId, since, search],
     queryFn: () =>
       listEvents({
         limit: 100,
         event_type: filter || undefined,
+        camera_id: cameraId || undefined,
         since: since || undefined,
         search: search || undefined,
       }).then((r) => r.data),
+  });
+  const { data: cameras = [] } = useQuery({
+    queryKey: ["cameras"],
+    queryFn: () => listCameras().then((r) => r.data),
   });
   const timelineItems = (data ?? []).reduce<TimelineItem[]>((items, event) => {
     const date = new Date(event.timestamp);
@@ -166,6 +172,30 @@ export function TimelineScreen() {
             >
               <Text style={[styles.filterText, selected && styles.filterTextSelected]}>
                 {eventType ? eventType.replaceAll("_", " ") : "all"}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filters}
+        accessibilityLabel="Camera source filters"
+      >
+        {[{ id: "", name: "all cameras" }, ...cameras].map((camera) => {
+          const selected = cameraId === camera.id;
+          return (
+            <Pressable
+              key={camera.id || "all-cameras"}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter ${camera.name}`}
+              accessibilityState={{ selected }}
+              onPress={() => setCameraId(camera.id)}
+              style={[styles.filter, selected && styles.filterSelected]}
+            >
+              <Text style={[styles.filterText, selected && styles.filterTextSelected]}>
+                {camera.name}
               </Text>
             </Pressable>
           );

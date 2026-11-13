@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useSearchParams } from "react-router-dom";
 import { ClipModal } from "../components/ClipModal";
-import { countEvents, listEvents, OmniscientEvent, redactEvent } from "../api/client";
+import { countEvents, listCameras, listEvents, OmniscientEvent, redactEvent } from "../api/client";
 
 const EVENT_TYPE_OPTIONS = [
   "person_entered",
@@ -41,6 +41,7 @@ export function Timeline() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const eventType = searchParams.get("event_type") ?? "";
+  const cameraId = searchParams.get("camera_id") ?? "";
   const sinceDate = searchParams.get("since") ?? "";
   const search = searchParams.get("search") ?? "";
   const [searchDraft, setSearchDraft] = useState("");
@@ -97,23 +98,29 @@ export function Timeline() {
 
   const params: Record<string, unknown> = { limit: PAGE, offset };
   if (eventType) params.event_type = eventType;
+  if (cameraId) params.camera_id = cameraId;
   if (sinceDate) params.since = new Date(sinceDate).toISOString();
   if (search) params.search = search;
   const countParams: Record<string, unknown> = {};
   if (eventType) countParams.event_type = eventType;
+  if (cameraId) countParams.camera_id = cameraId;
   if (sinceDate) countParams.since = new Date(sinceDate).toISOString();
   if (search) countParams.search = search;
 
   const { data = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ["events", "timeline", eventType, sinceDate, search, offset],
+    queryKey: ["events", "timeline", eventType, cameraId, sinceDate, search, offset],
     queryFn: () => listEvents(params).then((r) => r.data),
   });
   const {
     data: countData,
     isError: isCountError,
   } = useQuery({
-    queryKey: ["events", "timeline-count", eventType, sinceDate, search],
+    queryKey: ["events", "timeline-count", eventType, cameraId, sinceDate, search],
     queryFn: () => countEvents(countParams).then((r) => r.data.count),
+  });
+  const { data: cameras = [] } = useQuery({
+    queryKey: ["cameras"],
+    queryFn: () => listCameras().then((r) => r.data),
   });
   const total = countData ?? 0;
   const firstResult = data.length === 0 ? 0 : offset + 1;
@@ -293,6 +300,30 @@ export function Timeline() {
 
         <div>
           <div className="label" style={{ marginBottom: 4 }}>
+            camera source
+          </div>
+          <select
+            aria-label="Filter by camera source"
+            value={cameraId}
+            onChange={(e) => updateFilter("camera_id", e.target.value)}
+            style={{
+              padding: "5px 10px",
+              background: "var(--elevated)",
+              color: "var(--text)",
+              border: "1px solid var(--border-hi)",
+              fontSize: 12,
+              minWidth: 180,
+            }}
+          >
+            <option value="">all cameras</option>
+            {cameras.map((camera) => (
+              <option key={camera.id} value={camera.id}>{camera.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <div className="label" style={{ marginBottom: 4 }}>
             since
           </div>
           <input
@@ -329,7 +360,7 @@ export function Timeline() {
           </div>
         </div>
 
-        {(eventType || sinceDate || search) && (
+        {(eventType || cameraId || sinceDate || search) && (
           <button
             className="btn btn-ghost"
             style={{ marginBottom: 1 }}

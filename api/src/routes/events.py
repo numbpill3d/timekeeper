@@ -56,6 +56,7 @@ def _event_filters(
     since: datetime | None,
     until: datetime | None,
     search: str | None = None,
+    camera_id: UUID | None = None,
 ) -> tuple[str, list[object]]:
     filters = [
         "e.camera_id IN (SELECT id FROM cameras WHERE owner_id = $1)"
@@ -65,6 +66,7 @@ def _event_filters(
     for expression, value in (
         ("e.event_type =", event_type),
         ("e.person_id =", person_id),
+        ("e.camera_id =", camera_id),
         ("e.timestamp >=", since),
         ("e.timestamp <=", until),
     ):
@@ -101,11 +103,14 @@ async def list_events(
     offset: int = Query(0, ge=0),
     event_type: str | None = None,
     person_id: UUID | None = None,
+    camera_id: UUID | None = None,
     since: datetime | None = None,
     until: datetime | None = None,
     search: str | None = Query(None, min_length=1, max_length=120),
 ) -> list[EventOut]:
-    where, params = _event_filters(user["sub"], event_type, person_id, since, until, search)
+    where, params = _event_filters(
+        user["sub"], event_type, person_id, since, until, search, camera_id
+    )
     limit_idx = len(params) + 1
     params += [limit, offset]
 
@@ -140,11 +145,14 @@ async def count_events(
     db: DB,
     event_type: str | None = None,
     person_id: UUID | None = None,
+    camera_id: UUID | None = None,
     since: datetime | None = None,
     until: datetime | None = None,
     search: str | None = Query(None, min_length=1, max_length=120),
 ) -> EventCountOut:
-    where, params = _event_filters(user["sub"], event_type, person_id, since, until, search)
+    where, params = _event_filters(
+        user["sub"], event_type, person_id, since, until, search, camera_id
+    )
     count = await db.fetchval(
         f"SELECT COUNT(*) FROM events e WHERE {where}",
         *params,

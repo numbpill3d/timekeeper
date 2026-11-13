@@ -69,6 +69,18 @@ def test_event_time_filters_normalize_naive_datetimes_to_utc():
     assert params[2].tzinfo is UTC
 
 
+def test_event_camera_filter_is_parameterized_and_scoped():
+    from uuid import UUID
+
+    from api.src.routes.events import _event_filters
+
+    camera_id = UUID("00000000-0000-0000-0000-000000000042")
+    where, params = _event_filters("owner-1", None, None, None, None, None, camera_id)
+
+    assert "e.camera_id = $2" in where
+    assert params == ["owner-1", camera_id]
+
+
 class _AuthRateRedis:
     def __init__(self, count: int = 0) -> None:
         self.initial_count = count

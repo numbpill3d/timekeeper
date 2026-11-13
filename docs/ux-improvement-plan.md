@@ -103,10 +103,13 @@ local camera evidence system.
 39. **Actionable query failures** — distinguish quota exhaustion, timeouts,
     and service failures in web/mobile query surfaces so operators know whether
     to wait, narrow the question, or repair the local stack.
+40. **Camera-scoped timeline review** — filter timeline evidence by its source
+    camera on web and mobile, preserving the existing tenant scope, search,
+    time ranges, and event-type filters.
 
 ## Next high-value improvements
 
-40. **Trust and retention controls** — add per-camera retention previews,
+41. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins. Camera cards now surface the local
     configured local default and person-specific override behavior. Individual timeline
