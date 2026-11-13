@@ -17,9 +17,10 @@ from omniscient_shared.kafka.topics import (
     GROUP_EVENT_PROCESSOR,
 )
 from omniscient_shared.models.entity import DetectionMessage
+from omniscient_shared.models.event import Event, EventType
 
 from .aggregator import CameraAggregator
-from .correlator import Correlator
+from .correlator import CROSS_CAMERA_WINDOW, Correlator
 from .db import (
     persist_event,
     purge_expired_detections,
@@ -81,6 +82,20 @@ async def main() -> None:
         cam_locations = {str(r["id"]): r["location_label"] for r in cam_rows}
         cam_names = {str(r["id"]): r["name"] for r in cam_rows}
         cam_owners = {str(r["id"]): str(r["owner_id"]) for r in cam_rows}
+        recent_pickups = await db.fetch(
+            """
+            SELECT id, camera_id, event_type, timestamp, person_id, object_id,
+                   location_label, action_label, confidence, metadata, clip_path
+            FROM events
+            WHERE event_type = $1
+              AND timestamp >= NOW() - ($2 * INTERVAL '1 second')
+            ORDER BY timestamp DESC
+            LIMIT 1000
+            """,
+            EventType.object_picked_up.value,
+            int(CROSS_CAMERA_WINDOW.total_seconds()),
+        )
+        correlator.restore([Event(**dict(row)) for row in recent_pickups])
 
         log.info("event processor started")
         # Retention uses its own connection. asyncpg connections do not allow

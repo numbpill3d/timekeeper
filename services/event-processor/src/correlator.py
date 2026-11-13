@@ -28,6 +28,17 @@ class Correlator:
         # object_id -> (from_camera_id, pickup_event, pickup_time)
         self._pending_pickups: dict[str, tuple[str, Event, datetime]] = {}
 
+    def restore(self, events: list[Event]) -> None:
+        """Restore recent persisted pickups after a processor restart."""
+        for event in events:
+            if event.event_type != EventType.object_picked_up or not event.object_id:
+                continue
+            self._pending_pickups[str(event.object_id)] = (
+                str(event.camera_id),
+                event,
+                event.timestamp,
+            )
+
     def process(self, event: Event) -> list[Event]:
         """Check if event completes a cross-camera pair. Returns any extra events."""
         self._expire(event.timestamp)

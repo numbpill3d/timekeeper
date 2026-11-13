@@ -142,6 +142,22 @@ def test_replaying_a_cross_camera_pair_reuses_moved_event_id():
     assert run_once() == run_once()
 
 
+def test_restore_rehydrates_recent_pickup_for_a_restart():
+    correlator = Correlator()
+    obj_id = uuid4()
+    cam_a, cam_b = uuid4(), uuid4()
+    t = datetime.now(tz=UTC)
+    pickup = _event(EventType.object_picked_up, cam_a, obj_id, ts=t, location_label="kitchen")
+
+    correlator.restore([pickup])
+    extra = correlator.process(
+        _event(EventType.object_placed, cam_b, obj_id, ts=t + timedelta(seconds=5), location_label="garage")
+    )
+
+    assert len(extra) == 1
+    assert extra[0].event_type == EventType.object_moved
+
+
 def test_category_fallback_correlates_camera_scoped_object_ids():
     correlator = Correlator()
     cam_a, cam_b = uuid4(), uuid4()

@@ -78,10 +78,13 @@ local camera evidence system.
 31. **Handoff source attribution** — preserve source and destination camera
    names on correlated movement evidence so web/mobile answers can verify the
    physical camera path, not only the inferred locations.
+32. **Restart-safe handoffs** — restore only the bounded recent pickup window
+   from persisted events when the event processor starts, so a short service
+   restart does not silently break an otherwise valid camera handoff.
 
 ## Next high-value improvements
 
-32. **Trust and retention controls** — add per-camera retention previews,
+33. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins. Camera cards now surface the local
     configured local default and person-specific override behavior. Individual timeline
