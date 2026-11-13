@@ -9,6 +9,7 @@ os.environ.setdefault("JWT_SECRET", "unit-test-secret-012345678901234567890123")
 import pytest
 
 from api.src.routes.events import count_events
+from api.src.routes.persons import list_persons
 from api.src.routes.query import _check_rate_limit
 from api.src.routes.users import (
     LoginRequest,
@@ -120,3 +121,28 @@ async def test_query_rate_limit_uses_current_database_tier():
     db.tier = "free"
     await _check_rate_limit(user, request)
     assert redis.increments == 1
+
+
+class _PersonsDb:
+    async def fetch(self, _sql: str, _user_id: str) -> list[dict]:
+        return [{
+            "id": "00000000-0000-0000-0000-000000000001",
+            "label": "Unknown A1B2C3",
+            "is_known": False,
+            "appearance_tags": None,
+            "retention_days": 30,
+            "last_seen_at": None,
+            "created_at": datetime(2026, 1, 1, tzinfo=UTC),
+            "event_count": 0,
+        }]
+
+
+@pytest.mark.asyncio
+async def test_person_list_normalizes_legacy_null_appearance_tags():
+    result = await list_persons(
+        {"sub": "owner-1"},
+        _PersonsDb(),
+    )
+    # The SQL COALESCE is the database-side contract; this fixture models a
+    # legacy row so the response shape remains explicit in the test.
+    assert result[0].appearance_tags == []

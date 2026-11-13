@@ -203,6 +203,20 @@ class CameraUpdate(BaseModel):
     def _safe_provider_config(cls, v: dict | None) -> dict | None:
         return _validate_provider_config(v) if v is not None else None
 
+    @field_validator("name")
+    @classmethod
+    def _nonempty_name(cls, v: str | None) -> str | None:
+        v = v.strip() if v is not None else None
+        if v == "":
+            raise ValueError("name cannot be empty")
+        return v
+
+    @field_validator("location_label")
+    @classmethod
+    def _strip_location(cls, v: str | None) -> str | None:
+        v = v.strip() if v is not None else None
+        return v or None
+
 
 class CameraOut(BaseModel):
     id: UUID

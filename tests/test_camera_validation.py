@@ -5,7 +5,7 @@ from omniscient_shared.models.entity import Detection, DetectionMessage, FrameMe
 from omniscient_shared.models.event import Event, EventType
 from pydantic import ValidationError
 
-from api.src.routes.cameras import CameraCreate, _public_camera
+from api.src.routes.cameras import CameraCreate, CameraUpdate, _public_camera
 
 
 def test_stream_url_rejects_embedded_credentials():
@@ -86,6 +86,14 @@ def test_camera_metadata_is_bounded():
             stream_url="rtsp://camera/stream",
             location_label="x" * 121,
         )
+
+
+def test_camera_updates_reject_blank_names_and_normalize_locations():
+    with pytest.raises(ValidationError, match="name cannot be empty"):
+        CameraUpdate(name="   ")
+    assert CameraUpdate(name="  garage  ", location_label="  back door ").model_dump(
+        exclude_none=True
+    ) == {"name": "garage", "location_label": "back door"}
 
 
 def test_edge_only_camera_requires_an_external_agent():

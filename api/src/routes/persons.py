@@ -18,6 +18,14 @@ router = APIRouter()
 DB = Annotated[asyncpg.Connection, Depends(get_db)]
 
 
+def _person_out(row: asyncpg.Record | dict) -> PersonOut:
+    data = dict(row)
+    # Keep the public contract stable for legacy rows and database adapters
+    # that return NULL for the nullable historical array column.
+    data["appearance_tags"] = data.get("appearance_tags") or []
+    return PersonOut(**data)
+
+
 class PersonOut(BaseModel):
     id: UUID
     label: str
@@ -47,6 +55,7 @@ async def list_persons(user: CurrentUser, db: DB) -> list[PersonOut]:
     rows = await db.fetch(
         """
         SELECT p.*,
+               COALESCE(p.appearance_tags, ARRAY[]::text[]) AS appearance_tags,
                COUNT(e.id) AS event_count
         FROM persons p
         LEFT JOIN events e ON e.person_id = p.id
@@ -56,14 +65,16 @@ async def list_persons(user: CurrentUser, db: DB) -> list[PersonOut]:
         """,
         user["sub"],
     )
-    return [PersonOut(**dict(r)) for r in rows]
+    return [_person_out(r) for r in rows]
 
 
 @router.get("/{person_id}", response_model=PersonOut)
 async def get_person(person_id: UUID, user: CurrentUser, db: DB) -> PersonOut:
     row = await db.fetchrow(
         """
-        SELECT p.*, COUNT(e.id) AS event_count
+        SELECT p.*,
+               COALESCE(p.appearance_tags, ARRAY[]::text[]) AS appearance_tags,
+               COUNT(e.id) AS event_count
         FROM persons p
         LEFT JOIN events e ON e.person_id = p.id
         WHERE p.id = $1 AND p.owner_id = $2
@@ -74,7 +85,7 @@ async def get_person(person_id: UUID, user: CurrentUser, db: DB) -> PersonOut:
     )
     if not row:
         raise HTTPException(status_code=404, detail="person not found")
-    return PersonOut(**dict(row))
+    return _person_out(row)
 
 
 @router.patch("/{person_id}", response_model=PersonOut)
