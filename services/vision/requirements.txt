@@ -1,19 +1,18 @@
 asyncpg>=0.29.0
-# Keep the detector on a release line compatible with the portable torch 2.5
-# CPU wheels used by the default local deployment.
+# Keep the detector on the maintained portable CPU Torch line used by the
+# default local deployment.
 ultralytics==8.3.0
 supervision==0.25.1
-torch>=2.1.0
-torchvision>=0.16.0
+torch>=2.9.1
+torchvision>=0.24.1
 # PyPI's latest published torchreid release is 0.2.5.  The upstream
 # project version is commonly reported as 1.4.x, but that version is not
 # installable from the public package index used by the container build.
 torchreid==0.2.5
 gdown>=5.2.0
 tensorboard>=2.14.0
-facenet-pytorch>=2.6.0
 numpy>=1.26.0
-Pillow>=10.0.0
+Pillow>=13.0.0
 aiokafka>=0.10.0
 pydantic>=2.5.0
 aiofiles>=23.2.0

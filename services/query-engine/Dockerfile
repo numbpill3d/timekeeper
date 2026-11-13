@@ -6,8 +6,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir \
     --no-deps \
     --index-url https://download.pytorch.org/whl/cpu \
-    torch==2.2.2+cpu torchvision==0.17.2+cpu \
-    && printf '%s\n' 'torch==2.2.2+cpu' 'torchvision==0.17.2+cpu' > /tmp/torch-constraints.txt \
+    torch==2.9.1+cpu torchvision==0.24.1+cpu \
+    && printf '%s\n' 'torch==2.9.1+cpu' 'torchvision==0.24.1+cpu' > /tmp/torch-constraints.txt \
     && pip install --no-cache-dir --index-url https://pypi.org/simple \
        --extra-index-url https://download.pytorch.org/whl/cpu \
        --constraint /tmp/torch-constraints.txt \

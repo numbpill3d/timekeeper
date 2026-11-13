@@ -26,6 +26,10 @@ invent an identity or action when the evidence is missing or weak.
 - Uses maintained sentence-transformer and transformer releases for local
   semantic retrieval; the query-engine image keeps the CPU Torch constraint
   separate so upgrades do not pull CUDA runtimes.
+- Uses maintained CPU Torch/Torchvision releases in the default vision image;
+  OSNet appearance ReID is the supported default identity signal. FaceNet/MTCNN
+  remains an optional integration for deployments that provide and validate
+  its separate model dependencies.
 - Provides a React/Vite dashboard, FastAPI API, mobile app foundation, alerts,
   bounded retention cleanup for raw detections/events/clips, and private signed
   clip URLs.
