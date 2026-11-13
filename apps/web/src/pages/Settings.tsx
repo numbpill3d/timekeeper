@@ -4,6 +4,7 @@ import {
   createPipedreamConnectToken,
   getProfile,
   listAuditLog,
+  getRetentionPreview,
   updateProfile,
 } from "../api/client";
 
@@ -88,6 +89,15 @@ export function Settings() {
   } = useQuery({
     queryKey: ["audit-log"],
     queryFn: () => listAuditLog().then((r) => r.data),
+  });
+  const {
+    data: retention = [],
+    isLoading: retentionLoading,
+    isError: retentionError,
+    refetch: refetchRetention,
+  } = useQuery({
+    queryKey: ["retention-preview"],
+    queryFn: () => getRetentionPreview().then((r) => r.data),
   });
 
   useEffect(() => {
@@ -369,6 +379,37 @@ export function Settings() {
                 {connectError && (
                   <div style={{ fontSize: 11, color: "var(--accent)" }}>
                     ! {connectError}
+                  </div>
+                )}
+              </div>
+            </Section>
+
+            {/* Audit history */}
+            <Section title="retention preview">
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ fontSize: 12, color: "var(--text-dim)" }}>
+                  read-only estimate of the next cleanup sweep; person-specific retention overrides are included. Nothing is deleted here.
+                </div>
+                {retentionLoading ? (
+                  <div style={{ color: "var(--text-dim)", fontSize: 11 }}>loading retention impact...</div>
+                ) : retentionError ? (
+                  <div role="alert" style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--accent)", fontSize: 11 }}>
+                    couldn't load retention preview.
+                    <button className="btn btn-ghost" onClick={() => void refetchRetention()}>retry</button>
+                  </div>
+                ) : retention.length === 0 ? (
+                  <div style={{ color: "var(--text-dim)", fontSize: 11 }}>no cameras configured.</div>
+                ) : (
+                  <div style={{ display: "grid", gap: 6 }}>
+                    {retention.map((item) => (
+                      <div key={item.camera_id} style={{ borderLeft: "2px solid var(--border-hi)", padding: "6px 8px", fontSize: 11 }}>
+                        <div style={{ color: "var(--text-bright)" }}>{item.camera_name}</div>
+                        <div style={{ color: "var(--text-dim)", marginTop: 2 }}>
+                          {item.events_expiring} events · {item.detections_expiring} detections pending cleanup
+                          {item.oldest_event_at ? ` · oldest ${new Date(item.oldest_event_at).toLocaleString()}` : ""}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

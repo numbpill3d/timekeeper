@@ -1,5 +1,6 @@
 """Regression tests for auth/profile API contracts."""
 
+import asyncio
 import os
 from datetime import UTC, datetime
 from types import SimpleNamespace
@@ -79,6 +80,33 @@ def test_event_camera_filter_is_parameterized_and_scoped():
 
     assert "e.camera_id = $2" in where
     assert params == ["owner-1", camera_id]
+
+
+def test_retention_preview_is_read_only_and_owner_scoped():
+    from api.src.routes.retention import retention_preview
+
+    class RetentionDb:
+        sql = ""
+        params: tuple[object, ...] = ()
+
+        async def fetch(self, sql, *params):
+            self.sql = sql
+            self.params = params
+            return [{
+                "camera_id": "00000000-0000-0000-0000-000000000042",
+                "camera_name": "garage",
+                "events_expiring": 2,
+                "detections_expiring": 4,
+                "oldest_event_at": None,
+            }]
+
+    db = RetentionDb()
+    result = asyncio.run(retention_preview({"sub": "owner-1"}, db))
+
+    assert result[0].events_expiring == 2
+    assert "c.owner_id = $1" in db.sql
+    assert "DELETE" not in db.sql
+    assert db.params[0] == "owner-1"
 
 
 class _AuthRateRedis:
