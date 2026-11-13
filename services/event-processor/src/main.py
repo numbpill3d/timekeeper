@@ -31,6 +31,9 @@ _DB_URL = os.getenv("DATABASE_URL", "")
 _RETENTION_INTERVAL = max(
     300, int(os.getenv("RETENTION_INTERVAL_SECONDS", "3600"))
 )
+_CAMERA_REFRESH_INTERVAL = max(
+    1, int(os.getenv("CAMERA_REFRESH_INTERVAL_S", "30"))
+)
 
 
 class _DropDetection(Exception):
@@ -56,6 +59,7 @@ async def main() -> None:
     producer_started = False
     db: asyncpg.Connection | None = None
     retention_task: asyncio.Task | None = None
+    camera_refresh_task: asyncio.Task | None = None
     try:
         await consumer.start()
         consumer_started = True
@@ -74,6 +78,9 @@ async def main() -> None:
         # concurrent operations, and the consumer loop must remain free to
         # persist incoming detections while cleanup runs.
         retention_task = asyncio.create_task(_retention_loop())
+        camera_refresh_task = asyncio.create_task(
+            _camera_refresh_loop(cam_locations, cam_owners, aggregators, correlator)
+        )
         async for msg in consumer:
             try:
                 det_msg = DetectionMessage(**msg.value)
@@ -147,6 +154,9 @@ async def main() -> None:
         if retention_task:
             retention_task.cancel()
             await asyncio.gather(retention_task, return_exceptions=True)
+        if camera_refresh_task:
+            camera_refresh_task.cancel()
+            await asyncio.gather(camera_refresh_task, return_exceptions=True)
         if consumer_started:
             await consumer.stop()
         if producer_started:
@@ -171,5 +181,44 @@ async def _retention_loop() -> None:
             if retention_db:
                 await retention_db.close()
         await asyncio.sleep(_RETENTION_INTERVAL)
+
+
+async def _camera_refresh_loop(
+    cam_locations: dict[str, str | None],
+    cam_owners: dict[str, str],
+    aggregators: dict[str, CameraAggregator],
+    correlator: Correlator,
+) -> None:
+    """Refresh active-camera state without sharing the consumer DB connection."""
+    while True:
+        refresh_db: asyncpg.Connection | None = None
+        try:
+            refresh_db = await asyncpg.connect(_DB_URL)
+            rows = await refresh_db.fetch(
+                "SELECT id, location_label, owner_id FROM cameras "
+                "WHERE is_active = TRUE"
+            )
+            active = {
+                str(row["id"]): (row["location_label"], str(row["owner_id"]))
+                for row in rows
+            }
+            for camera_id in set(cam_locations) - set(active):
+                cam_locations.pop(camera_id, None)
+                cam_owners.pop(camera_id, None)
+                aggregators.pop(camera_id, None)
+                correlator.remove_camera(camera_id)
+            for camera_id, (location, owner_id) in active.items():
+                cam_locations[camera_id] = location
+                cam_owners[camera_id] = owner_id
+                if camera_id in aggregators:
+                    aggregators[camera_id].location_label = location
+        except asyncio.CancelledError:
+            raise
+        except (OSError, asyncpg.PostgresError) as exc:
+            log.warning("camera state refresh unavailable: %s", exc)
+        finally:
+            if refresh_db:
+                await refresh_db.close()
+        await asyncio.sleep(_CAMERA_REFRESH_INTERVAL)
 if __name__ == "__main__":
     asyncio.run(main())

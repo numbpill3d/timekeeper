@@ -128,3 +128,11 @@ class Correlator:
         self._pending_pickups = {
             k: v for k, v in self._pending_pickups.items() if v[2] >= cutoff
         }
+
+    def remove_camera(self, camera_id: str) -> None:
+        """Forget pending pickups from a camera that is no longer active."""
+        self._pending_pickups = {
+            key: pickup
+            for key, pickup in self._pending_pickups.items()
+            if pickup[0] != camera_id
+        }

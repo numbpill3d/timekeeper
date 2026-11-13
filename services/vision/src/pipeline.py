@@ -55,6 +55,9 @@ log = logging.getLogger(__name__)
 
 _DB_URL = os.getenv("DATABASE_URL", "")
 _FRAME_ROOT = Path(os.getenv("FRAME_STORE_PATH", "/tmp/frames")).resolve()
+_CAMERA_REFRESH_INTERVAL = max(
+    1, int(os.getenv("CAMERA_REFRESH_INTERVAL_S", "30"))
+)
 
 
 class VisionPipeline:
@@ -82,6 +85,7 @@ class VisionPipeline:
         self._obj_map: dict[str, UUID] = {}
 
         self._db: asyncpg.Connection | None = None
+        self._camera_refresh_task: asyncio.Task | None = None
 
         brokers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
         self._consumer = AIOKafkaConsumer(
@@ -103,6 +107,9 @@ class VisionPipeline:
             if _DB_URL:
                 self._db = await asyncpg.connect(_DB_URL)
                 await self._load_gallery()
+                self._camera_refresh_task = asyncio.create_task(
+                    self._refresh_camera_state()
+                )
             else:
                 log.warning("DATABASE_URL not set; person identity disabled")
 
@@ -128,6 +135,11 @@ class VisionPipeline:
                 await self._producer.stop()
             if consumer_started:
                 await self._consumer.stop()
+            if self._camera_refresh_task:
+                self._camera_refresh_task.cancel()
+                await asyncio.gather(
+                    self._camera_refresh_task, return_exceptions=True
+                )
             if self._db:
                 await self._db.close()
 
@@ -178,10 +190,6 @@ class VisionPipeline:
             log.warning("bad frame message: %s", exc)
             return
 
-        frame = await self._load_frame(frame_msg.frame_path)
-        if frame is None:
-            return
-
         camera_key = str(frame_msg.camera_id)
         if camera_key not in self._cam_owners and self._db:
             row = await self._db.fetchrow(
@@ -192,6 +200,10 @@ class VisionPipeline:
                 log.warning("dropping frame for unknown/inactive camera %s", camera_key)
                 return
             self._cam_owners[camera_key] = str(row["owner_id"])
+
+        frame = await self._load_frame(frame_msg.frame_path)
+        if frame is None:
+            return
         tracker = self._trackers.setdefault(camera_key, Tracker())
 
         # Detector inference and tracker updates are synchronous and can be
@@ -450,3 +462,33 @@ class VisionPipeline:
     def _remove_from_galleries(self, person_id: str) -> None:
         for gallery in (self._face_gallery, self._reid_gallery):
             remove_person_from_gallery(gallery, person_id)
+
+    async def _refresh_camera_state(self) -> None:
+        """Refresh active camera ownership and evict stale tracker state."""
+        while True:
+            refresh_db: asyncpg.Connection | None = None
+            try:
+                refresh_db = await asyncpg.connect(_DB_URL)
+                rows = await refresh_db.fetch(
+                    "SELECT id, owner_id FROM cameras WHERE is_active = TRUE"
+                )
+                active = {
+                    str(row["id"]): str(row["owner_id"]) for row in rows
+                }
+                for camera_id in set(self._cam_owners) - set(active):
+                    self._cam_owners.pop(camera_id, None)
+                    self._trackers.pop(camera_id, None)
+                    self._obj_map = {
+                        key: value
+                        for key, value in self._obj_map.items()
+                        if not key.startswith(f"{camera_id}:")
+                    }
+                self._cam_owners.update(active)
+            except asyncio.CancelledError:
+                raise
+            except (OSError, asyncpg.PostgresError) as exc:
+                log.warning("camera state refresh unavailable: %s", exc)
+            finally:
+                if refresh_db:
+                    await refresh_db.close()
+            await asyncio.sleep(_CAMERA_REFRESH_INTERVAL)

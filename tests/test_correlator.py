@@ -168,6 +168,28 @@ def test_ambiguous_category_does_not_claim_a_move():
     assert extra == []
 
 
+def test_removing_camera_discards_its_pending_pickups():
+    correlator = Correlator()
+    cam_a, cam_b = uuid4(), uuid4()
+    t = datetime.now(tz=UTC)
+    correlator.process(
+        _event(EventType.object_picked_up, cam_a, uuid4(), ts=t, category="keys")
+    )
+
+    correlator.remove_camera(str(cam_a))
+
+    extra = correlator.process(
+        _event(
+            EventType.object_placed,
+            cam_b,
+            uuid4(),
+            ts=t + timedelta(seconds=5),
+            category="keys",
+        )
+    )
+    assert extra == []
+
+
 def test_category_fallback_never_crosses_account_boundaries():
     correlator = Correlator()
     cam_a, cam_b = uuid4(), uuid4()
