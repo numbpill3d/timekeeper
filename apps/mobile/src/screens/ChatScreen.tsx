@@ -8,6 +8,7 @@ import { useState, useRef } from "react";
 import {
   FlatList,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   StyleSheet,
@@ -98,6 +99,18 @@ export function ChatScreen() {
                 {Math.round(item.confidence * 100)}% confidence
               </Text>
             )}
+            {item.clips?.map((clip: string, index: number) => (
+              <Pressable
+                key={`${item.id}-clip-${index}`}
+                accessibilityRole="link"
+                accessibilityLabel={`Open evidence clip ${index + 1}`}
+                onPress={() => {
+                  void Linking.openURL(clip).catch(() => undefined);
+                }}
+              >
+                <Text style={styles.clip}>view evidence {index + 1} →</Text>
+              </Pressable>
+            ))}
           </View>
         )}
       />
@@ -144,6 +157,12 @@ const styles = StyleSheet.create({
   },
   bubbleText: { color: "#fff", fontSize: 14, lineHeight: 20 },
   confidence: { color: "#888", fontSize: 11, marginTop: 4 },
+  clip: {
+    color: "#e00",
+    fontSize: 11,
+    marginTop: 6,
+    textDecorationLine: "underline",
+  },
   inputRow: {
     flexDirection: "row",
     padding: 12,
