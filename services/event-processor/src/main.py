@@ -28,6 +28,7 @@ logging.basicConfig(level=logging.INFO)
 
 _BROKERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 _DB_URL = os.getenv("DATABASE_URL", "")
+_DB_CONNECT_TIMEOUT_SECONDS = 15
 _RETENTION_INTERVAL = max(
     300, int(os.getenv("RETENTION_INTERVAL_SECONDS", "3600"))
 )
@@ -65,7 +66,7 @@ async def main() -> None:
         consumer_started = True
         await producer.start()
         producer_started = True
-        db = await asyncpg.connect(_DB_URL)
+        db = await asyncpg.connect(_DB_URL, timeout=_DB_CONNECT_TIMEOUT_SECONDS)
         cam_rows = await db.fetch(
             "SELECT id, location_label, owner_id FROM cameras "
             "WHERE is_active = TRUE"
@@ -169,7 +170,9 @@ async def _retention_loop() -> None:
     while True:
         retention_db: asyncpg.Connection | None = None
         try:
-            retention_db = await asyncpg.connect(_DB_URL)
+            retention_db = await asyncpg.connect(
+                _DB_URL, timeout=_DB_CONNECT_TIMEOUT_SECONDS
+            )
             deleted = await purge_expired_events(retention_db)
             if deleted:
                 log.info("retention removed %d expired events", deleted)
@@ -193,7 +196,9 @@ async def _camera_refresh_loop(
     while True:
         refresh_db: asyncpg.Connection | None = None
         try:
-            refresh_db = await asyncpg.connect(_DB_URL)
+            refresh_db = await asyncpg.connect(
+                _DB_URL, timeout=_DB_CONNECT_TIMEOUT_SECONDS
+            )
             rows = await refresh_db.fetch(
                 "SELECT id, location_label, owner_id FROM cameras "
                 "WHERE is_active = TRUE"

@@ -57,6 +57,7 @@ from .tracker import Tracker, stream_gap_requires_reset
 log = logging.getLogger(__name__)
 
 _DB_URL = os.getenv("DATABASE_URL", "")
+_DB_CONNECT_TIMEOUT_SECONDS = 15
 _FRAME_ROOT = Path(os.getenv("FRAME_STORE_PATH", "/tmp/frames")).resolve()
 _CAMERA_REFRESH_INTERVAL = max(
     1, int(os.getenv("CAMERA_REFRESH_INTERVAL_S", "30"))
@@ -109,7 +110,9 @@ class VisionPipeline:
         producer_started = False
         try:
             if _DB_URL:
-                self._db = await asyncpg.connect(_DB_URL)
+                self._db = await asyncpg.connect(
+                    _DB_URL, timeout=_DB_CONNECT_TIMEOUT_SECONDS
+                )
                 await self._load_gallery()
                 self._camera_refresh_task = asyncio.create_task(
                     self._refresh_camera_state()
@@ -500,7 +503,9 @@ class VisionPipeline:
         while True:
             refresh_db: asyncpg.Connection | None = None
             try:
-                refresh_db = await asyncpg.connect(_DB_URL)
+                refresh_db = await asyncpg.connect(
+                    _DB_URL, timeout=_DB_CONNECT_TIMEOUT_SECONDS
+                )
                 rows = await refresh_db.fetch(
                     "SELECT id, owner_id FROM cameras WHERE is_active = TRUE"
                 )

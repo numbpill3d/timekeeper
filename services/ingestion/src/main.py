@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 _DB_URL = os.getenv("DATABASE_URL", "")
+_DB_CONNECT_TIMEOUT_SECONDS = 15
 try:
     _RELOAD_INTERVAL = max(1, int(os.getenv("CAMERA_RELOAD_INTERVAL_S", "30")))
 except ValueError as exc:
@@ -61,7 +62,9 @@ async def main() -> None:
         reload_backoff = 1.0
         while True:
             try:
-                conn = await asyncpg.connect(_DB_URL)
+                conn = await asyncpg.connect(
+                    _DB_URL, timeout=_DB_CONNECT_TIMEOUT_SECONDS
+                )
                 try:
                     cameras = await _load_cameras(conn)
                 finally:

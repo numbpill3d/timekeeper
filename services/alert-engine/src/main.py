@@ -22,6 +22,7 @@ logging.basicConfig(level=logging.INFO)
 
 _BROKERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 _DB_URL = os.getenv("DATABASE_URL", "")
+_DB_CONNECT_TIMEOUT_SECONDS = 15
 
 
 async def main() -> None:
@@ -37,7 +38,7 @@ async def main() -> None:
     try:
         await consumer.start()
         consumer_started = True
-        db = await asyncpg.connect(_DB_URL)
+        db = await asyncpg.connect(_DB_URL, timeout=_DB_CONNECT_TIMEOUT_SECONDS)
         log.info("alert engine started")
         async for msg in consumer:
             try:

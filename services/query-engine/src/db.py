@@ -7,12 +7,18 @@ import os
 import asyncpg
 
 _DB_URL = os.getenv("DATABASE_URL", "")
+_DB_CONNECT_TIMEOUT_SECONDS = 15
 _pool: asyncpg.Pool | None = None
 
 
 async def init_pool() -> asyncpg.Pool:
     global _pool
-    _pool = await asyncpg.create_pool(_DB_URL, min_size=1, max_size=5)
+    _pool = await asyncpg.create_pool(
+        _DB_URL,
+        min_size=1,
+        max_size=5,
+        timeout=_DB_CONNECT_TIMEOUT_SECONDS,
+    )
     return _pool
 
 
