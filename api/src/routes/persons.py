@@ -119,10 +119,25 @@ async def update_person(
 async def delete_person(
     person_id: UUID, user: CurrentUser, db: DB
 ) -> None:
-    result = await db.execute(
-        "DELETE FROM persons WHERE id = $1 AND owner_id = $2",
-        person_id,
-        user["sub"],
-    )
-    if result == "DELETE 0":
-        raise HTTPException(status_code=404, detail="person not found")
+    # Keep historical evidence while removing the identity association. The
+    # foreign keys are intentionally restrictive, so clear references before
+    # deleting the person and hold its row lock for the whole operation.
+    async with db.transaction():
+        exists = await db.fetchval(
+            "SELECT 1 FROM persons WHERE id = $1 AND owner_id = $2 FOR UPDATE",
+            person_id,
+            user["sub"],
+        )
+        if not exists:
+            raise HTTPException(status_code=404, detail="person not found")
+        await db.execute(
+            "UPDATE detections SET person_id = NULL, "
+            "association_confidence = NULL, association_method = NULL "
+            "WHERE person_id = $1",
+            person_id,
+        )
+        await db.execute(
+            "UPDATE events SET person_id = NULL WHERE person_id = $1",
+            person_id,
+        )
+        await db.execute("DELETE FROM persons WHERE id = $1", person_id)

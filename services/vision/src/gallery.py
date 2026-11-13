@@ -7,6 +7,18 @@ import numpy as np
 EMBEDDING_DIM = 512
 
 
+def remove_person_from_gallery(
+    gallery: dict[str, list[tuple[str, np.ndarray]]], person_id: str
+) -> None:
+    """Remove one deleted identity from every owner-scoped gallery."""
+    for owner_id, entries in gallery.items():
+        gallery[owner_id] = [
+            (candidate_id, embedding)
+            for candidate_id, embedding in entries
+            if candidate_id != person_id
+        ]
+
+
 def parse_gallery_embedding(
     raw: object, *, dimension: int = EMBEDDING_DIM
 ) -> np.ndarray | None:

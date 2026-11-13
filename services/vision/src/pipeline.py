@@ -43,7 +43,11 @@ from omniscient_shared.models.entity import (
 from .association import PersonCandidate, associate_person
 from .detector import Detector
 from .face import FaceModel
-from .gallery import EMBEDDING_DIM, parse_gallery_embedding
+from .gallery import (
+    EMBEDDING_DIM,
+    parse_gallery_embedding,
+    remove_person_from_gallery,
+)
 from .reid import ReIDModel
 from .tracker import Tracker
 
@@ -340,11 +344,20 @@ class VisionPipeline:
             pid_str, _ = match
             person_id = UUID(pid_str)
             if self._db:
-                await self._db.execute(
+                updated = await self._db.execute(
                     "UPDATE persons SET last_seen_at = NOW() WHERE id = $1",
                     person_id,
                 )
-            return person_id
+                if updated == "UPDATE 0":
+                    # A person can be deleted while this process still holds
+                    # the startup gallery. Remove the stale identity and let
+                    # this observation create a fresh unknown record instead
+                    # of emitting an event with a dangling foreign key.
+                    self._remove_from_galleries(pid_str)
+                else:
+                    return person_id
+            else:
+                return person_id
 
         # New person — create a DB record and add available embeddings.
         if self._db is None:
@@ -433,3 +446,7 @@ class VisionPipeline:
     ) -> None:
         """Replace one owner's gallery after a person enrollment update."""
         self._reid_gallery[owner_id] = gallery
+
+    def _remove_from_galleries(self, person_id: str) -> None:
+        for gallery in (self._face_gallery, self._reid_gallery):
+            remove_person_from_gallery(gallery, person_id)

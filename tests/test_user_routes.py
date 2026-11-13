@@ -9,7 +9,7 @@ os.environ.setdefault("JWT_SECRET", "unit-test-secret-012345678901234567890123")
 import pytest
 
 from api.src.routes.events import count_events
-from api.src.routes.persons import list_persons
+from api.src.routes.persons import delete_person, list_persons
 from api.src.routes.query import _check_rate_limit
 from api.src.routes.users import (
     LoginRequest,
@@ -146,3 +146,40 @@ async def test_person_list_normalizes_legacy_null_appearance_tags():
     # The SQL COALESCE is the database-side contract; this fixture models a
     # legacy row so the response shape remains explicit in the test.
     assert result[0].appearance_tags == []
+
+
+class _PersonDeleteTransaction:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_args):
+        return False
+
+
+class _PersonDeleteDb:
+    def __init__(self) -> None:
+        self.queries: list[tuple[str, tuple[object, ...]]] = []
+
+    def transaction(self) -> _PersonDeleteTransaction:
+        return _PersonDeleteTransaction()
+
+    async def fetchval(self, sql: str, *params: object) -> int:
+        self.queries.append((sql, params))
+        return 1
+
+    async def execute(self, sql: str, *params: object) -> str:
+        self.queries.append((sql, params))
+        return "DELETE 1"
+
+
+@pytest.mark.asyncio
+async def test_person_delete_detaches_history_before_removing_identity():
+    db = _PersonDeleteDb()
+    person_id = "00000000-0000-0000-0000-000000000001"
+
+    await delete_person(person_id, {"sub": "owner-1"}, db)
+
+    statements = [query for query, _ in db.queries]
+    assert "UPDATE detections SET person_id = NULL, association_confidence = NULL, association_method = NULL WHERE person_id = $1" in statements
+    assert "UPDATE events SET person_id = NULL WHERE person_id = $1" in statements
+    assert statements[-1] == "DELETE FROM persons WHERE id = $1"
