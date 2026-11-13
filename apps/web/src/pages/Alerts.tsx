@@ -300,6 +300,12 @@ export function Alerts() {
                   <button
                     key={ch}
                     aria-pressed={channels.includes(ch)}
+                    disabled={channels.length === 1 && channels.includes(ch)}
+                    title={
+                      channels.length === 1 && channels.includes(ch)
+                        ? "Select another channel before disabling this one"
+                        : undefined
+                    }
                     onClick={() => toggleChannel(ch)}
                     style={{
                       background: channels.includes(ch)
@@ -317,8 +323,13 @@ export function Alerts() {
                       fontSize: 10,
                       textTransform: "uppercase",
                       letterSpacing: "0.1em",
-                      cursor: "pointer",
+                      cursor:
+                        channels.length === 1 && channels.includes(ch)
+                          ? "not-allowed"
+                          : "pointer",
                       fontFamily: "var(--font)",
+                      opacity:
+                        channels.length === 1 && channels.includes(ch) ? 0.65 : 1,
                     }}
                   >
                     {ch}
