@@ -45,6 +45,18 @@ _TEMPLATES: dict[str, dict] = {
     "package delivered": {
         "event_types": [EventType.package_delivered.value],
     },
+    "person detected": {
+        "event_types": [EventType.person_detected.value],
+    },
+    "door opened": {
+        "event_types": [EventType.door_opened.value],
+    },
+    "door closed": {
+        "event_types": [EventType.door_closed.value],
+    },
+    "fall detected": {
+        "event_types": [EventType.fall_detected.value],
+    },
     "after midnight": {
         "time_after": "00:00",
         "time_before": "06:00",
@@ -59,7 +71,8 @@ Predicate schema (only include relevant fields):
 {
   "event_types": ["person_entered","person_exited","object_placed",
                   "object_picked_up","object_moved","package_delivered",
-                  "intrusion_detected"],
+                  "intrusion_detected","person_detected","door_opened",
+                  "door_closed","fall_detected"],
   "person_labels": ["unknown"],
   "object_categories": ["keys","wallet","phone","bag","package"],
   "location_labels": ["front door","backyard","kitchen"],

@@ -6,6 +6,7 @@ import types
 from datetime import UTC, datetime
 from uuid import uuid4
 
+import pytest
 from omniscient_shared.models.event import Event, EventType
 from rules import compile_rule, event_matches, normalize_rule
 
@@ -36,6 +37,19 @@ def test_compile_unknown_person_template():
 def test_compile_package_template():
     result = compile_rule("notify on package delivered")
     assert EventType.package_delivered.value in result.get("event_types", [])
+
+
+@pytest.mark.parametrize(
+    ("text", "event_type"),
+    [
+        ("alert when a person detected", EventType.person_detected),
+        ("alert when the door opened", EventType.door_opened),
+        ("alert when the door closed", EventType.door_closed),
+        ("alert when a fall detected", EventType.fall_detected),
+    ],
+)
+def test_compile_new_event_templates(text, event_type):
+    assert compile_rule(text) == {"event_types": [event_type.value]}
 
 
 def test_compile_no_match_returns_empty():
