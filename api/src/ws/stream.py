@@ -14,6 +14,7 @@ import asyncio
 import json
 import logging
 import os
+from uuid import uuid4
 
 from aiokafka import AIOKafkaConsumer
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
@@ -90,6 +91,11 @@ async def events_stream(websocket: WebSocket) -> None:
     consumer = AIOKafkaConsumer(
         "omniscient.events",
         bootstrap_servers=_BROKERS,
+        # Each dashboard is an independent subscriber: every connected client
+        # must receive every event rather than sharing partitions.  A unique
+        # group also enables Kafka's normal subscription assignment;
+        # group_id=None disables that assignment entirely.
+        group_id=f"timekeeper-ws-{uuid4().hex}",
         value_deserializer=lambda v: json.loads(v.decode()),
         auto_offset_reset="latest",
     )

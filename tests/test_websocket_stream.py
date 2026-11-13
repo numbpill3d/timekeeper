@@ -115,10 +115,17 @@ class _IdleConsumer:
 @pytest.mark.asyncio
 async def test_idle_disconnect_stops_kafka_consumer(monkeypatch):
     consumer = _IdleConsumer()
-    monkeypatch.setattr(stream, "AIOKafkaConsumer", lambda *args, **kwargs: consumer)
+    received_kwargs = {}
+
+    def make_consumer(*args, **kwargs):
+        received_kwargs.update(kwargs)
+        return consumer
+
+    monkeypatch.setattr(stream, "AIOKafkaConsumer", make_consumer)
     monkeypatch.setattr(stream, "decode_token", lambda token: {"sub": "owner-1"})
 
     await stream.events_stream(_WebSocket())
 
     assert consumer.cancelled is True
     assert consumer.stopped is True
+    assert received_kwargs["group_id"].startswith("timekeeper-ws-")
