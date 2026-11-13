@@ -35,7 +35,7 @@ def _normalize_email(value: EmailStr) -> str:
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=8, max_length=256)
 
     @field_validator("email")
     @classmethod
@@ -45,14 +45,12 @@ class RegisterRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def _password_strength(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("password must be at least 8 characters")
         return v
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(max_length=256)
 
     @field_validator("email")
     @classmethod

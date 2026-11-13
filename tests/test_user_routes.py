@@ -8,6 +8,7 @@ os.environ.setdefault("JWT_SECRET", "unit-test-secret-012345678901234567890123")
 
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from api.src.routes.events import count_events, list_events
 from api.src.routes.persons import delete_person, list_persons
@@ -25,6 +26,13 @@ def test_auth_email_is_canonicalized_case_insensitively():
     assert RegisterRequest(
         email="Alice.Example@Example.COM", password="correct horse battery staple"
     ).email == "alice.example@example.com"
+
+
+def test_auth_passwords_have_a_bounded_request_size():
+    with pytest.raises(ValidationError):
+        RegisterRequest(email="user@example.com", password="x" * 257)
+    with pytest.raises(ValidationError):
+        LoginRequest(email="user@example.com", password="x" * 257)
 
 
 class _AuthRateRedis:
