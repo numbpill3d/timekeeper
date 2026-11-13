@@ -72,6 +72,7 @@ class QueryRequest(BaseModel):
 
 
 class EvidenceOut(BaseModel):
+    event_id: str | None = None
     timestamp: datetime.datetime | None = None
     event_type: str | None = None
     action_label: str | None = None
@@ -87,6 +88,7 @@ class EvidenceOut(BaseModel):
 class QueryEvidenceIn(BaseModel):
     """Internal query-engine contract before clip URLs are signed."""
 
+    event_id: str | None = None
     timestamp: datetime.datetime | None = None
     event_type: str | None = None
     action_label: str | None = None
@@ -193,6 +195,7 @@ async def query(
     ]
     evidence = [
         EvidenceOut(
+            event_id=str(item.event_id) if item.event_id is not None else None,
             timestamp=item.timestamp,
             event_type=item.event_type,
             action_label=item.action_label,

@@ -60,10 +60,13 @@ local camera evidence system.
 25. **Confidence-aware fallback wording** — qualify low-confidence evidence in
    local answers instead of presenting weak detections with the same certainty
    as strong matches.
+26. **Answer-level evidence controls** — carry event identities through the
+   query contract so web and mobile answer cards can verify or deliberately
+   redact the exact supporting event.
 
 ## Next high-value improvements
 
-26. **Trust and retention controls** — add per-camera retention previews,
+27. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins. Camera cards now surface the local
     configured local default and person-specific override behavior. Individual timeline

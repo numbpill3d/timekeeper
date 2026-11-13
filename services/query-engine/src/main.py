@@ -82,6 +82,7 @@ class QueryRequest(BaseModel):
 class Evidence(BaseModel):
     """Public-safe fields that let clients verify an answer row by row."""
 
+    event_id: UUID | None = None
     timestamp: datetime | None = None
     event_type: str | None = None
     action_label: str | None = None

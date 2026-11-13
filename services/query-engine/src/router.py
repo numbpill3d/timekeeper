@@ -217,7 +217,7 @@ async def answer(
 def _evidence(rows: list[dict]) -> list[dict]:
     """Project query rows to bounded, non-sensitive answer evidence."""
     fields = (
-        "timestamp", "event_type", "action_label", "location_label", "camera_name",
+        "event_id", "timestamp", "event_type", "action_label", "location_label", "camera_name",
         "confidence", "person_label", "object_label", "object_category",
         "clip_path",
     )

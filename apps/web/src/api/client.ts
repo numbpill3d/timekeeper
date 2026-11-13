@@ -50,6 +50,7 @@ export interface QueryResponse {
 }
 
 export interface QueryEvidence {
+  event_id: string | null;
   timestamp: string | null;
   event_type: string | null;
   action_label: string | null;

@@ -7,6 +7,7 @@
 import { useEffect, useState, useRef } from "react";
 import {
   FlatList,
+  Alert,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -18,7 +19,7 @@ import {
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import * as SecureStore from "expo-secure-store";
-import { askQuestion, QueryEvidence } from "../api/client";
+import { askQuestion, QueryEvidence, redactEvent } from "../api/client";
 
 interface Message {
   id: string;
@@ -148,6 +149,32 @@ export function ChatScreen() {
     }
   }
 
+  function confirmRedaction(messageId: string, eventId: string) {
+    Alert.alert(
+      "Redact evidence?",
+      "Permanently remove this evidence event and its clip?",
+      [
+        { text: "cancel", style: "cancel" },
+        {
+          text: "redact",
+          style: "destructive",
+          onPress: () => {
+            void redactEvent(eventId)
+              .then(() => {
+                setMessages((current) => current.map((message) => (
+                  message.id === messageId
+                    ? { ...message, evidence: message.evidence?.filter((item) => item.event_id !== eventId) }
+                    : message
+                )));
+                setQueryError("");
+              })
+              .catch(() => setQueryError("couldn't redact that evidence; it was left unchanged."));
+          },
+        },
+      ],
+    );
+  }
+
   function saveQuestion() {
     const question = input.trim();
     if (!question) return;
@@ -239,6 +266,15 @@ export function ChatScreen() {
                           onPress={() => void Linking.openURL(evidence.clip_url!).catch(() => undefined)}
                         >
                           <Text style={styles.clip}>verify evidence →</Text>
+                        </Pressable>
+                      ) : null}
+                      {evidence.event_id ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel="Redact supporting evidence"
+                          onPress={() => confirmRedaction(item.id, evidence.event_id!)}
+                        >
+                          <Text style={styles.redactText}>redact evidence</Text>
                         </Pressable>
                       ) : null}
                     </View>
@@ -365,6 +401,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textDecorationLine: "underline",
   },
+  redactText: { color: "#777", fontSize: 10, marginTop: 4, textDecorationLine: "underline" },
   errorRow: {
     flexDirection: "row",
     alignItems: "center",

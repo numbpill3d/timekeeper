@@ -255,7 +255,7 @@ def build_fallback_query(question: str) -> tuple[str, list[object]]:
         params.append(action_event_type)
 
     sql = f"""
-        SELECT e.timestamp, e.event_type, e.action_label, e.location_label,
+        SELECT e.id AS event_id, e.timestamp, e.event_type, e.action_label, e.location_label,
                c.name AS camera_name,
                e.confidence, e.clip_path,
                p.label AS person_label,

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { askQuestion, QueryEvidence } from "../api/client";
+import { askQuestion, QueryEvidence, redactEvent } from "../api/client";
 
 interface Message {
   id: number;
@@ -134,6 +134,21 @@ export function ChatPanel() {
       }, 1800);
     } catch {
       setError("could not copy the answer — check browser clipboard permissions.");
+    }
+  }
+
+  async function redactEvidence(messageId: number, eventId: string) {
+    if (!window.confirm("Permanently remove this evidence event and its clip?")) return;
+    try {
+      await redactEvent(eventId);
+      setMessages((current) => current.map((message) => (
+        message.id === messageId
+          ? { ...message, evidence: message.evidence?.filter((item) => item.event_id !== eventId) }
+          : message
+      )));
+      setError("");
+    } catch {
+      setError("couldn't redact that evidence; it was left unchanged.");
     }
   }
 
@@ -312,6 +327,17 @@ export function ChatPanel() {
                         <a href={item.clip_url} target="_blank" rel="noreferrer">
                           verify →
                         </a>
+                      )}
+                      {item.event_id && (
+                        <button
+                          className="btn btn-ghost"
+                          type="button"
+                          style={{ padding: "1px 4px", fontSize: 9 }}
+                          aria-label="Redact supporting evidence"
+                          onClick={() => void redactEvidence(m.id, item.event_id!)}
+                        >
+                          redact
+                        </button>
                       )}
                     </div>
                   );
