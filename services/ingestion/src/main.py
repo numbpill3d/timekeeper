@@ -70,7 +70,7 @@ async def main() -> None:
                 finally:
                     await conn.close()
                 reload_backoff = 1.0
-            except (OSError, asyncpg.PostgresError) as exc:
+            except (OSError, asyncpg.PostgresError, TimeoutError) as exc:
                 log.warning(
                     "camera reload failed: %s — retrying in %.0fs",
                     exc,

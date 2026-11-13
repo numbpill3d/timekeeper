@@ -178,7 +178,7 @@ async def _retention_loop() -> None:
                 log.info("retention removed %d expired events", deleted)
         except asyncio.CancelledError:
             raise
-        except (OSError, asyncpg.PostgresError) as exc:
+        except (OSError, asyncpg.PostgresError, TimeoutError) as exc:
             log.warning("retention sweep unavailable: %s", exc)
         finally:
             if retention_db:
@@ -219,7 +219,7 @@ async def _camera_refresh_loop(
                     aggregators[camera_id].location_label = location
         except asyncio.CancelledError:
             raise
-        except (OSError, asyncpg.PostgresError) as exc:
+        except (OSError, asyncpg.PostgresError, TimeoutError) as exc:
             log.warning("camera state refresh unavailable: %s", exc)
         finally:
             if refresh_db:

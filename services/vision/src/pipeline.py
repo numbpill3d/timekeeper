@@ -524,7 +524,7 @@ class VisionPipeline:
                 self._cam_owners.update(active)
             except asyncio.CancelledError:
                 raise
-            except (OSError, asyncpg.PostgresError) as exc:
+            except (OSError, asyncpg.PostgresError, TimeoutError) as exc:
                 log.warning("camera state refresh unavailable: %s", exc)
             finally:
                 if refresh_db:
