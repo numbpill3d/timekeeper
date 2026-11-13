@@ -65,7 +65,14 @@ export function Dashboard() {
 
   const events = Array.from(
     new Map([...live, ...recent].map((event) => [event.id, event])).values()
-  ).slice(0, 14);
+  )
+    .sort((left, right) => {
+      const leftTime = Date.parse(left.timestamp);
+      const rightTime = Date.parse(right.timestamp);
+      return (Number.isFinite(rightTime) ? rightTime : 0) -
+        (Number.isFinite(leftTime) ? leftTime : 0);
+    })
+    .slice(0, 14);
   const now = new Date();
   const activeCams = cameras.filter((c) => c.is_active).length;
   const activeAlertCount = alerts.filter((alert) => alert.is_active).length;
@@ -113,7 +120,7 @@ export function Dashboard() {
             <span className="section-title">live activity</span>
             {live.length > 0 && (
               <span className="badge badge-green" style={{ marginLeft: "auto" }}>
-                {live.length} new
+                {live.length} live
               </span>
             )}
           </div>

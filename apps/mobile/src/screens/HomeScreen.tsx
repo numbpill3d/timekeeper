@@ -38,7 +38,14 @@ export function HomeScreen() {
 
   const allEvents = Array.from(
     new Map([...liveEvents, ...(recentEvents ?? [])].map((event) => [event.id, event])).values()
-  ).slice(0, 20);
+  )
+    .sort((left, right) => {
+      const leftTime = Date.parse(left.timestamp);
+      const rightTime = Date.parse(right.timestamp);
+      return (Number.isFinite(rightTime) ? rightTime : 0) -
+        (Number.isFinite(leftTime) ? leftTime : 0);
+    })
+    .slice(0, 20);
 
   return (
     <View style={styles.container}>
