@@ -28,6 +28,8 @@ const CONF_COLOR = (c: number) => {
 export function Timeline() {
   const [eventType, setEventType] = useState("");
   const [sinceDate, setSinceDate] = useState("");
+  const [searchDraft, setSearchDraft] = useState("");
+  const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<OmniscientEvent | null>(null);
   const [offset, setOffset] = useState(0);
   const PAGE = 50;
@@ -36,15 +38,18 @@ export function Timeline() {
   const params: Record<string, unknown> = { limit: PAGE, offset };
   if (eventType) params.event_type = eventType;
   if (sinceDate) params.since = new Date(sinceDate).toISOString();
+  if (search) params.search = search;
 
   const { data = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ["events", "timeline", eventType, sinceDate, offset],
+    queryKey: ["events", "timeline", eventType, sinceDate, search, offset],
     queryFn: () => listEvents(params).then((r) => r.data),
   });
 
   function reset() {
     setEventType("");
     setSinceDate("");
+    setSearchDraft("");
+    setSearch("");
     setOffset(0);
   }
 
@@ -69,6 +74,39 @@ export function Timeline() {
           flexWrap: "wrap",
         }}
       >
+        <div>
+          <div className="label" style={{ marginBottom: 4 }}>
+            search evidence
+          </div>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              setSearch(searchDraft.trim());
+              setOffset(0);
+            }}
+            style={{ display: "flex", gap: 4 }}
+          >
+            <input
+              aria-label="Search event evidence"
+              value={searchDraft}
+              maxLength={120}
+              onChange={(event) => setSearchDraft(event.target.value)}
+              placeholder="person, item, location"
+              style={{
+                width: 180,
+                padding: "5px 10px",
+                background: "var(--elevated)",
+                color: "var(--text)",
+                border: "1px solid var(--border-hi)",
+                fontSize: 12,
+              }}
+            />
+            <button className="btn btn-ghost" type="submit" style={{ padding: "4px 9px" }}>
+              find
+            </button>
+          </form>
+        </div>
+
         <div>
           <div className="label" style={{ marginBottom: 4 }}>
             event type
@@ -120,7 +158,7 @@ export function Timeline() {
           />
         </div>
 
-        {(eventType || sinceDate) && (
+        {(eventType || sinceDate || search) && (
           <button
             className="btn btn-ghost"
             style={{ marginBottom: 1 }}

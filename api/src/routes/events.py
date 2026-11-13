@@ -43,6 +43,7 @@ def _event_filters(
     person_id: UUID | None,
     since: datetime | None,
     until: datetime | None,
+    search: str | None = None,
 ) -> tuple[str, list[object]]:
     filters = [
         "e.camera_id IN (SELECT id FROM cameras WHERE owner_id = $1)"
@@ -61,6 +62,20 @@ def _event_filters(
             placeholder = len(params) + 1
             filters.append(f"{expression} ${placeholder}")
             params.append(value)
+    if isinstance(search, str) and search.strip():
+        placeholder = len(params) + 1
+        term = search.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        params.append(f"%{term}%")
+        filters.append(
+            f"(e.event_type ILIKE ${placeholder} ESCAPE E'\\\\' "
+            f"OR e.action_label ILIKE ${placeholder} ESCAPE E'\\\\' "
+            f"OR e.location_label ILIKE ${placeholder} ESCAPE E'\\\\' "
+            "OR EXISTS (SELECT 1 FROM persons ps WHERE ps.id = e.person_id "
+            f"AND ps.owner_id = $1 AND ps.label ILIKE ${placeholder} ESCAPE E'\\\\') "
+            "OR EXISTS (SELECT 1 FROM tracked_objects os WHERE os.id = e.object_id "
+            f"AND os.owner_id = $1 AND (os.label ILIKE ${placeholder} ESCAPE E'\\\\' "
+            f"OR os.category ILIKE ${placeholder} ESCAPE E'\\\\')))"
+        )
     return " AND ".join(filters), params
 
 
@@ -74,10 +89,9 @@ async def list_events(
     person_id: UUID | None = None,
     since: datetime | None = None,
     until: datetime | None = None,
+    search: str | None = Query(None, min_length=1, max_length=120),
 ) -> list[EventOut]:
-    where, params = _event_filters(
-        user["sub"], event_type, person_id, since, until
-    )
+    where, params = _event_filters(user["sub"], event_type, person_id, since, until, search)
     limit_idx = len(params) + 1
     params += [limit, offset]
 
@@ -110,10 +124,9 @@ async def count_events(
     person_id: UUID | None = None,
     since: datetime | None = None,
     until: datetime | None = None,
+    search: str | None = Query(None, min_length=1, max_length=120),
 ) -> EventCountOut:
-    where, params = _event_filters(
-        user["sub"], event_type, person_id, since, until
-    )
+    where, params = _event_filters(user["sub"], event_type, person_id, since, until, search)
     count = await db.fetchval(
         f"SELECT COUNT(*) FROM events e WHERE {where}",
         *params,

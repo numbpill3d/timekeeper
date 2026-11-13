@@ -44,6 +44,18 @@ def test_person_retention_days_is_bounded_and_optional():
         PersonUpdate(retention_days=3651)
 
 
+def test_event_search_is_scoped_and_escapes_wildcards():
+    from api.src.routes.events import _event_filters
+
+    where, params = _event_filters(
+        "owner-1", None, None, None, None, "  blue_%  "
+    )
+
+    assert "ps.owner_id = $1" in where
+    assert "os.owner_id = $1" in where
+    assert params[-1] == r"%blue\_\%%"
+
+
 def test_event_time_filters_normalize_naive_datetimes_to_utc():
     _, params = _event_filters(
         "owner-1",
