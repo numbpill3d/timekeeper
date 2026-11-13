@@ -110,6 +110,9 @@ npm run dev -- --host 127.0.0.1
 
 Direct feeds use RTSP/RTSPS, HTTP(S), HLS, or a local file URL. Give every
 camera a stable location label such as `front door`, `garage`, or `kitchen`.
+When the protocol is omitted, Timekeeper infers the direct-feed adapter from
+the URL scheme; an explicitly contradictory protocol is rejected before the
+camera is saved.
 
 Provider adapters accept `ring://device-id`, `nest://device-id`,
 `arlo://device-id`, and `wyze://device-id` when the corresponding authenticated
@@ -150,6 +153,20 @@ not require either provider and understands common bounded time ranges,
 including overnight ranges such as “between 11 pm and 1 am.” When a fallback
 question explicitly asks who picked up, placed, moved, entered, or left, it also
 filters to that recorded event type instead of mixing unrelated activity.
+For an item-history question, the answer is ordered as a timeline and can
+join the same person’s later exit when the evidence supports it. For example,
+the bundled fixture produces a story like:
+
+```text
+At 4:35 PM, John picked up blue toolbox in the kitchen.
+At 4:39 PM, John moved blue toolbox from kitchen to garage.
+At 4:41 PM, John placed blue toolbox at garage.
+At 4:45 PM, John left at garage.
+```
+
+Each returned evidence row identifies its event time, camera, confidence, and
+an optional short-lived verification clip; the UI also lets an authorized
+reviewer redact a supporting event and its clip.
 
 ## Verification
 
