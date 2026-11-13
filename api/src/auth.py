@@ -110,15 +110,3 @@ def get_current_user(
 
 
 CurrentUser = Annotated[dict, Depends(get_current_user)]
-
-
-def require_tier(*tiers: str):
-    """Dependency factory: raises 403 if user's tier isn't in tiers."""
-    def _check(user: CurrentUser) -> dict:
-        if user.get("tier") not in tiers:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"requires one of: {tiers}",
-            )
-        return user
-    return Depends(_check)
