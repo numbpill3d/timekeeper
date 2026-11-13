@@ -65,10 +65,14 @@ local camera evidence system.
    redact the exact supporting event.
 27. **Redaction link cleanup** — remove a redacted event's supporting row and
    any duplicate top-level clip link from the answer card on both clients.
+28. **Operator event annotations** — let reviewers add, edit, and clear a
+   bounded owner-scoped note beside an event without mutating detector data;
+   expose the note on web and mobile timelines and remove it with retention or
+   redaction cleanup.
 
 ## Next high-value improvements
 
-28. **Trust and retention controls** — add per-camera retention previews,
+29. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins. Camera cards now surface the local
     configured local default and person-specific override behavior. Individual timeline
@@ -80,5 +84,5 @@ local camera evidence system.
 ## Product-level follow-ons
 
 After the above, prioritize saved questions, multi-camera handoff (“follow the
-blue bag from the kitchen to the garage”), operator annotations, and a
-synthetic camera fixture for repeatable end-to-end demo/testing flows.
+blue bag from the kitchen to the garage”), richer annotation search/export, and
+a synthetic camera fixture for repeatable end-to-end demo/testing flows.

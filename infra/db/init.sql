@@ -124,6 +124,20 @@ CREATE TABLE events (
 );
 SELECT create_hypertable('events', 'timestamp');
 
+-- Human review notes are owner-scoped and intentionally separate from
+-- detector metadata so operators can edit them without mutating evidence.
+CREATE TABLE event_annotations (
+    event_id   UUID NOT NULL,
+    owner_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    note       TEXT NOT NULL CHECK (char_length(note) BETWEEN 1 AND 2000),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (event_id, owner_id)
+);
+
+CREATE INDEX event_annotations_owner_updated_idx
+    ON event_annotations (owner_id, updated_at DESC);
+
 -- ── Alert rules ──────────────────────────────────────────────────
 
 CREATE TABLE alert_rules (

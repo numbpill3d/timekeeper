@@ -1,9 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { updateEventAnnotation } from "../api/client";
 import type { OmniscientEvent } from "../api/client";
 
 interface Props {
   event: OmniscientEvent;
   onClose: () => void;
+  onAnnotationSaved?: (note: string | null) => void;
 }
 
 function isImageClip(value: string | null): boolean {
@@ -17,8 +19,11 @@ function isImageClip(value: string | null): boolean {
   }
 }
 
-export function ClipModal({ event, onClose }: Props) {
+export function ClipModal({ event, onClose, onAnnotationSaved }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const [note, setNote] = useState(event.annotation ?? "");
+  const [savingNote, setSavingNote] = useState(false);
+  const [noteError, setNoteError] = useState("");
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -30,6 +35,20 @@ export function ClipModal({ event, onClose }: Props) {
   }, [onClose]);
 
   const isImage = isImageClip(event.clip_path);
+
+  async function saveAnnotation() {
+    const nextNote = note.trim() || null;
+    setSavingNote(true);
+    setNoteError("");
+    try {
+      await updateEventAnnotation(event.id, nextNote);
+      onAnnotationSaved?.(nextNote);
+    } catch {
+      setNoteError("couldn't save this note; the event was left unchanged.");
+    } finally {
+      setSavingNote(false);
+    }
+  }
 
   return (
     <div
@@ -164,6 +183,26 @@ export function ClipModal({ event, onClose }: Props) {
               </div>
             </div>
           ))}
+        </div>
+
+        <div style={{ padding: "10px 16px", borderTop: "1px solid var(--border)" }}>
+          <label htmlFor="event-annotation" className="label">operator note</label>
+          <textarea
+            id="event-annotation"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={2000}
+            placeholder="Add a review note for this event"
+            rows={3}
+            style={{ width: "100%", marginTop: 5, resize: "vertical", boxSizing: "border-box" }}
+          />
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
+            <button className="btn btn-ghost" type="button" onClick={() => void saveAnnotation()} disabled={savingNote}>
+              {savingNote ? "saving..." : "save note"}
+            </button>
+            <span style={{ fontSize: 10, color: "var(--text-dim)" }}>{note.length}/2000</span>
+            {noteError && <span role="alert" style={{ fontSize: 10, color: "var(--accent-hi)" }}>{noteError}</span>}
+          </div>
         </div>
       </div>
     </div>

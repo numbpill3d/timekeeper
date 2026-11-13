@@ -9,7 +9,7 @@ from uuid import UUID
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from omniscient_shared.time import to_utc
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..audit import record_audit
 from ..auth import CurrentUser
@@ -33,6 +33,16 @@ class EventOut(BaseModel):
     clip_path: str | None
     person_label: str | None
     object_label: str | None
+    annotation: str | None = None
+
+
+class AnnotationUpdate(BaseModel):
+    note: str | None = Field(default=None, max_length=2000)
+
+
+class AnnotationOut(BaseModel):
+    note: str | None
+    updated_at: datetime | None
 
 
 class EventCountOut(BaseModel):
@@ -102,11 +112,14 @@ async def list_events(
         SELECT e.id, e.camera_id, c.name AS camera_name, e.event_type, e.timestamp,
                e.action_label, e.location_label, e.confidence, e.clip_path,
                p.label AS person_label,
-               COALESCE(o.label, o.category) AS object_label
+               COALESCE(o.label, o.category) AS object_label,
+               ea.note AS annotation
         FROM events e
         JOIN cameras c ON c.id = e.camera_id AND c.owner_id = $1
         LEFT JOIN persons p ON e.person_id = p.id AND p.owner_id = $1
         LEFT JOIN tracked_objects o ON e.object_id = o.id AND o.owner_id = $1
+        LEFT JOIN event_annotations ea
+          ON ea.event_id = e.id AND ea.owner_id = $1
         WHERE {where}
         ORDER BY e.timestamp DESC, e.id DESC
         LIMIT ${limit_idx} OFFSET ${limit_idx + 1}
@@ -144,11 +157,14 @@ async def get_event(
     row = await db.fetchrow(
         """
         SELECT e.*, c.name AS camera_name, p.label AS person_label,
-               COALESCE(o.label, o.category) AS object_label
+               COALESCE(o.label, o.category) AS object_label,
+               ea.note AS annotation
         FROM events e
         JOIN cameras c ON c.id = e.camera_id AND c.owner_id = $2
         LEFT JOIN persons p ON e.person_id = p.id AND p.owner_id = $2
         LEFT JOIN tracked_objects o ON e.object_id = o.id AND o.owner_id = $2
+        LEFT JOIN event_annotations ea
+          ON ea.event_id = e.id AND ea.owner_id = $2
         WHERE e.id = $1
           AND e.camera_id IN (SELECT id FROM cameras WHERE owner_id = $2)
         """,
@@ -160,6 +176,55 @@ async def get_event(
     return EventOut(
         **{**dict(row), "clip_path": safe_signed_clip_url(row["clip_path"])}
     )
+
+
+@router.patch("/{event_id}/annotation", response_model=AnnotationOut)
+async def update_event_annotation(
+    event_id: UUID,
+    payload: AnnotationUpdate,
+    user: CurrentUser,
+    db: DB,
+) -> AnnotationOut:
+    """Create, replace, or clear one owner's review note for an event."""
+    note = payload.note.strip() if payload.note is not None else ""
+    async with db.transaction():
+        exists = await db.fetchval(
+            """
+            SELECT EXISTS(
+                SELECT 1 FROM events e
+                JOIN cameras c ON c.id = e.camera_id AND c.owner_id = $2
+                WHERE e.id = $1
+            )
+            """,
+            event_id,
+            user["sub"],
+        )
+        if not exists:
+            raise HTTPException(status_code=404, detail="event not found")
+        if note:
+            row = await db.fetchrow(
+                """
+                INSERT INTO event_annotations (event_id, owner_id, note)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (event_id, owner_id) DO UPDATE
+                SET note = EXCLUDED.note, updated_at = NOW()
+                RETURNING note, updated_at
+                """,
+                event_id,
+                user["sub"],
+                note,
+            )
+            action = "annotate"
+        else:
+            await db.execute(
+                "DELETE FROM event_annotations WHERE event_id = $1 AND owner_id = $2",
+                event_id,
+                user["sub"],
+            )
+            row = None
+            action = "clear_annotation"
+        await record_audit(db, user["sub"], action, "event", event_id)
+    return AnnotationOut(**(dict(row) if row else {"note": None, "updated_at": None}))
 
 
 @router.delete("/{event_id}", status_code=204)
@@ -182,6 +247,7 @@ async def redact_event(
         if not row:
             raise HTTPException(status_code=404, detail="event not found")
         await db.execute("DELETE FROM alert_deliveries WHERE event_id = $1", event_id)
+        await db.execute("DELETE FROM event_annotations WHERE event_id = $1", event_id)
         await db.execute("DELETE FROM events WHERE id = $1", event_id)
         await record_audit(
             db,

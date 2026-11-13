@@ -1,14 +1,19 @@
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { formatDistanceToNow } from "date-fns";
-import { OmniscientEvent } from "../api/client";
+import { OmniscientEvent, updateEventAnnotation } from "../api/client";
 
 interface Props {
   event: OmniscientEvent;
   onRedact?: () => void;
   redacting?: boolean;
+  allowAnnotation?: boolean;
 }
 
-export function EventCard({ event, onRedact, redacting }: Props) {
+export function EventCard({ event, onRedact, redacting, allowAnnotation }: Props) {
+  const [note, setNote] = useState(event.annotation ?? "");
+  const [editingNote, setEditingNote] = useState(false);
+  const [savingNote, setSavingNote] = useState(false);
   const ago = formatDistanceToNow(new Date(event.timestamp), {
     addSuffix: true,
   });
@@ -46,6 +51,51 @@ export function EventCard({ event, onRedact, redacting }: Props) {
           <Text style={styles.clip}>view evidence →</Text>
         </Pressable>
       )}
+      {allowAnnotation ? (
+        <View style={styles.annotationBlock}>
+          {editingNote ? (
+            <>
+              <TextInput
+                accessibilityLabel="Event review note"
+                value={note}
+                onChangeText={setNote}
+                maxLength={2000}
+                multiline
+                placeholder="Add a review note"
+                placeholderTextColor="#666"
+                style={styles.noteInput}
+              />
+              <View style={styles.noteActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Save event note"
+                  disabled={savingNote}
+                  onPress={() => {
+                    setSavingNote(true);
+                    void updateEventAnnotation(event.id, note.trim() || null)
+                      .then(() => setEditingNote(false))
+                      .catch(() => undefined)
+                      .finally(() => setSavingNote(false));
+                  }}
+                >
+                  <Text style={styles.noteAction}>{savingNote ? "saving..." : "save note"}</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel="Cancel event note" onPress={() => setEditingNote(false)}>
+                  <Text style={styles.noteCancel}>cancel</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={note ? "Edit event note" : "Add event note"}
+              onPress={() => setEditingNote(true)}
+            >
+              <Text style={styles.noteText}>{note ? `note: ${note}` : "+ add note"}</Text>
+            </Pressable>
+          )}
+        </View>
+      ) : null}
       {onRedact ? (
         <Pressable
           accessibilityRole="button"
@@ -92,4 +142,13 @@ const styles = StyleSheet.create({
   },
   redact: { alignSelf: "flex-start", marginTop: 8, paddingVertical: 2 },
   redactText: { color: "#777", fontSize: 10, textDecorationLine: "underline" },
+  annotationBlock: { marginTop: 7 },
+  noteText: { color: "#888", fontSize: 11 },
+  noteInput: {
+    backgroundColor: "#111", borderColor: "#333", borderWidth: 1, color: "#fff",
+    minHeight: 54, paddingHorizontal: 8, paddingVertical: 7, fontSize: 11,
+  },
+  noteActions: { flexDirection: "row", gap: 12, marginTop: 5 },
+  noteAction: { color: "#c00", fontSize: 10, textDecorationLine: "underline" },
+  noteCancel: { color: "#777", fontSize: 10, textDecorationLine: "underline" },
 });

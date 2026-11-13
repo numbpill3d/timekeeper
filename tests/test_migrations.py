@@ -53,3 +53,11 @@ def test_camera_frame_metrics_migration_records_diagnostic_columns():
     assert "last_frame_height" in migration
     assert "observed_fps" in migration
     assert "VALUES ('007_camera_frame_metrics')" in migration
+
+
+def test_event_annotation_migration_keeps_notes_owner_scoped_and_bounded():
+    migration = (MIGRATION_DIR / "009_event_annotations.sql").read_text(encoding="utf-8")
+    assert "owner_id" in migration
+    assert "char_length(note) BETWEEN 1 AND 2000" in migration
+    assert "PRIMARY KEY (event_id, owner_id)" in migration
+    assert "VALUES ('009_event_annotations')" in migration

@@ -42,3 +42,9 @@ distinguish online, starting, stale, error, and paused camera states.
 
 `007_camera_frame_metrics.sql` adds the latest observed frame dimensions and
 sampled FPS for diagnostics without retaining additional image data.
+
+`008_audit_log.sql` adds the owner-scoped audit history used for deliberate
+camera, person, and evidence changes.
+
+`009_event_annotations.sql` adds owner-scoped, bounded operator notes for
+individual events. Notes are removed when an event is redacted or expires.

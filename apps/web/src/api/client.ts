@@ -40,6 +40,7 @@ export interface OmniscientEvent {
   clip_path: string | null;
   person_label: string | null;
   object_label: string | null;
+  annotation: string | null;
 }
 
 export interface QueryResponse {
@@ -163,6 +164,8 @@ export const getEvent = (id: string) =>
   api.get<OmniscientEvent>(`/events/${id}`);
 
 export const redactEvent = (id: string) => api.delete(`/events/${id}`);
+export const updateEventAnnotation = (id: string, note: string | null) =>
+  api.patch<{ note: string | null; updated_at: string | null }>(`/events/${id}/annotation`, { note });
 
 // ── Query ─────────────────────────────────────────────────────────
 

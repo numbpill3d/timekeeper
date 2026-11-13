@@ -112,7 +112,8 @@ async def test_retention_deletes_alert_deliveries_with_expired_events():
 
     assert deleted == 1
     assert "DELETE FROM alert_deliveries" in db.statements[0]
-    assert "DELETE FROM events" in db.statements[1]
+    assert "DELETE FROM event_annotations" in db.statements[1]
+    assert "DELETE FROM events" in db.statements[2]
 
 
 @pytest.mark.asyncio

@@ -440,6 +440,10 @@ async def delete_camera(
                 "DELETE FROM alert_deliveries WHERE event_id = ANY($1::uuid[])",
                 event_ids,
             )
+            await db.execute(
+                "DELETE FROM event_annotations WHERE event_id = ANY($1::uuid[])",
+                event_ids,
+            )
         await db.execute("DELETE FROM detections WHERE camera_id = $1", camera_id)
         await db.execute("DELETE FROM events WHERE camera_id = $1", camera_id)
         await db.execute(

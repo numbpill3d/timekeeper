@@ -237,6 +237,7 @@ export function TimelineScreen() {
         ) : (
           <EventCard
             event={item.event}
+            allowAnnotation
             onRedact={() => confirmRedaction(item.event)}
             redacting={redact.isPending && redact.variables === item.event.id}
           />

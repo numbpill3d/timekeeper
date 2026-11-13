@@ -105,6 +105,7 @@ export interface OmniscientEvent {
   clip_path: string | null;
   person_label: string | null;
   object_label: string | null;
+  annotation: string | null;
 }
 
 export const listEvents = (params?: {
@@ -115,6 +116,8 @@ export const listEvents = (params?: {
 }) => api.get<OmniscientEvent[]>("/events", { params });
 
 export const redactEvent = (id: string) => api.delete(`/events/${id}`);
+export const updateEventAnnotation = (id: string, note: string | null) =>
+  api.patch<{ note: string | null; updated_at: string | null }>(`/events/${id}/annotation`, { note });
 
 export interface Camera {
   id: string;

@@ -32,7 +32,9 @@ invent an identity or action when the evidence is missing or weak.
   its separate model dependencies.
 - Provides a React/Vite dashboard, FastAPI API, mobile app foundation, alerts,
   bounded retention cleanup for raw detections/events/clips, and private signed
-  clip URLs.
+  clip URLs. Reviewers can also attach owner-scoped notes to timeline events;
+  notes are editable on web/mobile and are removed with the evidence they
+  describe.
 - Keeps camera/provider credentials out of event data and rejects credential
   material embedded in camera URLs or provider configuration.
 
@@ -121,7 +123,8 @@ rejected and existing ones are skipped by ingestion until such an agent is
 connected.
 
 Removing a camera is destructive: its detections, events, alert-delivery
-records, and private evidence clips are removed as part of the operation.
+records, event annotations, and private evidence clips are removed as part of
+the operation.
 Deactivate or retain the camera if its history must remain available.
 
 ## Query behavior

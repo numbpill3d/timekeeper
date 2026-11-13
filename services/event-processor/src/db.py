@@ -176,11 +176,15 @@ async def purge_expired_events(conn: asyncpg.Connection) -> int:
     if not deletable_ids:
         return 0
     async with conn.transaction():
-        # alert_deliveries intentionally has no FK to the hypertable's
-        # composite primary key, so retention must remove its history
+        # These auxiliary tables intentionally do not FK to the hypertable's
+        # composite primary key, so retention must remove their history
         # explicitly before deleting the corresponding events.
         await conn.execute(
             "DELETE FROM alert_deliveries WHERE event_id = ANY($1::uuid[])",
+            deletable_ids,
+        )
+        await conn.execute(
+            "DELETE FROM event_annotations WHERE event_id = ANY($1::uuid[])",
             deletable_ids,
         )
         await conn.execute(

@@ -49,6 +49,10 @@ export function Timeline() {
   const [offset, setOffset] = useState(0);
   const PAGE = 50;
   const closeSelected = useCallback(() => setSelected(null), []);
+  function handleAnnotationSaved(note: string | null) {
+    setSelected((event) => event ? { ...event, annotation: note } : event);
+    void queryClient.invalidateQueries({ queryKey: ["events", "timeline"] });
+  }
   const redact = useMutation({
     mutationFn: redactEvent,
     onSuccess: async () => {
@@ -485,6 +489,15 @@ export function Timeline() {
                       </td>
                       <td style={{ padding: "8px 12px", color: "var(--text)" }}>
                         {e.action_label}
+                        {e.annotation && (
+                          <span
+                            title="has operator note"
+                            aria-label="has operator note"
+                            style={{ marginLeft: 6, color: "var(--amber)", fontSize: 10 }}
+                          >
+                            ✎
+                          </span>
+                        )}
                       </td>
                       <td
                         style={{
@@ -596,7 +609,11 @@ export function Timeline() {
       </div>
 
       {selected && (
-        <ClipModal event={selected} onClose={closeSelected} />
+        <ClipModal
+          event={selected}
+          onClose={closeSelected}
+          onAnnotationSaved={handleAnnotationSaved}
+        />
       )}
     </div>
   );
