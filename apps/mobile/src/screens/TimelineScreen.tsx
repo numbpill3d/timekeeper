@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   FlatList,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,8 +9,8 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useQuery } from "@tanstack/react-query";
-import { listEvents, OmniscientEvent } from "../api/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { listEvents, OmniscientEvent, redactEvent } from "../api/client";
 import { EventCard } from "../components/EventCard";
 
 const EVENT_TYPES = [
@@ -39,10 +40,40 @@ function localDateTimeValue(date: Date): string {
 }
 
 export function TimelineScreen() {
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState("");
   const [since, setSince] = useState("");
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
+  const [redactError, setRedactError] = useState("");
+
+  const redact = useMutation({
+    mutationFn: redactEvent,
+    onSuccess: async () => {
+      setRedactError("");
+      await queryClient.invalidateQueries({ queryKey: ["events", "timeline"] });
+    },
+    onError: () => setRedactError("couldn't redact that event; it was left unchanged."),
+  });
+
+  function confirmRedaction(event: OmniscientEvent) {
+    if (redact.isPending) return;
+    Alert.alert(
+      "Redact event?",
+      `Permanently remove this ${event.action_label} event and its clip?`,
+      [
+        { text: "cancel", style: "cancel" },
+        {
+          text: "redact",
+          style: "destructive",
+          onPress: () => {
+            setRedactError("");
+            redact.mutate(event.id);
+          },
+        },
+      ],
+    );
+  }
 
   const { data, isLoading, isRefetching, isError, refetch } = useQuery({
     queryKey: ["events", "timeline", filter, since, search],
@@ -79,6 +110,9 @@ export function TimelineScreen() {
 
   return (
     <View style={styles.container}>
+      {redactError ? (
+        <Text style={styles.error} accessibilityRole="alert">{redactError}</Text>
+      ) : null}
       <View style={styles.searchRow}>
         <TextInput
           style={styles.searchInput}
@@ -200,7 +234,13 @@ export function TimelineScreen() {
             <Text style={styles.groupLabel}>{item.label}</Text>
             <Text style={styles.groupCount}>{item.count} {item.count === 1 ? "event" : "events"}</Text>
           </View>
-        ) : <EventCard event={item.event} />}
+        ) : (
+          <EventCard
+            event={item.event}
+            onRedact={() => confirmRedaction(item.event)}
+            redacting={redact.isPending && redact.variables === item.event.id}
+          />
+        )}
         ItemSeparatorComponent={() => <View style={styles.sep} />}
       />
     </View>
@@ -249,4 +289,5 @@ const styles = StyleSheet.create({
   empty: { color: "#888", fontSize: 14, textAlign: "center" },
   retry: { borderColor: "#555", borderWidth: 1, marginTop: 12, paddingHorizontal: 12, paddingVertical: 7 },
   retryText: { color: "#ccc", fontSize: 12 },
+  error: { color: "#f66", fontSize: 12, marginBottom: 10 },
 });

@@ -4,9 +4,11 @@ import { OmniscientEvent } from "../api/client";
 
 interface Props {
   event: OmniscientEvent;
+  onRedact?: () => void;
+  redacting?: boolean;
 }
 
-export function EventCard({ event }: Props) {
+export function EventCard({ event, onRedact, redacting }: Props) {
   const ago = formatDistanceToNow(new Date(event.timestamp), {
     addSuffix: true,
   });
@@ -44,6 +46,17 @@ export function EventCard({ event }: Props) {
           <Text style={styles.clip}>view evidence →</Text>
         </Pressable>
       )}
+      {onRedact ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Redact ${event.action_label} event`}
+          disabled={redacting}
+          onPress={onRedact}
+          style={styles.redact}
+        >
+          <Text style={styles.redactText}>{redacting ? "redacting..." : "redact event"}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -77,4 +90,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textDecorationLine: "underline",
   },
+  redact: { alignSelf: "flex-start", marginTop: 8, paddingVertical: 2 },
+  redactText: { color: "#777", fontSize: 10, textDecorationLine: "underline" },
 });

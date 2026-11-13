@@ -101,6 +101,8 @@ export const listEvents = (params?: {
   search?: string;
 }) => api.get<OmniscientEvent[]>("/events", { params });
 
+export const redactEvent = (id: string) => api.delete(`/events/${id}`);
+
 export interface Camera {
   id: string;
   name: string;
