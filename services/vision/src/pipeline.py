@@ -357,8 +357,10 @@ class VisionPipeline:
             person_id = UUID(pid_str)
             if self._db:
                 updated = await self._db.execute(
-                    "UPDATE persons SET last_seen_at = NOW() WHERE id = $1",
+                    "UPDATE persons SET last_seen_at = NOW() "
+                    "WHERE id = $1 AND owner_id = $2",
                     person_id,
+                    UUID(owner_id_str),
                 )
                 if updated == "UPDATE 0":
                     # A person can be deleted while this process still holds
@@ -423,13 +425,22 @@ class VisionPipeline:
             return None
         if key in self._obj_map:
             obj_id = self._obj_map[key]
-            await self._db.execute(
+            owner_id_str = self._cam_owners.get(str(camera_id))
+            if not owner_id_str:
+                return None
+            updated = await self._db.execute(
                 "UPDATE tracked_objects SET last_camera_id = $1, "
-                "last_seen_at = NOW() WHERE id = $2",
+                "last_seen_at = NOW() WHERE id = $2 AND owner_id = $3",
                 camera_id,
                 obj_id,
+                UUID(owner_id_str),
             )
-            return obj_id
+            if updated != "UPDATE 0":
+                return obj_id
+            # Camera ownership or the object row may have changed since this
+            # session cached the mapping. Recreate it instead of returning a
+            # foreign or dangling object ID.
+            self._obj_map.pop(key, None)
 
         owner_id_str = self._cam_owners.get(str(camera_id))
         if not owner_id_str:
