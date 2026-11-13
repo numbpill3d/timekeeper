@@ -15,7 +15,7 @@ permissions:
 jobs:
   python:
     name: Python tests and contracts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -58,7 +58,7 @@ jobs:
 
   web:
     name: Web build and audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: apps/web
@@ -75,7 +75,7 @@ jobs:
 
   mobile:
     name: Mobile type-check and audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: apps/mobile
@@ -93,7 +93,7 @@ jobs:
 
   compose:
     name: Compose configuration
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - name: Validate Compose file
@@ -101,7 +101,7 @@ jobs:
 
   runtime-audit:
     name: Runtime dependency audit (${{ matrix.requirements }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
