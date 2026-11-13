@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useSearchParams } from "react-router-dom";
@@ -91,6 +91,24 @@ export function Timeline() {
   const hasNextPage = isCountError
     ? data.length === PAGE
     : countData !== undefined && offset + data.length < total;
+  const groupedEvents = data.reduce<Array<{ key: string; label: string; events: OmniscientEvent[] }>>(
+    (groups, event) => {
+      const date = new Date(event.timestamp);
+      const key = Number.isNaN(date.getTime()) ? "unknown" : format(date, "yyyy-MM-dd-HH");
+      const current = groups[groups.length - 1];
+      if (current?.key === key) {
+        current.events.push(event);
+      } else {
+        groups.push({
+          key,
+          label: Number.isNaN(date.getTime()) ? "unknown time" : format(date, "MMM d · HH:00"),
+          events: [event],
+        });
+      }
+      return groups;
+    },
+    [],
+  );
 
   function reset() {
     setSearchDraft("");
@@ -306,96 +324,120 @@ export function Timeline() {
               </tr>
             </thead>
             <tbody>
-              {data.map((e) => (
-                <tr
-                  key={e.id}
-                  onClick={() => e.clip_path && setSelected(e)}
-                  tabIndex={e.clip_path ? 0 : undefined}
-                  onKeyDown={(event) => {
-                    if (e.clip_path && (event.key === "Enter" || event.key === " ")) {
-                      event.preventDefault();
-                      setSelected(e);
-                    }
-                  }}
-                  aria-label={e.clip_path ? `View evidence for ${e.action_label}` : undefined}
-                  style={{
-                    borderBottom: "1px solid var(--border)",
-                    cursor: e.clip_path ? "pointer" : "default",
-                    transition: "background 0.08s",
-                  }}
-                  onMouseEnter={(ev) =>
-                    ((ev.currentTarget as HTMLElement).style.background =
-                      "var(--surface)")
-                  }
-                  onMouseLeave={(ev) =>
-                    ((ev.currentTarget as HTMLElement).style.background =
-                      "transparent")
-                  }
-                >
-                  <td
-                    style={{
-                      padding: "8px 12px",
-                      color: "var(--text-dim)",
-                      whiteSpace: "nowrap",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
+              {groupedEvents.map((group) => (
+                <Fragment key={group.key}>
+                  <tr
+                    aria-label={`${group.label}, ${group.events.length} events`}
+                    style={{ background: "var(--surface)" }}
                   >
-                    {format(new Date(e.timestamp), "MMM d HH:mm:ss")}
-                  </td>
-                  <td style={{ padding: "8px 12px", color: "var(--text-dim)" }}>
-                    {e.camera_name}
-                  </td>
-                  <td style={{ padding: "8px 12px", color: "var(--text)" }}>
-                    {e.action_label}
-                  </td>
-                  <td
-                    style={{
-                      padding: "8px 12px",
-                      color: "var(--text-dim)",
-                    }}
-                  >
-                    {e.location_label ?? "—"}
-                  </td>
-                  <td
-                    style={{
-                      padding: "8px 12px",
-                      color: e.person_label ? "var(--accent)" : "var(--text-dim)",
-                    }}
-                  >
-                    {e.person_label ?? "—"}
-                  </td>
-                  <td
-                    style={{
-                      padding: "8px 12px",
-                      color: e.object_label ? "var(--amber)" : "var(--text-dim)",
-                    }}
-                  >
-                    {e.object_label ?? "—"}
-                  </td>
-                  <td
-                    style={{
-                      padding: "8px 12px",
-                      color: CONF_COLOR(e.confidence),
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {Math.round(e.confidence * 100)}%
-                  </td>
-                  <td style={{ padding: "8px 12px" }}>
-                    {e.clip_path && (
-                      <span
+                    <th
+                      colSpan={8}
+                      scope="rowgroup"
+                      style={{
+                        padding: "6px 12px",
+                        color: "var(--text-dim)",
+                        fontSize: 10,
+                        fontWeight: "normal",
+                        letterSpacing: "0.08em",
+                        textAlign: "left",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {group.label} · {group.events.length} {group.events.length === 1 ? "event" : "events"}
+                    </th>
+                  </tr>
+                  {group.events.map((e) => (
+                    <tr
+                      key={e.id}
+                      onClick={() => e.clip_path && setSelected(e)}
+                      tabIndex={e.clip_path ? 0 : undefined}
+                      onKeyDown={(event) => {
+                        if (e.clip_path && (event.key === "Enter" || event.key === " ")) {
+                          event.preventDefault();
+                          setSelected(e);
+                        }
+                      }}
+                      aria-label={e.clip_path ? `View evidence for ${e.action_label}` : undefined}
+                      style={{
+                        borderBottom: "1px solid var(--border)",
+                        cursor: e.clip_path ? "pointer" : "default",
+                        transition: "background 0.08s",
+                      }}
+                      onMouseEnter={(ev) =>
+                        ((ev.currentTarget as HTMLElement).style.background =
+                          "var(--surface)")
+                      }
+                      onMouseLeave={(ev) =>
+                        ((ev.currentTarget as HTMLElement).style.background =
+                          "transparent")
+                      }
+                    >
+                      <td
                         style={{
-                          fontSize: 10,
-                          color: "var(--accent)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.08em",
+                          padding: "8px 12px",
+                          color: "var(--text-dim)",
+                          whiteSpace: "nowrap",
+                          fontVariantNumeric: "tabular-nums",
                         }}
                       >
-                        ▸ view
-                      </span>
-                    )}
-                  </td>
-                </tr>
+                        {format(new Date(e.timestamp), "MMM d HH:mm:ss")}
+                      </td>
+                      <td style={{ padding: "8px 12px", color: "var(--text-dim)" }}>
+                        {e.camera_name}
+                      </td>
+                      <td style={{ padding: "8px 12px", color: "var(--text)" }}>
+                        {e.action_label}
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px 12px",
+                          color: "var(--text-dim)",
+                        }}
+                      >
+                        {e.location_label ?? "—"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px 12px",
+                          color: e.person_label ? "var(--accent)" : "var(--text-dim)",
+                        }}
+                      >
+                        {e.person_label ?? "—"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px 12px",
+                          color: e.object_label ? "var(--amber)" : "var(--text-dim)",
+                        }}
+                      >
+                        {e.object_label ?? "—"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px 12px",
+                          color: CONF_COLOR(e.confidence),
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >
+                        {Math.round(e.confidence * 100)}%
+                      </td>
+                      <td style={{ padding: "8px 12px" }}>
+                        {e.clip_path && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              color: "var(--accent)",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.08em",
+                            }}
+                          >
+                            ▸ view
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </Fragment>
               ))}
             </tbody>
           </table>
