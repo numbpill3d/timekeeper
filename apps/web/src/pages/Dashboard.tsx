@@ -35,8 +35,9 @@ export function Dashboard() {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const todayKey = today.toISOString().slice(0, 10);
   const { data: todayCount = 0 } = useQuery({
-    queryKey: ["events", "today", "count"],
+    queryKey: ["events", "today", todayKey, "count"],
     queryFn: () => countEvents({ since: today.toISOString() }).then((r) => r.data.count),
     refetchInterval: 30_000,
   });
@@ -87,7 +88,7 @@ export function Dashboard() {
 
       <div className="metric-strip">
         <div className="metric"><div className="label">events today</div><div className="metric-value">{todayCount}</div><div className="metric-note">recent detections</div></div>
-        <div className="metric"><div className="label">cameras online</div><div className="metric-value">{activeCams}<span style={{ color: "var(--text-dim)", fontSize: 15 }}> / {cameras.length}</span></div><div className="metric-note">{activeCams < cameras.length ? "some offline" : "all nominal"}</div></div>
+        <div className="metric"><div className="label">cameras active</div><div className="metric-value">{activeCams}<span style={{ color: "var(--text-dim)", fontSize: 15 }}> / {cameras.length}</span></div><div className="metric-note">{activeCams < cameras.length ? "some paused" : "all enabled"}</div></div>
         <div className="metric"><div className="label">active alerts</div><div className="metric-value" style={{ color: alertCount ? "var(--accent)" : "var(--text-bright)" }}>{alertCount}</div><div className="metric-note">{alertCount ? "requires attention" : "clear"}</div></div>
         <div className="metric"><div className="label">event stream</div><div className="metric-value" style={{ color: wsConnected ? "var(--green)" : "var(--amber)", fontSize: 18, paddingTop: 4 }}>{wsConnected ? "LIVE" : "WAITING"}</div><div className="metric-note">{wsConnected ? "receiving now" : "reconnecting"}</div></div>
       </div>

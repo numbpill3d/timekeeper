@@ -31,9 +31,10 @@ export function CamerasScreen() {
           <View style={styles.card}>
             <Text style={styles.name}>{item.name}</Text>
             <Text style={styles.meta}>
-              {item.location_label ?? "no location"} · {item.protocol}
+              {item.location_label ?? "no location"} · {item.protocol} · {item.is_active ? "active" : "paused"}
             </Text>
             <View
+              accessibilityLabel={item.is_active ? "Camera active" : "Camera paused"}
               style={[styles.dot, item.is_active ? styles.online : styles.offline]}
             />
           </View>

@@ -70,7 +70,7 @@ function CameraCard({
               letterSpacing: "0.1em",
             }}
           >
-            {cam.is_active ? "online" : "offline"}
+            {cam.is_active ? "active" : "paused"}
           </span>
         </div>
       </div>
@@ -198,7 +198,7 @@ export function Cameras() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["cameras"] }),
   });
 
-  const onlineCams = cameras.filter((c) => c.is_active).length;
+  const activeCams = cameras.filter((c) => c.is_active).length;
 
   return (
     <div
@@ -214,7 +214,7 @@ export function Cameras() {
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <span className="section-title">cameras</span>
           <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
-            {onlineCams}/{cameras.length} online
+            {activeCams}/{cameras.length} active
           </span>
         </div>
         <button

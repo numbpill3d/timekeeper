@@ -13,22 +13,22 @@ const TIER_INFO: Record<
   free: {
     label: "free",
     cameras: 2,
-    features: ["2 cameras", "10 queries/month", "30-day retention"],
+    features: ["2 cameras", "10 queries/month", "30-day event default"],
   },
   home: {
     label: "home",
     cameras: 5,
-    features: ["5 cameras", "unlimited queries", "90-day retention", "sms alerts"],
+    features: ["5 cameras", "unlimited queries", "30-day event default"],
   },
   family: {
     label: "family",
     cameras: 10,
-    features: ["10 cameras", "unlimited queries", "180-day retention", "sms + push", "multi-user"],
+    features: ["10 cameras", "unlimited queries", "30-day event default"],
   },
   pro: {
     label: "pro",
     cameras: 9999,
-    features: ["unlimited cameras", "unlimited queries", "365-day retention", "all channels", "api access"],
+    features: ["unlimited cameras", "unlimited queries", "30-day event default"],
   },
 };
 
