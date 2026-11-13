@@ -54,13 +54,15 @@ async def stream_camera(
             )
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, 60.0)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001 - keep camera tasks alive
             # Kafka/client failures are recoverable stream errors too. Without
             # this boundary a single publish failure permanently kills the
             # camera task while the reload loop still considers it present.
-            log.exception(
+            # Do not emit a traceback here: provider/client exceptions can
+            # contain the configured stream URL or other connection details.
+            log.error(
                 "unexpected stream failure for %s — retrying in %.0fs",
-                camera.name,
+                safe_stream_error_context(camera, exc),
                 backoff,
             )
             await asyncio.sleep(backoff)
