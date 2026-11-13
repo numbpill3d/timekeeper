@@ -39,6 +39,20 @@ def test_synthesis_falls_back_to_recorded_evidence(monkeypatch):
     assert "John picked up blue keys" in answer
 
 
+def test_evidence_formatter_includes_camera_source_when_available():
+    answer = llm._format_evidence_response([
+        {
+            "event_type": "object_picked_up",
+            "timestamp": datetime(2026, 11, 11, 16, 30, tzinfo=UTC),
+            "person_label": "John",
+            "object_category": "keys",
+            "location_label": "kitchen",
+            "camera_name": "Kitchen camera",
+        }
+    ])
+    assert answer == "At 04:30 PM, John picked up keys at kitchen on camera Kitchen camera."
+
+
 def test_empty_model_content_falls_back_to_recorded_evidence(monkeypatch):
     async def empty(system: str, user: str) -> str:
         return "   "

@@ -111,6 +111,11 @@ export function ChatScreen() {
                 {Math.round(item.confidence * 100)}% confidence
               </Text>
             )}
+            {item.role === "assistant" && item.confidence === 0 && !item.evidence?.length ? (
+              <Text style={styles.noEvidence} accessibilityRole="text">
+                no matching recorded evidence was returned
+              </Text>
+            ) : null}
             {item.clips?.map((clip: string, index: number) => (
               <Pressable
                 key={`${item.id}-clip-${index}`}
@@ -202,6 +207,7 @@ const styles = StyleSheet.create({
   },
   bubbleText: { color: "#fff", fontSize: 14, lineHeight: 20 },
   confidence: { color: "#888", fontSize: 11, marginTop: 4 },
+  noEvidence: { color: "#777", fontSize: 11, marginTop: 5 },
   evidence: {
     marginTop: 8,
     paddingTop: 8,

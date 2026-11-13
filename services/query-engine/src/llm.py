@@ -173,7 +173,10 @@ def _format_evidence_response(rows: list[dict]) -> str:
         item = row.get("object_label") or row.get("object_category") or "the recorded item"
         action = str(row.get("event_type") or row.get("action_label") or "activity")
         location = row.get("location_label")
+        camera = row.get("camera_name")
         where = f" at {location}" if location else ""
+        if camera:
+            where += f" on camera {camera}"
 
         if action == "object_picked_up":
             lines.append(f"At {time_text}, {person} picked up {item}{where}.")

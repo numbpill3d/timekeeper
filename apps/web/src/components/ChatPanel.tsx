@@ -177,6 +177,18 @@ export function ChatPanel() {
                 ! {Math.round(m.confidence * 100)}% confidence
               </div>
             )}
+            {m.role === "assistant" && m.confidence === 0 && !m.evidence?.length && (
+              <div
+                role="status"
+                style={{
+                  fontSize: 10,
+                  color: "var(--text-dim)",
+                  marginTop: 5,
+                }}
+              >
+                no matching recorded evidence was returned
+              </div>
+            )}
             {m.clips && m.clips.length > 0 && (
               <div style={{ marginTop: 6 }}>
                 {m.clips.map((c, i) => (
