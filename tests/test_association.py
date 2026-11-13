@@ -31,3 +31,13 @@ def test_low_confidence_person_is_not_promoted_to_identity():
         [PersonCandidate(uuid4(), (0.25, 0.10, 0.70, 0.90), 0.40)],
     )
     assert result is None
+
+
+def test_ambiguous_overlapping_people_are_not_promoted_to_identity():
+    object_bbox = (0.46, 0.56, 0.54, 0.64)
+    candidates = [
+        PersonCandidate(uuid4(), (0.10, 0.10, 0.90, 0.90), 0.95),
+        PersonCandidate(uuid4(), (0.10, 0.10, 0.90, 0.90), 0.94),
+    ]
+
+    assert associate_person(object_bbox, candidates) is None

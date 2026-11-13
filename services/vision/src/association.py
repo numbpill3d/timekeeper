@@ -43,6 +43,7 @@ def associate_person(
     ox = (object_bbox[0] + object_bbox[2]) / 2
     oy = (object_bbox[1] + object_bbox[3]) / 2
     best: Association | None = None
+    runner_up_confidence = 0.0
 
     for candidate in candidates:
         x1, y1, x2, y2 = candidate.bbox
@@ -59,7 +60,19 @@ def associate_person(
         score = (0.75 + 0.25 * proximity) if inside else 0.45 * proximity
         score *= max(0.0, min(1.0, candidate.detection_confidence))
 
-        if score >= threshold and (best is None or score > best.confidence):
-            best = Association(candidate.person_id, round(score, 4))
+        if score < threshold:
+            continue
+        rounded_score = round(score, 4)
+        if best is None or rounded_score > best.confidence:
+            if best is not None:
+                runner_up_confidence = max(runner_up_confidence, best.confidence)
+            best = Association(candidate.person_id, rounded_score)
+        else:
+            runner_up_confidence = max(runner_up_confidence, rounded_score)
+
+    # A close tie is not enough evidence to name one person. Returning no
+    # association keeps downstream event answers honest when people overlap.
+    if best is not None and best.confidence - runner_up_confidence < 0.08:
+        return None
 
     return best
