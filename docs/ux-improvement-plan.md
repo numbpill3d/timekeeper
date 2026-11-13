@@ -69,10 +69,13 @@ local camera evidence system.
    bounded owner-scoped note beside an event without mutating detector data;
    expose the note on web and mobile timelines and remove it with retention or
    redaction cleanup. Timeline search and CSV snapshots include the note.
+29. **Synthetic query fixture** — provide a deterministic inactive camera and
+   event sequence so the query flow can be demonstrated and regression-tested
+   without physical camera hardware.
 
 ## Next high-value improvements
 
-29. **Trust and retention controls** — add per-camera retention previews,
+30. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins. Camera cards now surface the local
     configured local default and person-specific override behavior. Individual timeline
@@ -85,4 +88,4 @@ local camera evidence system.
 
 After the above, prioritize saved questions, multi-camera handoff (“follow the
 blue bag from the kitchen to the garage”), richer annotation search/export, and
-a synthetic camera fixture for repeatable end-to-end demo/testing flows.
+additional provider-backed end-to-end testing.

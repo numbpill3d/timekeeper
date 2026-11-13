@@ -166,6 +166,21 @@ validation additionally requires an authorized camera session and hardware.
 The prioritized product improvement backlog is in
 [`docs/ux-improvement-plan.md`](docs/ux-improvement-plan.md).
 
+### Hardware-free query demo
+
+After the stack is running and a local account exists, seed deterministic
+events for that account without connecting a camera:
+
+```bash
+DATABASE_URL=postgresql://omniscient:changeme@127.0.0.1:5432/omniscient \
+TIMEKEEPER_DEMO_OWNER_ID="<your-user-uuid>" \
+.venv/bin/python scripts/seed_synthetic.py
+```
+
+The fixture is inactive, uses no camera credentials, and is safe to rerun.
+Ask the UI: `What happened to the blue toolbox?` or
+`Who picked up the blue toolbox?`.
+
 Every push and pull request runs the Python, web, mobile, and Compose gates in
 GitHub Actions. Hardware/provider smoke tests remain a separate release check.
 

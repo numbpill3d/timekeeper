@@ -18,6 +18,11 @@ event before asking an item question. The answer must come from recorded event
 rows and include the timestamp, action, person/item label, and location when
 those fields exist.
 
+For a repeatable hardware-free fixture, use `scripts/seed_synthetic.py` as
+documented in the README. It creates one inactive camera and deterministic
+John/toolbox events for an existing owner, without deleting or modifying live
+camera credentials.
+
 The default compose setup is local-only: infrastructure ports bind to
 `127.0.0.1`; the query service is internal to the Compose network and is
 reached through the authenticated API proxy. The query service can use its structured fallback without an LLM,
