@@ -30,3 +30,21 @@ async def test_sms_delivery_uses_the_sync_provider_in_a_worker(monkeypatch):
 
     assert await notifier._send_sms("+15551234567", "hello") is True
     assert calls == [("+15551234567", "hello")]
+
+
+@pytest.mark.asyncio
+async def test_sms_is_not_attempted_with_partial_twilio_configuration(monkeypatch):
+    called = False
+
+    async def fail_if_called(*_args, **_kwargs):
+        nonlocal called
+        called = True
+        return True
+
+    monkeypatch.setattr(notifier, "_send_sms", fail_if_called)
+    monkeypatch.setattr(notifier, "_TWILIO_SID", "sid")
+    monkeypatch.setattr(notifier, "_TWILIO_TOKEN", "")
+    monkeypatch.setattr(notifier, "_TWILIO_FROM", "+15551234567")
+
+    assert await notifier.deliver(["sms"], "title", "body", phone="+15551234567") == []
+    assert called is False

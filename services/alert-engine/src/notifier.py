@@ -47,7 +47,9 @@ async def deliver(
         if ok:
             sent.append("push")
 
-    if "sms" in channels and phone and _TWILIO_SID:
+    if "sms" in channels and phone and all(
+        (_TWILIO_SID, _TWILIO_TOKEN, _TWILIO_FROM)
+    ):
         ok = await _send_sms(phone, f"{title}: {body}")
         if ok:
             sent.append("sms")
