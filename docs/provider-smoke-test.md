@@ -29,6 +29,12 @@ Set the provider token through the environment or a secret file, configure
 `ring://`, `arlo://`, or `wyze://` device URL. Confirm an SDP offer/answer is
 completed and frames arrive for at least five minutes.
 
+Credential-bearing HTTPS control endpoints must use one of the built-in vendor
+hosts or a host listed in the operator-only `PROVIDER_ALLOWED_CONTROL_HOSTS`
+environment variable (comma-separated). Arbitrary camera-configured hosts are
+rejected before a token-bearing request is made. Local bridges may use
+loopback HTTP.
+
 ## Nest
 
 Set `NEST_ACCESS_TOKEN`, `NEST_PROJECT_ID`, and a `nest://device-id` URL. Confirm

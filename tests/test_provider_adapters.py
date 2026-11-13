@@ -35,13 +35,25 @@ def test_vendor_device_ids_strip_provider_scheme():
     assert _device_id(_camera(CameraProtocol.nest, "nest://device-1")) == "device-1"
 
 
-def test_explicit_whep_endpoint_is_used():
+def test_explicit_whep_endpoint_is_used(monkeypatch):
+    monkeypatch.setenv("PROVIDER_ALLOWED_CONTROL_HOSTS", "example.test")
     camera = _camera(
         CameraProtocol.wyze,
         "wyze://cam-1",
         {"whep_url": "https://example.test/whep"},
     )
     assert _provider_endpoint(camera) == ("wyze", "https://example.test/whep")
+
+
+def test_whep_endpoint_rejects_unapproved_host(monkeypatch):
+    monkeypatch.delenv("PROVIDER_ALLOWED_CONTROL_HOSTS", raising=False)
+    camera = _camera(
+        CameraProtocol.wyze,
+        "wyze://cam-1",
+        {"whep_url": "https://attacker.example/whep"},
+    )
+    with pytest.raises(ProviderError, match="not in PROVIDER_ALLOWED_CONTROL_HOSTS"):
+        _provider_endpoint(camera)
 
 
 def test_whep_endpoint_rejects_embedded_credentials():

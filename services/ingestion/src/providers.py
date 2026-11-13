@@ -31,6 +31,10 @@ class ProviderError(RuntimeError):
 
 log = logging.getLogger(__name__)
 _PROVIDER_TIMEOUT_SECONDS = 15
+_DEFAULT_CONTROL_HOSTS = {
+    "api.amazonvision.com",
+    "smartdevicemanagement.googleapis.com",
+}
 
 
 _ENV_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
@@ -47,6 +51,15 @@ def _safe_provider_env_name(value: str, provider: str) -> str:
     return name
 
 
+def _allowed_control_hosts() -> set[str]:
+    configured = {
+        item.strip().lower().rstrip(".")
+        for item in os.getenv("PROVIDER_ALLOWED_CONTROL_HOSTS", "").split(",")
+        if item.strip()
+    }
+    return _DEFAULT_CONTROL_HOSTS | configured
+
+
 def _control_endpoint(value: str, label: str) -> str:
     parsed = urlparse(value)
     secret_keys = {
@@ -60,10 +73,15 @@ def _control_endpoint(value: str, label: str) -> str:
         for key, _ in parse_qsl(parsed.query, keep_blank_values=True)
     ):
         raise ProviderError(f"{label} must not contain credential-like query parameters")
+    hostname = parsed.hostname.lower().rstrip(".")
+    if parsed.scheme == "https" and hostname in _allowed_control_hosts():
+        return value
+    if parsed.scheme == "http" and hostname in {"127.0.0.1", "localhost", "::1"}:
+        return value
     if parsed.scheme == "https":
-        return value
-    if parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost", "::1"}:
-        return value
+        raise ProviderError(
+            f"{label} host is not in PROVIDER_ALLOWED_CONTROL_HOSTS"
+        )
     raise ProviderError(f"{label} must use HTTPS (or loopback HTTP for a local bridge)")
 
 
