@@ -10,7 +10,7 @@ from uuid import UUID
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..auth import CurrentUser
 from ..db import get_db
@@ -22,6 +22,7 @@ DB = Annotated[asyncpg.Connection, Depends(get_db)]
 
 _TIER_LIMITS = {"free": 2, "home": 5, "family": 10, "pro": 9999}
 _PROTOCOLS = {"rtsp", "http", "https", "hls", "file", "onvif", "ring", "nest", "arlo", "wyze"}
+_DEVICE_PROTOCOLS = {"ring", "nest", "arlo", "wyze"}
 _UPDATE_ALLOWED = {
     "name", "stream_url", "protocol", "location_label", "is_active", "provider_config"
 }
@@ -188,6 +189,20 @@ class CameraCreate(BaseModel):
     @classmethod
     def _provider_config_has_no_secrets(cls, v: dict) -> dict:
         return _validate_provider_config(v)
+
+    @model_validator(mode="after")
+    def _align_device_protocol(self) -> CameraCreate:
+        scheme = urlparse(self.stream_url).scheme
+        if scheme in _DEVICE_PROTOCOLS:
+            if self.protocol == "rtsp":
+                # The default is retained for ordinary direct feeds, but a
+                # device URL is unambiguous and must reach its provider adapter.
+                self.protocol = scheme
+            elif self.protocol != scheme:
+                raise ValueError(
+                    f"{scheme}:// sources must use protocol={scheme!r}"
+                )
+        return self
 
 
 class CameraUpdate(BaseModel):

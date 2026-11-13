@@ -34,20 +34,22 @@ local camera evidence system.
    refresh, browser navigation, or shared link preserves the operator’s view.
 14. **Camera health visibility** — record throttled frame heartbeats and safe
    error codes, then show online, starting, stale, error, or paused state.
+15. **Provider setup guardrails** — infer matching cloud adapters from device
+   URL schemes and reject contradictory explicit protocols before persistence.
 
 ## Next high-value improvements
 
-15. **Camera setup wizard** — guide operators through source type, location,
+16. **Camera setup wizard** — guide operators through source type, location,
     credentials, connectivity test, retention, and a first-frame preview. Keep
     secrets masked and never echo them in validation errors.
-16. **Camera diagnostics** — show last frame, last successful connection,
+17. **Camera diagnostics** — show last frame, last successful connection,
     reconnect attempts, codec/fps, clock skew, and a clear remediation path.
-17. **Evidence-first answer cards** — show the answer, confidence, event time,
+18. **Evidence-first answer cards** — show the answer, confidence, event time,
     matched person/object labels, camera, and one-click clip preview together.
     Make “not enough evidence” a first-class state.
-18. **Timeline grouping and navigation** — group events by hour/location, add
+19. **Timeline grouping and navigation** — group events by hour/location, add
     date presets, keyboard shortcuts, and URL-persisted filters.
-19. **Trust and retention controls** — add per-camera retention previews,
+20. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins.
 

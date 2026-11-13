@@ -49,6 +49,20 @@ def test_provider_config_rejects_camel_case_token_key():
         )
 
 
+def test_device_url_selects_matching_provider_when_protocol_is_omitted():
+    camera = CameraCreate(name="front door", stream_url="ring://camera-1")
+    assert camera.protocol == "ring"
+
+
+def test_device_url_rejects_a_different_explicit_protocol():
+    with pytest.raises(ValidationError, match="protocol='ring'"):
+        CameraCreate(
+            name="front door",
+            stream_url="ring://camera-1",
+            protocol="nest",
+        )
+
+
 def test_provider_config_rejects_credentials_in_nested_endpoint():
     with pytest.raises(ValidationError, match="provider endpoint"):
         CameraCreate(
