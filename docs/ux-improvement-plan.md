@@ -42,17 +42,19 @@ local camera evidence system.
    answer cards alongside matched people, objects, and locations.
 18. **Camera setup wizard** — split source naming/type from URL/location entry,
    add provider-specific placeholders, and validate the draft before submit.
+19. **Timeline quick ranges** — add URL-backed today, 24-hour, and 7-day
+   presets so common investigations do not require manual date entry.
 
 ## Next high-value improvements
 
-19. **Camera diagnostics** — show last frame, last successful connection,
+20. **Camera diagnostics** — show last frame, last successful connection,
     reconnect attempts, codec/fps, clock skew, and a clear remediation path.
-20. **Evidence-first answer cards** — show the answer, confidence, event time,
+21. **Evidence-first answer cards** — show the answer, confidence, event time,
     matched person/object labels, camera, and one-click clip preview together.
     Make “not enough evidence” a first-class state.
-21. **Timeline grouping and navigation** — group events by hour/location, add
+22. **Timeline grouping and navigation** — group events by hour/location, add
     date presets, keyboard shortcuts, and URL-persisted filters.
-22. **Trust and retention controls** — add per-camera retention previews,
+23. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins.
 

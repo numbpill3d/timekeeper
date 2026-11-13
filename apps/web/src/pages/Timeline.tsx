@@ -26,6 +26,12 @@ const CONF_COLOR = (c: number) => {
   return "var(--accent)";
 };
 
+function localDateTimeValue(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+    + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export function Timeline() {
   const [searchParams, setSearchParams] = useSearchParams();
   const eventType = searchParams.get("event_type") ?? "";
@@ -47,6 +53,16 @@ export function Timeline() {
     else next.delete(key);
     setSearchParams(next);
     setOffset(0);
+  }
+
+  function applySincePreset(preset: "today" | "24h" | "7d") {
+    const date = new Date();
+    if (preset === "today") {
+      date.setHours(0, 0, 0, 0);
+    } else {
+      date.setHours(date.getHours() - (preset === "24h" ? 24 : 24 * 7));
+    }
+    updateFilter("since", localDateTimeValue(date));
   }
 
   const params: Record<string, unknown> = { limit: PAGE, offset };
@@ -182,6 +198,23 @@ export function Timeline() {
               fontSize: 12,
             }}
           />
+          <div
+            style={{ display: "flex", gap: 4, marginTop: 4 }}
+            role="group"
+            aria-label="Quick timeline ranges"
+          >
+            {(["today", "24h", "7d"] as const).map((preset) => (
+              <button
+                key={preset}
+                className="btn btn-ghost"
+                type="button"
+                onClick={() => applySincePreset(preset)}
+                style={{ padding: "2px 6px", fontSize: 10 }}
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
         </div>
 
         {(eventType || sinceDate || search) && (
