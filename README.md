@@ -79,9 +79,10 @@ cp .env.example .env
 docker compose up --build
 ```
 
-The API is available at `http://127.0.0.1:8000`, the query engine at
-`http://127.0.0.1:8001`, and the web UI during development at
-`http://127.0.0.1:3000`.
+The API is available at `http://127.0.0.1:8000` and the web UI during
+development at `http://127.0.0.1:3000`. The query engine is intentionally
+internal to the Compose network; use the authenticated `/query` API route
+instead of calling it directly.
 
 The UI can be run separately:
 
