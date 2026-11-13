@@ -181,7 +181,20 @@ def _format_evidence_response(rows: list[dict]) -> str:
         if action == "object_picked_up":
             lines.append(f"At {time_text}, {person} picked up {item}{where}.")
         elif action == "object_moved":
-            lines.append(f"At {time_text}, {person} moved {item}{where}.")
+            recorded = str(row.get("action_label") or "").strip()
+            if recorded.lower().startswith("moved "):
+                movement = recorded[0].lower() + recorded[1:]
+            elif recorded.lower().startswith(f"{str(item).lower()} moved"):
+                suffix = recorded[len(str(item)):]
+                movement = f"moved {item}{suffix[len(' moved'):]}".strip()
+            else:
+                movement = f"moved {item}"
+            has_path = " from " in movement.lower() or " to " in movement.lower()
+            camera_only = f" on camera {camera}" if camera else ""
+            lines.append(
+                f"At {time_text}, {person} {movement}"
+                f"{camera_only if has_path else where}."
+            )
         elif action == "object_placed":
             lines.append(f"At {time_text}, {person} was associated with {item}{where}.")
         else:

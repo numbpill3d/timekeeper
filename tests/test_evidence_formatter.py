@@ -53,6 +53,24 @@ def test_evidence_formatter_includes_camera_source_when_available():
     assert answer == "At 04:30 PM, John picked up keys at kitchen on camera Kitchen camera."
 
 
+def test_evidence_formatter_preserves_cross_camera_movement_path():
+    answer = llm._format_evidence_response([
+        {
+            "event_type": "object_moved",
+            "action_label": "Keys moved from kitchen to garage",
+            "timestamp": datetime(2026, 11, 11, 16, 30, tzinfo=UTC),
+            "person_label": "John",
+            "object_label": "keys",
+            "location_label": "garage",
+            "camera_name": "Garage camera",
+        }
+    ])
+    assert answer == (
+        "At 04:30 PM, John moved keys from kitchen to garage "
+        "on camera Garage camera."
+    )
+
+
 def test_empty_model_content_falls_back_to_recorded_evidence(monkeypatch):
     async def empty(system: str, user: str) -> str:
         return "   "

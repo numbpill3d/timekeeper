@@ -46,7 +46,7 @@ class Correlator:
                     object_name = event.metadata.get("object_category") or from_evt.metadata.get(
                         "object_category"
                     ) or from_evt.action_label.split()[0].lower()
-                    label = f"{str(object_name).capitalize()} moved"
+                    label = f"moved {str(object_name).lower()}"
                     if from_evt.location_label:
                         label += f" from {from_evt.location_label}"
                     if event.location_label:

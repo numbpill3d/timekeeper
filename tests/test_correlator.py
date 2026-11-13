@@ -107,6 +107,7 @@ def test_moved_event_carries_from_camera_metadata():
         )
     )
     assert extra[0].metadata.get("from_camera_id") == str(cam_a)
+    assert extra[0].action_label == "moved test from kitchen to bedroom"
 
 
 def test_replaying_a_cross_camera_pair_reuses_moved_event_id():
