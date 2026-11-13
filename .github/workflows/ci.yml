@@ -97,8 +97,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Validate Compose file
-        env:
-          TIMEKEEPER_ENV_FILE: .env.example
         run: docker compose --env-file .env.example config --quiet
 
   runtime-audit:

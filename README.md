@@ -150,8 +150,7 @@ From the repository root:
 make PYTHON=.venv/bin/python test
 make mobile-typecheck
 python -m compileall -q api services shared tests
-TIMEKEEPER_ENV_FILE=.env.example \
-  docker compose --env-file .env.example config --quiet
+docker compose --env-file .env.example config --quiet
 ```
 
 The complete local checklist is in

@@ -9,8 +9,7 @@ markers; use the repository's Python 3.11 environment for `make test`.
 ```bash
 make PYTHON=.venv/bin/python test
 make mobile-typecheck
-TIMEKEEPER_ENV_FILE=.env.example \
-  docker compose --env-file .env.example config --quiet
+docker compose --env-file .env.example config --quiet
 curl -fsS http://localhost:8000/health
 ```
 
