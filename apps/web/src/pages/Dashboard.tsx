@@ -40,7 +40,11 @@ export function Dashboard() {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todayKey = today.toISOString().slice(0, 10);
+  const todayKey = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0"),
+  ].join("-");
   const { data: todayCount = 0 } = useQuery({
     queryKey: ["events", "today", todayKey, "count"],
     queryFn: () => countEvents({ since: today.toISOString() }).then((r) => r.data.count),
