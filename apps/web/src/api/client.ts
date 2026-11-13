@@ -197,8 +197,13 @@ export const openEventStream = (
       }
     };
     ws.onerror = () => {};
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       onStatus?.(false);
+      if (event.code === 4001) {
+        localStorage.removeItem("access_token");
+        window.location.reload();
+        return;
+      }
       if (!closed) {
         setTimeout(connect, retryMs);
         retryMs = Math.min(retryMs * 2, 30_000);

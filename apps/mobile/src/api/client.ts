@@ -111,9 +111,16 @@ export const openEventStream = async (
       }
     };
     ws.onerror = () => {};
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       ws = null;
       if (closed) return;
+      if (event.code === 4001) {
+        closed = true;
+        void SecureStore.deleteItemAsync("access_token").finally(() => {
+          _onUnauthorized?.();
+        });
+        return;
+      }
       retryTimer = setTimeout(connect, retryMs);
       retryMs = Math.min(retryMs * 2, 30_000);
     };
