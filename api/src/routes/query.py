@@ -62,7 +62,13 @@ class QueryResponse(BaseModel):
 
 
 async def _check_rate_limit(user: dict, request: Request) -> None:
-    if user.get("tier", "free") != "free":
+    tier = await request.app.state.db.fetchval(
+        "SELECT subscription_tier FROM users WHERE id = $1",
+        user["sub"],
+    )
+    if tier is None:
+        raise HTTPException(status_code=401, detail="user not found")
+    if tier != "free":
         return
     now = datetime.date.today()
     key = f"rl:query:{user['sub']}:{now.year}:{now.month}"

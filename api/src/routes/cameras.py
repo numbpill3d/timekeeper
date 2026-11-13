@@ -242,10 +242,16 @@ async def add_camera(
             "SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))",
             user["sub"],
         )
+        tier = await db.fetchval(
+            "SELECT subscription_tier FROM users WHERE id = $1 FOR UPDATE",
+            user["sub"],
+        )
+        if tier is None:
+            raise HTTPException(status_code=401, detail="user not found")
         count = await db.fetchval(
             "SELECT COUNT(*) FROM cameras WHERE owner_id = $1", user["sub"]
         )
-        limit = _TIER_LIMITS.get(user.get("tier", "free"), 2)
+        limit = _TIER_LIMITS.get(tier, 2)
         if count >= limit:
             raise HTTPException(
                 status_code=403,

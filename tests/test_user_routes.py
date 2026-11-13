@@ -2,12 +2,14 @@
 
 import os
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 os.environ.setdefault("JWT_SECRET", "unit-test-secret-012345678901234567890123")
 
 import pytest
 
 from api.src.routes.events import count_events
+from api.src.routes.query import _check_rate_limit
 from api.src.routes.users import (
     LoginRequest,
     ProfileUpdate,
@@ -81,3 +83,40 @@ async def test_event_count_is_owner_scoped_and_preserves_time_filters():
     assert db.params is not None
     assert db.params[0] == "owner-1"
     assert db.params[1] == datetime(2026, 1, 1, tzinfo=UTC)
+
+
+class _TierDb:
+    def __init__(self, tier: str | None) -> None:
+        self.tier = tier
+
+    async def fetchval(self, _sql: str, _user_id: str) -> str | None:
+        return self.tier
+
+
+class _RateLimitRedis:
+    def __init__(self) -> None:
+        self.increments = 0
+
+    async def incr(self, _key: str) -> int:
+        self.increments += 1
+        return self.increments
+
+    async def expire(self, _key: str, _seconds: int) -> bool:
+        return True
+
+
+@pytest.mark.asyncio
+async def test_query_rate_limit_uses_current_database_tier():
+    redis = _RateLimitRedis()
+    db = _TierDb("home")
+    request = SimpleNamespace(
+        app=SimpleNamespace(state=SimpleNamespace(db=db, redis=redis))
+    )
+    user = {"sub": "owner-1", "tier": "free"}
+
+    await _check_rate_limit(user, request)
+    assert redis.increments == 0
+
+    db.tier = "free"
+    await _check_rate_limit(user, request)
+    assert redis.increments == 1
