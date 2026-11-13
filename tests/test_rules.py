@@ -63,6 +63,23 @@ def test_fenced_rule_json_removes_only_the_language_marker(monkeypatch):
     assert result == {"event_types": ["person_entered"]}
 
 
+def test_rule_compilation_times_out_without_blocking_alerts(monkeypatch):
+    import rules
+
+    class SlowClient:
+        async def chat(self, **_kwargs):
+            await asyncio.sleep(1)
+
+    monkeypatch.setitem(
+        sys.modules,
+        "ollama",
+        types.SimpleNamespace(AsyncClient=lambda **_kwargs: SlowClient()),
+    )
+    monkeypatch.setattr(rules, "_OLLAMA_TIMEOUT_SECONDS", 0.01)
+
+    assert asyncio.run(rules.compile_rule_llm("someone enters")) == {}
+
+
 def test_invalid_compiled_rule_is_rejected():
     assert normalize_rule({"event_types": ["read_users_table"]}) == {}
     assert normalize_rule({"time_after": "25:99"}) == {}

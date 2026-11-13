@@ -18,6 +18,7 @@ Compiled rule schema:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -31,6 +32,7 @@ log = logging.getLogger(__name__)
 
 _OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 _OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "mistral")
+_OLLAMA_TIMEOUT_SECONDS = 15
 
 _TEMPLATES: dict[str, dict] = {
     "unknown person enters": {
@@ -131,12 +133,15 @@ async def compile_rule_llm(rule_text: str) -> dict:
         import ollama
 
         client = ollama.AsyncClient(host=_OLLAMA_URL)
-        resp = await client.chat(
-            model=_OLLAMA_MODEL,
-            messages=[
-                {"role": "system", "content": _COMPILE_SYSTEM},
-                {"role": "user", "content": rule_text},
-            ],
+        resp = await asyncio.wait_for(
+            client.chat(
+                model=_OLLAMA_MODEL,
+                messages=[
+                    {"role": "system", "content": _COMPILE_SYSTEM},
+                    {"role": "user", "content": rule_text},
+                ],
+            ),
+            timeout=_OLLAMA_TIMEOUT_SECONDS,
         )
         raw = resp["message"]["content"].strip()
         if "```" in raw:

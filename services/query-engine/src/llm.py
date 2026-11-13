@@ -9,6 +9,7 @@ Used for two tasks:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -20,6 +21,7 @@ log = logging.getLogger(__name__)
 _OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 _OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "mistral")
 _OPENAI_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+_LLM_TIMEOUT_SECONDS = 30
 
 _SQL_SYSTEM = """
 You are a SQL expert for a home surveillance database.
@@ -67,12 +69,15 @@ async def _ollama_complete(system: str, user: str) -> str:
     import ollama
 
     client = ollama.AsyncClient(host=_OLLAMA_URL)
-    resp = await client.chat(
-        model=_OLLAMA_MODEL,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
+    resp = await asyncio.wait_for(
+        client.chat(
+            model=_OLLAMA_MODEL,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        ),
+        timeout=_LLM_TIMEOUT_SECONDS,
     )
     return resp["message"]["content"].strip()
 
@@ -81,13 +86,16 @@ async def _openai_complete(system: str, user: str) -> str:
     from openai import AsyncOpenAI
 
     client = AsyncOpenAI(api_key=_OPENAI_KEY)
-    resp = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        temperature=0.0,
+    resp = await asyncio.wait_for(
+        client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            temperature=0.0,
+        ),
+        timeout=_LLM_TIMEOUT_SECONDS,
     )
     return resp.choices[0].message.content.strip()
 
