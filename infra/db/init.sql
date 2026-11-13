@@ -147,5 +147,6 @@ CREATE INDEX ON persons USING ivfflat (reid_embedding vector_cosine_ops)
 
 -- lookup / range indexes
 CREATE INDEX ON alert_deliveries (rule_id, triggered_at DESC);
+CREATE INDEX ON alert_deliveries (event_id);
 CREATE INDEX ON alert_rules (owner_id, is_active);
 CREATE INDEX ON tracked_objects (owner_id, last_seen_at DESC);

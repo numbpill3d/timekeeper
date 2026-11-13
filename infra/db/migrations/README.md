@@ -30,3 +30,6 @@ rows before adding the uniqueness boundary used by the alert worker.
 case-insensitive uniqueness. It aborts before changing data if existing
 accounts collide after normalization, so those accounts can be resolved
 explicitly by an administrator first.
+
+`004_alert_delivery_event_index.sql` adds the event-id index used by retention
+and camera-removal cleanup.
