@@ -19,7 +19,6 @@ _ENVIRONMENT = os.getenv("PIPEDREAM_ENVIRONMENT", "production").strip()
 
 
 class ConnectTokenResponse(BaseModel):
-    token: str
     connect_link_url: str
     expires_at: str | None = None
 
@@ -112,21 +111,17 @@ async def create_connect_token(user: CurrentUser) -> ConnectTokenResponse:
             status_code=502,
             detail="Pipedream returned an invalid Connect token response",
         )
-    token = data.get("token")
     connect_link_url = _validate_connect_link(
         data.get("connect_link_url") or data.get("connectLinkUrl")
     )
-    if not isinstance(token, str) or not token.strip():
-        token = None
     if not isinstance(connect_link_url, str) or not connect_link_url.strip():
         connect_link_url = None
-    if not token or not connect_link_url:
+    if not connect_link_url:
         raise HTTPException(
             status_code=502,
             detail="Pipedream returned an incomplete or unsafe Connect token response",
         )
     return ConnectTokenResponse(
-        token=token,
         connect_link_url=connect_link_url,
         expires_at=data.get("expires_at") or data.get("expiresAt"),
     )

@@ -101,7 +101,6 @@ export const updateProfile = (data: { fcm_token?: string | null; phone?: string 
 // ── Integrations ─────────────────────────────────────────────────
 
 export interface PipedreamConnectToken {
-  token: string;
   connect_link_url: string;
   expires_at: string | null;
 }
