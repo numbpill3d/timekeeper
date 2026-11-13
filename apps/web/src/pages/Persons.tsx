@@ -32,6 +32,11 @@ function PersonAvatar({ label, isKnown }: { label: string; isKnown: boolean }) {
   );
 }
 
+function parseRetentionDays(value: string): number | null {
+  const days = Number(value);
+  return Number.isInteger(days) && days >= 1 && days <= 3650 ? days : null;
+}
+
 function PersonCard({ person }: { person: Person }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -39,6 +44,7 @@ function PersonCard({ person }: { person: Person }) {
   const [retentionDays, setRetentionDays] = useState(String(person.retention_days));
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState("");
+  const parsedRetentionDays = parseRetentionDays(retentionDays);
 
   const update = useMutation({
     mutationFn: (data: { label?: string; is_known?: boolean; retention_days?: number }) =>
@@ -75,10 +81,10 @@ function PersonCard({ person }: { person: Person }) {
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && label.trim()) {
+                if (e.key === "Enter" && label.trim() && parsedRetentionDays !== null) {
                   update.mutate({
                     label: label.trim(),
-                    retention_days: Number(retentionDays),
+                    retention_days: parsedRetentionDays,
                   });
                   setEditing(false);
                 }
@@ -221,15 +227,14 @@ function PersonCard({ person }: { person: Person }) {
                 style={{ padding: "4px 10px" }}
                 disabled={
                   !label.trim() ||
-                  !Number.isInteger(Number(retentionDays)) ||
-                  Number(retentionDays) < 1 ||
-                  Number(retentionDays) > 3650 ||
+                  parsedRetentionDays === null ||
                   update.isPending
                 }
                 onClick={() => {
+                  if (parsedRetentionDays === null) return;
                   update.mutate({
                     label: label.trim(),
-                    retention_days: Number(retentionDays),
+                    retention_days: parsedRetentionDays,
                   });
                   setEditing(false);
                 }}
