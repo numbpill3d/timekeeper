@@ -154,7 +154,10 @@ def _inject_owner_scope(sql: str) -> str:
         sql,
         re.IGNORECASE,
     )
-    reserved = {"WHERE", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "ORDER", "GROUP", "LIMIT"}
+    reserved = {
+        "WHERE", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "FULL", "CROSS",
+        "ON", "ORDER", "GROUP", "HAVING", "LIMIT", "OFFSET",
+    }
     candidate = match.group(1) if match else None
     alias = candidate if candidate and candidate.upper() not in reserved else "events"
     scope = f"{alias}.camera_id IN (SELECT id FROM cameras WHERE owner_id = $1::uuid)"

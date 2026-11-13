@@ -53,6 +53,14 @@ def test_owner_scope_without_alias_does_not_use_sql_keyword_as_alias():
     assert "events.camera_id IN" in sql
 
 
+def test_owner_scope_without_alias_handles_a_join_keyword():
+    sql = _inject_owner_scope(
+        "SELECT events.id FROM events JOIN persons ON persons.id = events.person_id"
+    )
+    assert "events.camera_id IN" in sql
+    assert "JOIN.camera_id" not in sql
+
+
 def test_owner_scope_is_inserted_before_limit():
     sql = _inject_owner_scope("SELECT e.id FROM events e ORDER BY e.timestamp DESC LIMIT 50")
     assert sql.index("WHERE e.camera_id IN") < sql.index("ORDER BY")
