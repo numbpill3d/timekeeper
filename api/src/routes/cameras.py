@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..auth import CurrentUser
+from ..audit import record_audit
 from ..db import get_db
 from ..media import delete_clip_objects
 
@@ -444,4 +445,12 @@ async def delete_camera(
             camera_id,
         )
         await db.execute("DELETE FROM cameras WHERE id = $1", camera_id)
+        await record_audit(
+            db,
+            user["sub"],
+            "delete",
+            "camera",
+            camera_id,
+            {"event_count": len(events)},
+        )
     await delete_clip_objects([row["clip_path"] for row in events])

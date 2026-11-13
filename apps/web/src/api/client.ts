@@ -148,6 +148,8 @@ export const countEvents = (params?: Record<string, unknown>) =>
 export const getEvent = (id: string) =>
   api.get<OmniscientEvent>(`/events/${id}`);
 
+export const redactEvent = (id: string) => api.delete(`/events/${id}`);
+
 // ── Query ─────────────────────────────────────────────────────────
 
 export const askQuestion = (

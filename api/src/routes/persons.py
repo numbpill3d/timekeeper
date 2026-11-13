@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from ..auth import CurrentUser
+from ..audit import record_audit
 from ..db import get_db
 
 router = APIRouter()
@@ -144,3 +145,10 @@ async def delete_person(
             person_id,
         )
         await db.execute("DELETE FROM persons WHERE id = $1", person_id)
+        await record_audit(
+            db,
+            user["sub"],
+            "delete",
+            "person",
+            person_id,
+        )

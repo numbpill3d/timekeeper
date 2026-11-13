@@ -61,7 +61,8 @@ local camera evidence system.
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins. Camera cards now surface the local
     30-day default and person-specific override behavior; audit-log export and
-    redaction controls remain follow-on work.
+    redaction controls remain follow-on work. Individual timeline events can now
+    be deliberately redacted, with an owner-scoped audit record and clip cleanup.
 
 ## Product-level follow-ons
 

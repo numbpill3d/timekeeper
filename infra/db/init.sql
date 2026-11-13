@@ -20,6 +20,20 @@ CREATE TABLE users (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Destructive operator actions are recorded without storing sensitive payloads.
+CREATE TABLE audit_log (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    action        TEXT NOT NULL,
+    resource_type TEXT NOT NULL,
+    resource_id   UUID,
+    metadata      JSONB NOT NULL DEFAULT '{}',
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX audit_log_owner_created_idx
+    ON audit_log (owner_id, created_at DESC, id DESC);
+
 -- ── Cameras ──────────────────────────────────────────────────────
 
 CREATE TABLE cameras (

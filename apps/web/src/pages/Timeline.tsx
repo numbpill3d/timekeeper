@@ -1,9 +1,9 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useSearchParams } from "react-router-dom";
 import { ClipModal } from "../components/ClipModal";
-import { countEvents, listEvents, OmniscientEvent } from "../api/client";
+import { countEvents, listEvents, OmniscientEvent, redactEvent } from "../api/client";
 
 const EVENT_TYPE_OPTIONS = [
   "person_entered",
@@ -38,15 +38,36 @@ function csvCell(value: string | number | null): string {
 }
 
 export function Timeline() {
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const eventType = searchParams.get("event_type") ?? "";
   const sinceDate = searchParams.get("since") ?? "";
   const search = searchParams.get("search") ?? "";
   const [searchDraft, setSearchDraft] = useState("");
   const [selected, setSelected] = useState<OmniscientEvent | null>(null);
+  const [redactError, setRedactError] = useState("");
   const [offset, setOffset] = useState(0);
   const PAGE = 50;
   const closeSelected = useCallback(() => setSelected(null), []);
+  const redact = useMutation({
+    mutationFn: redactEvent,
+    onSuccess: async () => {
+      setRedactError("");
+      setSelected(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["events", "timeline"] }),
+        queryClient.invalidateQueries({ queryKey: ["events", "timeline-count"] }),
+      ]);
+    },
+    onError: () => setRedactError("couldn't redact that event; it was left unchanged"),
+  });
+
+  function confirmRedaction(event: OmniscientEvent) {
+    if (redact.isPending) return;
+    if (!window.confirm(`Permanently remove this ${event.action_label} event and its clip?`)) return;
+    setRedactError("");
+    redact.mutate(event.id);
+  }
 
   useEffect(() => {
     setSearchDraft(search);
@@ -199,6 +220,11 @@ export function Timeline() {
           flexWrap: "wrap",
         }}
       >
+        {redactError && (
+          <div role="alert" style={{ color: "var(--accent)", fontSize: 11 }}>
+            {redactError}
+          </div>
+        )}
         <div>
           <div className="label" style={{ marginBottom: 4 }}>
             search evidence
@@ -494,18 +520,32 @@ export function Timeline() {
                         {Math.round(e.confidence * 100)}%
                       </td>
                       <td style={{ padding: "8px 12px" }}>
-                        {e.clip_path && (
-                          <span
-                            style={{
-                              fontSize: 10,
-                              color: "var(--accent)",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.08em",
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          {e.clip_path && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                color: "var(--accent)",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.08em",
+                              }}
+                            >
+                              ▸ view
+                            </span>
+                          )}
+                          <button
+                            className="btn btn-ghost"
+                            style={{ padding: "2px 5px", fontSize: 9 }}
+                            aria-label={`Redact ${e.action_label} event`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              confirmRedaction(e);
                             }}
+                            disabled={redact.isPending}
                           >
-                            ▸ view
-                          </span>
-                        )}
+                            {redact.isPending && redact.variables === e.id ? "..." : "redact"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

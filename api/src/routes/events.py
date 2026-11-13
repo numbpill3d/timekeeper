@@ -7,13 +7,14 @@ from typing import Annotated
 from uuid import UUID
 
 import asyncpg
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from omniscient_shared.time import to_utc
 from pydantic import BaseModel
 
 from ..auth import CurrentUser
+from ..audit import record_audit
 from ..db import get_db
-from ..media import safe_signed_clip_url
+from ..media import delete_clip_objects, safe_signed_clip_url
 
 router = APIRouter()
 
@@ -159,3 +160,36 @@ async def get_event(
     return EventOut(
         **{**dict(row), "clip_path": safe_signed_clip_url(row["clip_path"])}
     )
+
+
+@router.delete("/{event_id}", status_code=204)
+async def redact_event(
+    event_id: UUID, user: CurrentUser, db: DB
+) -> Response:
+    """Permanently remove one event and its clip, while auditing the action."""
+    async with db.transaction():
+        row = await db.fetchrow(
+            """
+            SELECT e.id, e.camera_id, e.clip_path, e.event_type, e.timestamp
+            FROM events e
+            JOIN cameras c ON c.id = e.camera_id AND c.owner_id = $2
+            WHERE e.id = $1
+            FOR UPDATE
+            """,
+            event_id,
+            user["sub"],
+        )
+        if not row:
+            raise HTTPException(status_code=404, detail="event not found")
+        await db.execute("DELETE FROM alert_deliveries WHERE event_id = $1", event_id)
+        await db.execute("DELETE FROM events WHERE id = $1", event_id)
+        await record_audit(
+            db,
+            user["sub"],
+            "redact",
+            "event",
+            event_id,
+            {"camera_id": str(row["camera_id"]), "event_type": row["event_type"]},
+        )
+    await delete_clip_objects([row["clip_path"]])
+    return Response(status_code=204)
