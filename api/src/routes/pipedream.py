@@ -124,7 +124,13 @@ async def create_connect_token(user: CurrentUser) -> ConnectTokenResponse:
             status_code=502,
             detail="Pipedream returned an incomplete or unsafe Connect token response",
         )
+    expires_at = data.get("expires_at") or data.get("expiresAt")
+    if expires_at is not None and not isinstance(expires_at, str):
+        raise HTTPException(
+            status_code=502,
+            detail="Pipedream returned an invalid Connect token expiry",
+        )
     return ConnectTokenResponse(
         connect_link_url=connect_link_url,
-        expires_at=data.get("expires_at") or data.get("expiresAt"),
+        expires_at=expires_at,
     )

@@ -127,3 +127,45 @@ async def test_pipedream_does_not_expose_connect_token_to_clients(monkeypatch):
     result = await pipedream.create_connect_token({"sub": "owner-1"})
     assert result.connect_link_url == "https://pipedream.com/connect"
     assert not hasattr(result, "token")
+
+
+@pytest.mark.asyncio
+async def test_pipedream_rejects_malformed_expiry(monkeypatch):
+    monkeypatch.setattr(pipedream, "_PROJECT_ID", "proj_test")
+    monkeypatch.setattr(pipedream, "_ENVIRONMENT", "production")
+    monkeypatch.setenv("PIPEDREAM_CLIENT_ID", "client")
+    monkeypatch.setenv("PIPEDREAM_CLIENT_SECRET", "secret")
+
+    class Response:
+        def __init__(self, body):
+            self.body = body
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self.body
+
+    class Client:
+        def __init__(self):
+            self.responses = iter([
+                Response({"access_token": "oauth-token"}),
+                Response({
+                    "connect_link_url": "https://pipedream.com/connect",
+                    "expires_at": {"unexpected": "object"},
+                }),
+            ])
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return False
+
+        async def post(self, *_args, **_kwargs):
+            return next(self.responses)
+
+    monkeypatch.setattr(pipedream.httpx, "AsyncClient", lambda **_kwargs: Client())
+    with pytest.raises(HTTPException) as exc_info:
+        await pipedream.create_connect_token({"sub": "owner-1"})
+    assert exc_info.value.status_code == 502
