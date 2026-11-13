@@ -44,7 +44,17 @@ async def main() -> None:
             except (TypeError, ValueError) as exc:
                 log.warning("dropping malformed event message: %s", exc)
                 continue
-            await _evaluate(event, db)
+            try:
+                await _evaluate(event, db)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                # One broken rule, provider, or transient database operation
+                # must not stop alert evaluation for every later event.
+                log.exception(
+                    "alert evaluation failed for event %s; continuing",
+                    event.id,
+                )
     finally:
         if consumer_started:
             await consumer.stop()

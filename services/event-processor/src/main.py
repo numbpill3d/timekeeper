@@ -114,6 +114,17 @@ async def main() -> None:
                     await producer.send(
                         EVENTS, value=event.model_dump(mode="json")
                     )
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                # A transient database, object-store, or Kafka failure must
+                # not terminate the worker and stop every camera. The frame
+                # is still cleaned below; the consumer's normal restart and
+                # replay behavior can recover the failed message.
+                log.exception(
+                    "detection processing failed for camera %s; continuing",
+                    cam_key,
+                )
             finally:
                 cleanup_frame(det_msg.frame_path)
     finally:
