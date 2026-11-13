@@ -68,7 +68,7 @@ async def _send_fcm_v1(token: str, title: str, body: str) -> bool:
         return False
     try:
         access_token = await asyncio.to_thread(_fcm_access_token)
-    except (OSError, TypeError, ValueError, RuntimeError) as exc:
+    except Exception as exc:  # noqa: BLE001 - Google auth SDK errors vary
         log.warning("FCM credential setup failed: %s", exc)
         return False
     payload = {
