@@ -25,7 +25,8 @@ _STOPWORDS = {
     "grab", "grabbed", "take", "took", "move", "moved", "place", "placed",
     "left", "leave", "find", "happen", "happened", "with", "about", "is", "up",
     "item", "object", "thing",
-    "are", "was", "were", "to", "a", "an", "at", "in", "on", "of", "today",
+    "are", "was", "were", "to", "from", "between", "and", "through", "there",
+    "a", "an", "at", "in", "on", "of", "today",
     "yesterday", "recently", "last", "hours", "hour", "minutes", "minute",
     "this", "morning", "afternoon", "evening", "tonight", "night",
     "am", "pm",
@@ -37,6 +38,15 @@ _LOCATION_RE = re.compile(
 )
 _GENERIC_OBJECT_QUESTION_RE = re.compile(
     r"\b(?:what happened to|where (?:is|was|were))\b", re.IGNORECASE
+)
+_TIME_RANGE_RE = re.compile(
+    r"\b(?:between|from)\s+"
+    r"(?P<start_hour>\d{1,2})(?::(?P<start_minute>[0-5]\d))?\s*"
+    r"(?P<start_ampm>a\.?m\.?|p\.?m\.?)?\s*"
+    r"(?:and|to|through|-)\s*"
+    r"(?P<end_hour>\d{1,2})(?::(?P<end_minute>[0-5]\d))?\s*"
+    r"(?P<end_ampm>a\.?m\.?|p\.?m\.?)?\b",
+    re.IGNORECASE,
 )
 
 
@@ -64,6 +74,23 @@ def _location_term(question: str) -> str | None:
     return " ".join(words) or None
 
 
+def _clock_datetime(
+    day, hour_text: str, minute_text: str | None, ampm: str | None, tzinfo
+) -> datetime | None:
+    hour = int(hour_text)
+    minute = int(minute_text or 0)
+    if ampm:
+        if hour < 1 or hour > 12:
+            return None
+        if ampm.startswith("p") and hour != 12:
+            hour += 12
+        if ampm.startswith("a") and hour == 12:
+            hour = 0
+    elif hour > 23:
+        return None
+    return datetime.combine(day, time(hour, minute), tzinfo=tzinfo)
+
+
 def _time_predicates(question: str, start_param: int) -> tuple[list[str], list[object]]:
     lowered = question.lower()
     now = local_now()
@@ -74,6 +101,32 @@ def _time_predicates(question: str, start_param: int) -> tuple[list[str], list[o
         return [f"e.timestamp >= ${start_param}"], [now - delta]
 
     day = (now - timedelta(days=1)).date() if "yesterday" in lowered else now.date()
+    time_range = _TIME_RANGE_RE.search(lowered)
+    if time_range:
+        start_ampm = time_range.group("start_ampm") or time_range.group("end_ampm")
+        end_ampm = time_range.group("end_ampm") or start_ampm
+        start = _clock_datetime(
+            day,
+            time_range.group("start_hour"),
+            time_range.group("start_minute"),
+            start_ampm,
+            now.tzinfo,
+        )
+        end = _clock_datetime(
+            day,
+            time_range.group("end_hour"),
+            time_range.group("end_minute"),
+            end_ampm,
+            now.tzinfo,
+        )
+        if start is not None and end is not None:
+            if end <= start:
+                end += timedelta(days=1)
+            return [
+                f"e.timestamp >= ${start_param}",
+                f"e.timestamp < ${start_param + 1}",
+            ], [start, end]
+
     clock = re.search(
         r"\b(?:at\s+)?(?P<hour>\d{1,2})(?::(?P<minute>[0-5]\d))?\s*"
         r"(?P<ampm>a\.?m\.?|p\.?m\.?)\b",

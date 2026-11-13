@@ -135,12 +135,14 @@ questions such as:
 Did John pick up my keys today?
 Where was the toolbox yesterday?
 What happened in the garage this afternoon?
+What happened to the toolbox between 4:30 and 5:15 pm?
 ```
 
 An empty or low-confidence result is reported as uncertain rather than being
 presented as a fact. An Ollama model or configured OpenAI-compatible provider
 is required for richer natural-language synthesis; the structured fallback does
-not require either provider.
+not require either provider and understands common bounded time ranges,
+including overnight ranges such as “between 11 pm and 1 am.”
 
 ## Verification
 

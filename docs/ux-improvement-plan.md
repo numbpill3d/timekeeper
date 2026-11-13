@@ -61,6 +61,5 @@ local camera evidence system.
 ## Product-level follow-ons
 
 After the above, prioritize saved questions, multi-camera handoff (“follow the
-blue bag from the kitchen to the garage”), natural-language time ranges,
-operator annotations, and a synthetic camera fixture for repeatable end-to-end
-demo/testing flows.
+blue bag from the kitchen to the garage”), operator annotations, and a
+synthetic camera fixture for repeatable end-to-end demo/testing flows.

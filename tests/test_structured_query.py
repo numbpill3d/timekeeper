@@ -79,3 +79,27 @@ def test_fallback_query_supports_24_hour_clock():
     assert params[0].hour == 21
     assert params[0].minute == 5
     assert params[1] - params[0] == timedelta(minutes=1)
+
+
+def test_fallback_query_supports_a_bounded_12_hour_range():
+    _, params = build_fallback_query(
+        "what happened to the toolbox between 4:30 and 5:15 pm today?"
+    )
+    assert params[1].hour == 16
+    assert params[1].minute == 30
+    assert params[2].hour == 17
+    assert params[2].minute == 15
+    assert params[2] - params[1] == timedelta(minutes=45)
+
+
+def test_fallback_query_supports_24_hour_ranges():
+    _, params = build_fallback_query("what happened from 16:30 to 17:15 yesterday?")
+    assert params[0].hour == 16
+    assert params[0].minute == 30
+    assert params[1].hour == 17
+    assert params[1].minute == 15
+
+
+def test_fallback_query_wraps_overnight_ranges_to_the_next_day():
+    _, params = build_fallback_query("who was there between 11 pm and 1 am?")
+    assert params[1] - params[0] == timedelta(hours=2)
