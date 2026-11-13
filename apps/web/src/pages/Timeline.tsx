@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useSearchParams } from "react-router-dom";
 import { ClipModal } from "../components/ClipModal";
-import { listEvents, OmniscientEvent } from "../api/client";
+import { countEvents, listEvents, OmniscientEvent } from "../api/client";
 
 const EVENT_TYPE_OPTIONS = [
   "person_entered",
@@ -53,11 +53,28 @@ export function Timeline() {
   if (eventType) params.event_type = eventType;
   if (sinceDate) params.since = new Date(sinceDate).toISOString();
   if (search) params.search = search;
+  const countParams: Record<string, unknown> = {};
+  if (eventType) countParams.event_type = eventType;
+  if (sinceDate) countParams.since = new Date(sinceDate).toISOString();
+  if (search) countParams.search = search;
 
   const { data = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["events", "timeline", eventType, sinceDate, search, offset],
     queryFn: () => listEvents(params).then((r) => r.data),
   });
+  const {
+    data: countData,
+    isError: isCountError,
+  } = useQuery({
+    queryKey: ["events", "timeline-count", eventType, sinceDate, search],
+    queryFn: () => countEvents(countParams).then((r) => r.data.count),
+  });
+  const total = countData ?? 0;
+  const firstResult = data.length === 0 ? 0 : offset + 1;
+  const lastResult = offset + data.length;
+  const hasNextPage = isCountError
+    ? data.length === PAGE
+    : countData !== undefined && offset + data.length < total;
 
   function reset() {
     setSearchDraft("");
@@ -181,7 +198,11 @@ export function Timeline() {
           <span
             style={{ fontSize: 11, color: "var(--text-dim)", alignSelf: "center" }}
           >
-            {data.length} results
+            {countData === undefined
+              ? isCountError
+                ? "results unavailable"
+                : "loading results…"
+              : `${countData} results`}
           </span>
         </div>
       </div>
@@ -369,11 +390,11 @@ export function Timeline() {
           ← prev
         </button>
         <span style={{ fontSize: 11, color: "var(--text-dim)" }}>
-          {offset}–{offset + data.length}
+          {firstResult}–{lastResult}
         </span>
         <button
           className="btn btn-ghost"
-          disabled={data.length < PAGE}
+          disabled={!hasNextPage}
           onClick={() => setOffset(offset + PAGE)}
           style={{ padding: "4px 12px" }}
         >
