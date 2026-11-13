@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import { listEvents } from "../api/client";
+import { listEvents, OmniscientEvent } from "../api/client";
 import { EventCard } from "../components/EventCard";
 
 const EVENT_TYPES = [
@@ -26,6 +26,10 @@ const EVENT_TYPES = [
   "fall_detected",
 ] as const;
 const TIME_RANGES = ["", "today", "24h", "7d"] as const;
+
+type TimelineItem =
+  | { type: "header"; key: string; label: string; count: number }
+  | { type: "event"; key: string; event: OmniscientEvent };
 
 function localDateTimeValue(date: Date): string {
   const pad = (value: number) => String(value).padStart(2, "0");
@@ -46,6 +50,28 @@ export function TimelineScreen() {
         since: since || undefined,
       }).then((r) => r.data),
   });
+  const timelineItems = (data ?? []).reduce<TimelineItem[]>((items, event) => {
+    const date = new Date(event.timestamp);
+    const validDate = !Number.isNaN(date.getTime());
+    const key = validDate
+      ? `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}`
+      : "unknown";
+    const current = items[items.length - 1];
+    if (current?.type === "header" && current.key === `header-${key}`) {
+      current.count += 1;
+    } else {
+      items.push({
+        type: "header",
+        key: `header-${key}`,
+        label: validDate
+          ? date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric" })
+          : "unknown time",
+        count: 1,
+      });
+    }
+    items.push({ type: "event", key: event.id, event });
+    return items;
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -110,7 +136,7 @@ export function TimelineScreen() {
         })}
       </ScrollView>
       <FlatList
-        data={data ?? []}
+        data={timelineItems}
         refreshing={isLoading || isRefetching}
         onRefresh={() => void refetch()}
         ListEmptyComponent={
@@ -130,8 +156,13 @@ export function TimelineScreen() {
             <Text style={styles.empty}>no matching events.</Text>
           )
         }
-        keyExtractor={(e) => e.id}
-        renderItem={({ item }) => <EventCard event={item} />}
+        keyExtractor={(item) => item.key}
+        renderItem={({ item }) => item.type === "header" ? (
+          <View style={styles.groupHeader} accessibilityLabel={`${item.label}, ${item.count} events`}>
+            <Text style={styles.groupLabel}>{item.label}</Text>
+            <Text style={styles.groupCount}>{item.count} {item.count === 1 ? "event" : "events"}</Text>
+          </View>
+        ) : <EventCard event={item.event} />}
         ItemSeparatorComponent={() => <View style={styles.sep} />}
       />
     </View>
@@ -151,6 +182,16 @@ const styles = StyleSheet.create({
   filterText: { color: "#888", fontSize: 11 },
   filterTextSelected: { color: "#fff" },
   sep: { height: 1, backgroundColor: "#111" },
+  groupHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 2,
+    backgroundColor: "#000",
+  },
+  groupLabel: { color: "#888", fontSize: 10, textTransform: "uppercase", letterSpacing: 1 },
+  groupCount: { color: "#555", fontSize: 10 },
   emptyState: { alignItems: "center", marginTop: 32 },
   empty: { color: "#888", fontSize: 14, textAlign: "center" },
   retry: { borderColor: "#555", borderWidth: 1, marginTop: 12, paddingHorizontal: 12, paddingVertical: 7 },
