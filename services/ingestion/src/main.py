@@ -9,6 +9,7 @@ up cameras added or deactivated at runtime without requiring a restart.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 
@@ -51,12 +52,24 @@ async def _load_cameras(conn: asyncpg.Connection) -> list[Camera]:
     ]
 
 
+def _camera_stream_signature(camera: Camera) -> tuple[str, str, str]:
+    """Return settings that require replacing a running stream task."""
+    return (
+        camera.stream_url,
+        camera.protocol.value,
+        json.dumps(camera.provider_config, sort_keys=True, separators=(",", ":")),
+    )
+
+
 async def main() -> None:
     publisher = FramePublisher()
     await publisher.start()
 
     # camera_id -> running task
     tasks: dict[str, asyncio.Task] = {}
+    # Keep the task's source settings alongside it so camera edits take effect
+    # without requiring an ingestion-service restart.
+    stream_signatures: dict[str, tuple[str, str, str]] = {}
 
     try:
         reload_backoff = 1.0
@@ -80,11 +93,17 @@ async def main() -> None:
                 reload_backoff = min(reload_backoff * 2, 60.0)
                 continue
 
-            active_ids = {str(cam.id) for cam in cameras}
+            cameras_by_id = {str(cam.id): cam for cam in cameras}
+            active_ids = set(cameras_by_id)
 
             # Cancel tasks for cameras that disappeared or were deactivated
             for cid in list(tasks):
-                if cid not in active_ids or tasks[cid].done():
+                settings_changed = (
+                    cid in cameras_by_id
+                    and stream_signatures.get(cid)
+                    != _camera_stream_signature(cameras_by_id[cid])
+                )
+                if cid not in active_ids or settings_changed or tasks[cid].done():
                     task = tasks[cid]
                     if task.done() and not task.cancelled():
                         error = task.exception()
@@ -101,7 +120,15 @@ async def main() -> None:
                         except asyncio.CancelledError:
                             pass
                         log.info("stopped stream for removed camera %s", cid)
+                    elif settings_changed and not task.done():
+                        task.cancel()
+                        try:
+                            await task
+                        except asyncio.CancelledError:
+                            pass
+                        log.info("restarting stream for updated camera %s", cid)
                     del tasks[cid]
+                    stream_signatures.pop(cid, None)
 
             # Start tasks for new cameras
             for cam in cameras:
@@ -111,6 +138,7 @@ async def main() -> None:
                     tasks[cid] = asyncio.create_task(
                         stream_camera(cam, publisher.publish)
                     )
+                    stream_signatures[cid] = _camera_stream_signature(cam)
 
             await asyncio.sleep(_RELOAD_INTERVAL)
     except asyncio.CancelledError:

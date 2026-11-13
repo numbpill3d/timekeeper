@@ -1,10 +1,14 @@
 """Smoke-test application startup imports that unit tests otherwise bypass."""
 
 import os
+from uuid import uuid4
 
 os.environ.setdefault("JWT_SECRET", "test-secret-for-unit-tests-only-must-be-32c")
 
+from omniscient_shared.models.camera import Camera, CameraProtocol
+
 from api.src.main import app
+from services.ingestion.src.main import _camera_stream_signature
 
 
 def test_api_entrypoint_imports_with_runtime_dependencies():
@@ -14,3 +18,24 @@ def test_api_entrypoint_imports_with_runtime_dependencies():
         if (path := getattr(route, "path", None)) is not None
     }
     assert "/health" in paths
+
+
+def test_ingestion_stream_signature_changes_when_source_settings_change():
+    camera = Camera(
+        owner_id=uuid4(),
+        name="front door",
+        stream_url="rtsp://camera/one",
+        protocol=CameraProtocol.rtsp,
+        provider_config={"access_token_env": "RING_ACCESS_TOKEN"},
+    )
+    original = _camera_stream_signature(camera)
+
+    assert original != _camera_stream_signature(
+        camera.model_copy(update={"stream_url": "rtsp://camera/two"})
+    )
+    assert original != _camera_stream_signature(
+        camera.model_copy(update={"protocol": CameraProtocol.http})
+    )
+    assert original != _camera_stream_signature(
+        camera.model_copy(update={"provider_config": {"whep_url": "https://camera/live"}})
+    )
