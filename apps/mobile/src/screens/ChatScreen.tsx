@@ -19,7 +19,7 @@ import {
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import * as SecureStore from "expo-secure-store";
-import { askQuestion, QueryEvidence, redactEvent } from "../api/client";
+import { askQuestion, describeQueryError, QueryEvidence, redactEvent } from "../api/client";
 
 interface Message {
   id: string;
@@ -125,8 +125,8 @@ export function ChatScreen() {
         evidence: data.evidence,
       };
       setMessages((prev) => [...prev, reply]);
-    } catch {
-      setQueryError("couldn't reach the server right now.");
+    } catch (err) {
+      setQueryError(describeQueryError(err));
       setFailedQuestion(question);
     } finally {
       setLoading(false);

@@ -100,10 +100,13 @@ local camera evidence system.
 38. **Cross-client live-status clarity** — show on web and mobile whether
     recent activity is receiving live WebSocket events or using the documented
     REST polling fallback, while preserving automatic reconnect behavior.
+39. **Actionable query failures** — distinguish quota exhaustion, timeouts,
+    and service failures in web/mobile query surfaces so operators know whether
+    to wait, narrow the question, or repair the local stack.
 
 ## Next high-value improvements
 
-39. **Trust and retention controls** — add per-camera retention previews,
+40. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins. Camera cards now surface the local
     configured local default and person-specific override behavior. Individual timeline

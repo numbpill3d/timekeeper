@@ -180,6 +180,18 @@ export const askQuestion = (
     conversation_history: history,
   });
 
+export function describeQueryError(error: unknown): string {
+  if (!axios.isAxiosError(error)) {
+    return "query unavailable — check that the API and query engine are running.";
+  }
+  const detail = error.response?.data?.detail;
+  if (typeof detail === "string" && detail.trim()) return detail;
+  if (error.response?.status === 429) return "query limit reached — try again next month or upgrade your plan.";
+  if (error.response?.status === 504) return "query timed out — try a narrower time range or question.";
+  if (error.response?.status && error.response.status >= 500) return "query engine unavailable — check the local services and retry.";
+  return "query unavailable — check the API and query engine are running.";
+}
+
 // ── Cameras ───────────────────────────────────────────────────────
 
 export const listCameras = () => api.get<Camera[]>("/cameras");

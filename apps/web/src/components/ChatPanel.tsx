@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { askQuestion, QueryEvidence, redactEvent } from "../api/client";
+import { askQuestion, describeQueryError, QueryEvidence, redactEvent } from "../api/client";
 
 interface Message {
   id: number;
@@ -106,8 +106,8 @@ export function ChatPanel() {
           evidence: data.evidence,
         },
       ]);
-    } catch {
-      setError("query unavailable — check that the API and query engine are running.");
+    } catch (err) {
+      setError(describeQueryError(err));
       setFailedQuestion(q);
     } finally {
       setLoading(false);
