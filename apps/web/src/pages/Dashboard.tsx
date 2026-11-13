@@ -5,6 +5,7 @@ import { ChatPanel } from "../components/ChatPanel";
 import { ClipModal } from "../components/ClipModal";
 import {
   countEvents,
+  listAlerts,
   listEvents,
   listCameras,
   OmniscientEvent,
@@ -48,6 +49,12 @@ export function Dashboard() {
     refetchInterval: 60_000,
   });
 
+  const { data: alerts = [] } = useQuery({
+    queryKey: ["alerts"],
+    queryFn: () => listAlerts().then((r) => r.data),
+    refetchInterval: 60_000,
+  });
+
   useEffect(() => {
     const stream = openEventStream(
       (e) => setLive((p) => [e, ...p].slice(0, 20)),
@@ -61,9 +68,15 @@ export function Dashboard() {
   ).slice(0, 14);
   const now = new Date();
   const activeCams = cameras.filter((c) => c.is_active).length;
-  const alertCount = events.filter((e) =>
-    ["intrusion_detected", "unknown_person"].includes(e.event_type)
-  ).length;
+  const activeAlertCount = alerts.filter((alert) => alert.is_active).length;
+  const hour = now.getHours();
+  const greeting = hour < 5
+    ? "Good night."
+    : hour < 12
+      ? "Good morning."
+      : hour < 18
+        ? "Good afternoon."
+        : "Good evening.";
 
   const dateLabel = new Intl.DateTimeFormat(undefined, {
     weekday: "long", month: "long", day: "numeric",
@@ -81,7 +94,7 @@ export function Dashboard() {
       <header className="dashboard-head">
         <div>
           <div className="dashboard-kicker">situational awareness / 01</div>
-          <h1 className="dashboard-title">Good evening.</h1>
+          <h1 className="dashboard-title">{greeting}</h1>
         </div>
         <div className="dashboard-date">{dateLabel}<br />local system time</div>
       </header>
@@ -89,7 +102,7 @@ export function Dashboard() {
       <div className="metric-strip">
         <div className="metric"><div className="label">events today</div><div className="metric-value">{todayCount}</div><div className="metric-note">recent detections</div></div>
         <div className="metric"><div className="label">cameras active</div><div className="metric-value">{activeCams}<span style={{ color: "var(--text-dim)", fontSize: 15 }}> / {cameras.length}</span></div><div className="metric-note">{activeCams < cameras.length ? "some paused" : "all enabled"}</div></div>
-        <div className="metric"><div className="label">active alerts</div><div className="metric-value" style={{ color: alertCount ? "var(--accent)" : "var(--text-bright)" }}>{alertCount}</div><div className="metric-note">{alertCount ? "requires attention" : "clear"}</div></div>
+        <div className="metric"><div className="label">active alerts</div><div className="metric-value" style={{ color: activeAlertCount ? "var(--accent)" : "var(--text-bright)" }}>{activeAlertCount}</div><div className="metric-note">{activeAlertCount ? "rules enabled" : "none enabled"}</div></div>
         <div className="metric"><div className="label">event stream</div><div className="metric-value" style={{ color: wsConnected ? "var(--green)" : "var(--amber)", fontSize: 18, paddingTop: 4 }}>{wsConnected ? "LIVE" : "WAITING"}</div><div className="metric-note">{wsConnected ? "receiving now" : "reconnecting"}</div></div>
       </div>
 
