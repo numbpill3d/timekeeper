@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { StyleSheet, Text, View, FlatList, Pressable } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, Camera, updateCamera } from "../api/client";
 
 export function CamerasScreen() {
   const queryClient = useQueryClient();
+  const [mutationError, setMutationError] = useState("");
   const { data, isLoading, isError } = useQuery({
     queryKey: ["cameras"],
     queryFn: () => api.get<Camera[]>("/cameras").then((r) => r.data),
@@ -11,11 +13,24 @@ export function CamerasScreen() {
   const toggle = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       updateCamera(id, isActive),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cameras"] }),
+    onSuccess: () => {
+      setMutationError("");
+      return queryClient.invalidateQueries({ queryKey: ["cameras"] });
+    },
+    onError: () => setMutationError("couldn't update camera status."),
   });
 
   return (
     <View style={styles.container}>
+      {mutationError ? (
+        <Text
+          style={styles.error}
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+        >
+          {mutationError}
+        </Text>
+      ) : null}
       <FlatList
         data={data ?? []}
         refreshing={isLoading}
@@ -38,10 +53,11 @@ export function CamerasScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${item.is_active ? "Pause" : "Resume"} ${item.name}`}
-              disabled={toggle.isPending && toggle.variables?.id === item.id}
-              onPress={() =>
-                toggle.mutate({ id: item.id, isActive: !item.is_active })
-              }
+              disabled={toggle.isPending}
+              onPress={() => {
+                setMutationError("");
+                toggle.mutate({ id: item.id, isActive: !item.is_active });
+              }}
               style={styles.action}
             >
               <Text style={styles.actionText}>
@@ -82,4 +98,5 @@ const styles = StyleSheet.create({
   },
   actionText: { color: "#ccc", fontSize: 12 },
   empty: { color: "#888", fontSize: 14, textAlign: "center", marginTop: 32 },
+  error: { color: "#f66", fontSize: 12, marginBottom: 10 },
 });
