@@ -48,6 +48,9 @@ Rules:
 - For object/person questions, always include those person and object fields
   in the SELECT so the answer can name the evidence-bearing entities.
 - Limit results to 50 unless the user asks for more.
+- For history, follow, or "what happened to" questions with multiple events,
+  order rows by timestamp ASC so the answer reads as a timeline. Use DESC for
+  latest-event questions.
 - Never produce INSERT, UPDATE, DELETE, or DDL statements.
 """.strip()
 

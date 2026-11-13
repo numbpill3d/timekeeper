@@ -72,10 +72,13 @@ local camera evidence system.
 29. **Synthetic query fixture** — provide a deterministic inactive camera and
    event sequence so the query flow can be demonstrated and regression-tested
    without physical camera hardware.
+30. **Chronological handoff answers** — order multi-event “what happened to”
+   and follow-the-item results oldest-first while preserving newest-first
+   behavior for latest-event questions.
 
 ## Next high-value improvements
 
-30. **Trust and retention controls** — add per-camera retention previews,
+31. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins. Camera cards now surface the local
     configured local default and person-specific override behavior. Individual timeline

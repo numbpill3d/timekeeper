@@ -60,6 +60,12 @@ def test_fallback_query_does_not_require_a_search_term():
 def test_fallback_query_does_not_guess_an_action_for_open_ended_questions():
     sql, _ = build_fallback_query("what happened to my keys today?")
     assert "e.event_type =" not in sql
+    assert "ORDER BY e.timestamp ASC" in sql
+
+
+def test_fallback_query_keeps_latest_event_questions_newest_first():
+    sql, _ = build_fallback_query("where was my wallet today?")
+    assert "ORDER BY e.timestamp DESC" in sql
 
 
 def test_fallback_query_filters_explicit_movement_intent():

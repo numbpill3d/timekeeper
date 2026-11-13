@@ -39,6 +39,10 @@ _LOCATION_RE = re.compile(
 _GENERIC_OBJECT_QUESTION_RE = re.compile(
     r"\b(?:what happened to|where (?:is|was|were))\b", re.IGNORECASE
 )
+_HISTORY_QUESTION_RE = re.compile(
+    r"\b(?:what happened to|follow|track|where did .*\bgo|sequence|history)\b",
+    re.IGNORECASE,
+)
 _ACTION_EVENT_TYPES = (
     (re.compile(r"\b(?:pick|picked|pickup|grab|grabbed|take|took)\b", re.IGNORECASE), "object_picked_up"),
     (re.compile(r"\b(?:place|placed|put|set)\b", re.IGNORECASE), "object_placed"),
@@ -254,6 +258,7 @@ def build_fallback_query(question: str) -> tuple[str, list[object]]:
         clauses.append(f"e.event_type = ${action_param}")
         params.append(action_event_type)
 
+    ordering = "ASC" if _HISTORY_QUESTION_RE.search(question) else "DESC"
     sql = f"""
         SELECT e.id AS event_id, e.timestamp, e.event_type, e.action_label, e.location_label,
                c.name AS camera_name,
@@ -266,7 +271,7 @@ def build_fallback_query(question: str) -> tuple[str, list[object]]:
         LEFT JOIN persons p ON e.person_id = p.id
         LEFT JOIN tracked_objects o ON e.object_id = o.id
         WHERE {' AND '.join(clauses)}
-        ORDER BY e.timestamp DESC
+        ORDER BY e.timestamp {ordering}
         LIMIT 50
     """
     return sql, params
