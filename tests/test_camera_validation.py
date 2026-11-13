@@ -111,6 +111,19 @@ def test_camera_update_preserves_explicit_null_location_for_patch():
     assert update.model_dump(exclude_unset=True) == {"location_label": None}
 
 
+def test_camera_update_can_change_source_without_storing_credentials():
+    update = CameraUpdate(
+        stream_url="  https://camera.example/live  ",
+        protocol="https",
+    )
+    assert update.model_dump(exclude_unset=True) == {
+        "stream_url": "https://camera.example/live",
+        "protocol": "https",
+    }
+    with pytest.raises(ValidationError, match="credential"):
+        CameraUpdate(stream_url="https://camera.example/live?token=secret")
+
+
 def test_edge_only_camera_requires_an_external_agent():
     with pytest.raises(ValidationError, match="external edge agent"):
         CameraCreate(

@@ -21,7 +21,9 @@ DB = Annotated[asyncpg.Connection, Depends(get_db)]
 
 _TIER_LIMITS = {"free": 2, "home": 5, "family": 10, "pro": 9999}
 _PROTOCOLS = {"rtsp", "http", "https", "hls", "file", "onvif", "ring", "nest", "arlo", "wyze"}
-_UPDATE_ALLOWED = {"name", "location_label", "is_active", "provider_config"}
+_UPDATE_ALLOWED = {
+    "name", "stream_url", "protocol", "location_label", "is_active", "provider_config"
+}
 _URL_CONFIG_KEYS = {
     "whepurl", "rtspurl", "streamurl", "apiurl", "commandurl", "tokenurl",
 }
@@ -188,9 +190,49 @@ class CameraCreate(BaseModel):
 
 class CameraUpdate(BaseModel):
     name: str | None = Field(default=None, max_length=120)
+    stream_url: str | None = Field(default=None, max_length=2048)
+    protocol: str | None = None
     location_label: str | None = Field(default=None, max_length=120)
     is_active: bool | None = None
     provider_config: dict | None = None
+
+    @field_validator("protocol")
+    @classmethod
+    def _valid_protocol(cls, v: str | None) -> str | None:
+        if v is not None and v not in _PROTOCOLS:
+            opts = ", ".join(sorted(_PROTOCOLS))
+            raise ValueError(f"protocol must be one of: {opts}")
+        return v
+
+    @field_validator("stream_url")
+    @classmethod
+    def _valid_stream_url(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        parsed = urlparse(v)
+        if parsed.scheme not in {
+            "rtsp", "rtsps", "http", "https", "file",
+            "ring", "nest", "arlo", "wyze",
+        }:
+            raise ValueError(
+                "stream_url must be a direct stream URL or ring://, nest://, "
+                "arlo://, or wyze:// device URL"
+            )
+        if parsed.scheme != "file" and not parsed.netloc:
+            raise ValueError("stream_url must include a host")
+        if parsed.username or parsed.password:
+            raise ValueError(
+                "stream_url must not contain embedded credentials; use secret files"
+            )
+        if parsed.fragment or any(
+            _is_secret_key(key)
+            for key, _ in parse_qsl(parsed.query, keep_blank_values=True)
+        ):
+            raise ValueError(
+                "stream_url must not contain credential-like query parameters"
+            )
+        return v
 
     @field_validator("provider_config")
     @classmethod
