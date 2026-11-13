@@ -105,7 +105,7 @@ local camera evidence system.
     to wait, narrow the question, or repair the local stack.
 40. **Camera-scoped timeline review** — filter timeline evidence by its source
     camera on web and mobile, preserving the existing tenant scope, search,
-    time ranges, and event-type filters.
+    bounded since/until time ranges, and event-type filters.
 
 ## Next high-value improvements
 

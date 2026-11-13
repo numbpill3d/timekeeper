@@ -43,6 +43,7 @@ export function Timeline() {
   const eventType = searchParams.get("event_type") ?? "";
   const cameraId = searchParams.get("camera_id") ?? "";
   const sinceDate = searchParams.get("since") ?? "";
+  const untilDate = searchParams.get("until") ?? "";
   const search = searchParams.get("search") ?? "";
   const [searchDraft, setSearchDraft] = useState("");
   const [selected, setSelected] = useState<OmniscientEvent | null>(null);
@@ -100,22 +101,24 @@ export function Timeline() {
   if (eventType) params.event_type = eventType;
   if (cameraId) params.camera_id = cameraId;
   if (sinceDate) params.since = new Date(sinceDate).toISOString();
+  if (untilDate) params.until = new Date(untilDate).toISOString();
   if (search) params.search = search;
   const countParams: Record<string, unknown> = {};
   if (eventType) countParams.event_type = eventType;
   if (cameraId) countParams.camera_id = cameraId;
   if (sinceDate) countParams.since = new Date(sinceDate).toISOString();
+  if (untilDate) countParams.until = new Date(untilDate).toISOString();
   if (search) countParams.search = search;
 
   const { data = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ["events", "timeline", eventType, cameraId, sinceDate, search, offset],
+    queryKey: ["events", "timeline", eventType, cameraId, sinceDate, untilDate, search, offset],
     queryFn: () => listEvents(params).then((r) => r.data),
   });
   const {
     data: countData,
     isError: isCountError,
   } = useQuery({
-    queryKey: ["events", "timeline-count", eventType, cameraId, sinceDate, search],
+    queryKey: ["events", "timeline-count", eventType, cameraId, sinceDate, untilDate, search],
     queryFn: () => countEvents(countParams).then((r) => r.data.count),
   });
   const { data: cameras = [] } = useQuery({
@@ -360,7 +363,26 @@ export function Timeline() {
           </div>
         </div>
 
-        {(eventType || cameraId || sinceDate || search) && (
+        <div>
+          <div className="label" style={{ marginBottom: 4 }}>
+            until
+          </div>
+          <input
+            aria-label="Show events until"
+            type="datetime-local"
+            value={untilDate}
+            onChange={(e) => updateFilter("until", e.target.value)}
+            style={{
+              padding: "5px 10px",
+              background: "var(--elevated)",
+              color: "var(--text)",
+              border: "1px solid var(--border-hi)",
+              fontSize: 12,
+            }}
+          />
+        </div>
+
+        {(eventType || cameraId || sinceDate || untilDate || search) && (
           <button
             className="btn btn-ghost"
             style={{ marginBottom: 1 }}
