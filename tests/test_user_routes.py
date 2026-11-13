@@ -52,6 +52,7 @@ def test_event_search_is_scoped_and_escapes_wildcards():
     )
 
     assert "ps.owner_id = $1" in where
+    assert "event_annotations" in where
     assert "os.owner_id = $1" in where
     assert params[-1] == r"%blue\_\%%"
 

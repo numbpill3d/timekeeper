@@ -82,6 +82,8 @@ def _event_filters(
             f"(e.event_type ILIKE ${placeholder} ESCAPE E'\\\\' "
             f"OR e.action_label ILIKE ${placeholder} ESCAPE E'\\\\' "
             f"OR e.location_label ILIKE ${placeholder} ESCAPE E'\\\\' "
+            f"OR EXISTS (SELECT 1 FROM event_annotations ea WHERE ea.event_id = e.id "
+            f"AND ea.owner_id = $1 AND ea.note ILIKE ${placeholder} ESCAPE E'\\\\') "
             "OR EXISTS (SELECT 1 FROM persons ps WHERE ps.id = e.person_id "
             f"AND ps.owner_id = $1 AND ps.label ILIKE ${placeholder} ESCAPE E'\\\\') "
             "OR EXISTS (SELECT 1 FROM tracked_objects os WHERE os.id = e.object_id "

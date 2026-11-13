@@ -68,7 +68,7 @@ local camera evidence system.
 28. **Operator event annotations** — let reviewers add, edit, and clear a
    bounded owner-scoped note beside an event without mutating detector data;
    expose the note on web and mobile timelines and remove it with retention or
-   redaction cleanup.
+   redaction cleanup. Timeline search and CSV snapshots include the note.
 
 ## Next high-value improvements
 

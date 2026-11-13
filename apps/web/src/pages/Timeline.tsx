@@ -176,6 +176,7 @@ export function Timeline() {
       "location",
       "person",
       "item",
+      "annotation",
       "confidence",
       "clip_path",
     ];
@@ -187,6 +188,7 @@ export function Timeline() {
       event.location_label,
       event.person_label,
       event.object_label,
+      event.annotation,
       `${Math.round(event.confidence * 100)}%`,
       event.clip_path,
     ]);
