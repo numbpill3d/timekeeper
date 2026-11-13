@@ -184,7 +184,9 @@ def _delete_objects_sync(keys: list[str]) -> None:
 async def _get_embedding(event: Event) -> str | None:
     text = event.to_text()
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
+        async with httpx.AsyncClient(
+            timeout=3.0, follow_redirects=False
+        ) as client:
             resp = await client.post(
                 f"{_QUERY_ENGINE}/embed", json={"text": text}
             )

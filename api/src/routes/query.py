@@ -105,7 +105,9 @@ async def query(
     }
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(
+            timeout=30.0, follow_redirects=False
+        ) as client:
             resp = await client.post(f"{_QE_URL}/query", json=payload)
             resp.raise_for_status()
     except httpx.TimeoutException as exc:

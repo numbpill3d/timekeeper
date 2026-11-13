@@ -1,5 +1,8 @@
 """Unit tests for alert rule compilation and event matching."""
 
+import asyncio
+import sys
+import types
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -38,6 +41,26 @@ def test_compile_package_template():
 def test_compile_no_match_returns_empty():
     result = compile_rule("some completely unrecognized rule xyz123")
     assert result == {}
+
+
+def test_fenced_rule_json_removes_only_the_language_marker(monkeypatch):
+    import rules
+
+    class FakeClient:
+        async def chat(self, **_kwargs):
+            return {
+                "message": {
+                    "content": '```json\n{"event_types": ["person_entered"]}\n```'
+                }
+            }
+
+    monkeypatch.setitem(
+        sys.modules,
+        "ollama",
+        types.SimpleNamespace(AsyncClient=lambda **_kwargs: FakeClient()),
+    )
+    result = asyncio.run(rules.compile_rule_llm("someone enters"))
+    assert result == {"event_types": ["person_entered"]}
 
 
 def test_invalid_compiled_rule_is_rejected():

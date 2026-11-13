@@ -123,7 +123,9 @@ async def update_rule(
     if result == "UPDATE 0":
         raise HTTPException(status_code=404, detail="rule not found")
     row = await db.fetchrow(
-        "SELECT * FROM alert_rules WHERE id = $1", rule_id
+        "SELECT * FROM alert_rules WHERE id = $1 AND owner_id = $2",
+        rule_id,
+        user["sub"],
     )
     return AlertRuleOut(**dict(row))
 

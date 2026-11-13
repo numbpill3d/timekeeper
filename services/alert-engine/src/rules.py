@@ -141,7 +141,15 @@ async def compile_rule_llm(rule_text: str) -> dict:
         raw = resp["message"]["content"].strip()
         if "```" in raw:
             parts = raw.split("```")
-            raw = parts[1].lstrip("json").strip() if len(parts) > 1 else raw
+            if len(parts) > 1:
+                fenced = parts[1].strip()
+                lines = fenced.splitlines()
+                # Remove only a standalone markdown language marker. str.lstrip
+                # would remove any leading combination of the characters in
+                # "json", corrupting valid JSON keys and string values.
+                if lines and lines[0].strip().lower() == "json":
+                    lines = lines[1:]
+                raw = "\n".join(lines).strip()
         return normalize_rule(json.loads(raw))
     except Exception as exc:  # noqa: BLE001 - optional LLM failures must not block alerts
         log.warning("llm rule compilation failed: %s", exc)
@@ -230,9 +238,6 @@ def event_matches(
             return False
 
     min_conf = rule.get("min_confidence", 0.0)
-    if event.confidence < min_conf:
-        return False
-
     return event.confidence >= min_conf
 
 
