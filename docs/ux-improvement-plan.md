@@ -109,17 +109,14 @@ local camera evidence system.
 
 ## Next high-value improvements
 
-41. **Trust and retention controls** — add per-camera retention previews,
-    export/delete audit logs, event redaction controls, and an explicit privacy
-    status indicator before recording begins. Camera cards now surface the local
-    configured local default and person-specific override behavior. Individual timeline
-    events can be deliberately redacted from web and mobile, with an
-    owner-scoped audit record, clip cleanup, and web/mobile audit-history views
-    with web CSV export.
-    Event redaction controls now ship; broader redaction policies remain follow-on work.
+41. **Policy-level retention controls** — add configurable per-camera and
+    per-person retention policies beyond the current previews and defaults,
+    with explicit dry-run/impact summaries before cleanup. The shipped baseline
+    already provides retention previews, audited event redaction, clip cleanup,
+    web/mobile audit history, and web CSV export.
 
 ## Product-level follow-ons
 
-After the above, prioritize saved questions, multi-camera handoff (“follow the
-blue bag from the kitchen to the garage”), richer annotation search/export, and
-additional provider-backed end-to-end testing.
+After the above, prioritize richer annotation export, additional provider-backed
+end-to-end testing, and operational deployment validation with real camera
+sessions, token rotation, retention cleanup, and the complete Docker stack.

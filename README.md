@@ -37,6 +37,8 @@ invent an identity or action when the evidence is missing or weak.
   clip URLs. Reviewers can also attach owner-scoped notes to timeline events;
   notes are editable on web/mobile and are removed with the evidence they
   describe.
+- Provides URL-backed timeline search, time ranges, event-type and camera-source
+  filters on web/mobile, plus grouped evidence review and CSV snapshots.
 - Keeps camera/provider credentials out of event data and rejects credential
   material embedded in camera URLs or provider configuration.
 
