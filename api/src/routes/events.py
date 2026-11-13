@@ -86,7 +86,7 @@ async def list_events(
         SELECT e.id, e.camera_id, e.event_type, e.timestamp,
                e.action_label, e.location_label, e.confidence, e.clip_path,
                p.label AS person_label,
-               o.label AS object_label
+               COALESCE(o.label, o.category) AS object_label
         FROM events e
         LEFT JOIN persons p ON e.person_id = p.id AND p.owner_id = $1
         LEFT JOIN tracked_objects o ON e.object_id = o.id AND o.owner_id = $1
@@ -127,7 +127,8 @@ async def get_event(
 ) -> EventOut:
     row = await db.fetchrow(
         """
-        SELECT e.*, p.label AS person_label, o.label AS object_label
+        SELECT e.*, p.label AS person_label,
+               COALESCE(o.label, o.category) AS object_label
         FROM events e
         LEFT JOIN persons p ON e.person_id = p.id AND p.owner_id = $2
         LEFT JOIN tracked_objects o ON e.object_id = o.id AND o.owner_id = $2

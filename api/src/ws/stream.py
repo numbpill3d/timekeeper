@@ -42,7 +42,8 @@ async def _event_labels(
         async with pool.acquire() as db:
             row = await db.fetchrow(
                 """
-                SELECT p.label AS person_label, o.label AS object_label
+                SELECT p.label AS person_label,
+                       COALESCE(o.label, o.category) AS object_label
                 FROM events e
                 LEFT JOIN persons p
                   ON e.person_id = p.id AND p.owner_id = $2
