@@ -6,6 +6,17 @@ interface Props {
   onClose: () => void;
 }
 
+function isImageClip(value: string | null): boolean {
+  if (!value) return false;
+  try {
+    // Presigned object URLs include a query string; classify by pathname so
+    // the signature does not make JPEG evidence render as a video.
+    return /\.(jpg|jpeg|png|webp)$/i.test(new URL(value, window.location.origin).pathname);
+  } catch {
+    return false;
+  }
+}
+
 export function ClipModal({ event, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -18,8 +29,7 @@ export function ClipModal({ event, onClose }: Props) {
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const isImage =
-    event.clip_path?.match(/\.(jpg|jpeg|png|webp)$/i) !== null;
+  const isImage = isImageClip(event.clip_path);
 
   return (
     <div
