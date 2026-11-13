@@ -16,7 +16,9 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (r) => r,
   (err) => {
-    if (err.response?.status === 401) {
+    const requestUrl = String(err.config?.url ?? "");
+    const isAuthRequest = /\/auth\/(login|register)(?:$|\?)/.test(requestUrl);
+    if (err.response?.status === 401 && !isAuthRequest) {
       localStorage.removeItem("access_token");
       window.location.reload();
     }

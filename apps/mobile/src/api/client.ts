@@ -26,7 +26,9 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (r) => r,
   async (err) => {
-    if (err.response?.status === 401) {
+    const requestUrl = String(err.config?.url ?? "");
+    const isAuthRequest = /\/auth\/(login|register)(?:$|\?)/.test(requestUrl);
+    if (err.response?.status === 401 && !isAuthRequest) {
       await SecureStore.deleteItemAsync("access_token");
       _onUnauthorized?.();
     }
