@@ -57,10 +57,13 @@ local camera evidence system.
 24. **Intent-aware local answers** — constrain the no-LLM fallback to an explicit
    pickup, placement, movement, entry, or exit event when the question names
    that action, while preserving open-ended “what happened” searches.
+25. **Confidence-aware fallback wording** — qualify low-confidence evidence in
+   local answers instead of presenting weak detections with the same certainty
+   as strong matches.
 
 ## Next high-value improvements
 
-25. **Trust and retention controls** — add per-camera retention previews,
+26. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins. Camera cards now surface the local
     configured local default and person-specific override behavior. Individual timeline

@@ -53,6 +53,19 @@ def test_evidence_formatter_includes_camera_source_when_available():
     assert answer == "At 04:30 PM, John picked up keys at kitchen on camera Kitchen camera."
 
 
+def test_evidence_formatter_qualifies_low_confidence_evidence():
+    answer = llm._format_evidence_response([
+        {
+            "event_type": "object_picked_up",
+            "timestamp": datetime(2026, 11, 11, 16, 30, tzinfo=UTC),
+            "person_label": "John",
+            "object_category": "keys",
+            "confidence": 0.62,
+        }
+    ])
+    assert answer.startswith("Probably, at 04:30 PM, John picked up keys")
+
+
 def test_evidence_formatter_preserves_cross_camera_movement_path():
     answer = llm._format_evidence_response([
         {

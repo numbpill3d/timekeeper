@@ -177,9 +177,14 @@ def _format_evidence_response(rows: list[dict]) -> str:
         where = f" at {location}" if location else ""
         if camera:
             where += f" on camera {camera}"
+        confidence = row.get("confidence")
+        qualifier = ""
+        if isinstance(confidence, (int, float)) and confidence < 0.8:
+            qualifier = "Probably, "
+        at_prefix = f"{qualifier}at" if qualifier else "At"
 
         if action == "object_picked_up":
-            lines.append(f"At {time_text}, {person} picked up {item}{where}.")
+            lines.append(f"{at_prefix} {time_text}, {person} picked up {item}{where}.")
         elif action == "object_moved":
             recorded = str(row.get("action_label") or "").strip()
             if recorded.lower().startswith("moved "):
@@ -192,17 +197,17 @@ def _format_evidence_response(rows: list[dict]) -> str:
             has_path = " from " in movement.lower() or " to " in movement.lower()
             camera_only = f" on camera {camera}" if camera else ""
             lines.append(
-                f"At {time_text}, {person} {movement}"
+                f"{at_prefix} {time_text}, {person} {movement}"
                 f"{camera_only if has_path else where}."
             )
         elif action == "object_placed":
-            lines.append(f"At {time_text}, {person} was associated with {item}{where}.")
+            lines.append(f"{at_prefix} {time_text}, {person} was associated with {item}{where}.")
         elif action == "person_entered":
-            lines.append(f"At {time_text}, {person} entered{where}.")
+            lines.append(f"{at_prefix} {time_text}, {person} entered{where}.")
         elif action == "person_exited":
-            lines.append(f"At {time_text}, {person} left{where}.")
+            lines.append(f"{at_prefix} {time_text}, {person} left{where}.")
         else:
             label = row.get("action_label") or action.replace("_", " ")
-            lines.append(f"At {time_text}, the system recorded {label}{where}.")
+            lines.append(f"{at_prefix} {time_text}, the system recorded {label}{where}.")
 
     return " ".join(lines)
