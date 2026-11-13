@@ -25,8 +25,9 @@ def _load_event_processor_db():
     return module
 
 
-purge_expired_events = _load_event_processor_db().purge_expired_events
-purge_expired_detections = _load_event_processor_db().purge_expired_detections
+event_db = _load_event_processor_db()
+purge_expired_events = event_db.purge_expired_events
+purge_expired_detections = event_db.purge_expired_detections
 
 
 def test_object_key_rejects_traversal():
@@ -43,6 +44,25 @@ def test_object_key_rejects_non_clip_namespaces(value):
 def test_object_key_rejects_foreign_url():
     with pytest.raises(ValueError):
         object_key("https://example.test/omniscient-media/clips/a.jpg")
+
+
+def test_clip_upload_retries_transient_storage_failure(monkeypatch):
+    attempts = 0
+    sleeps: list[int] = []
+
+    def fake_upload(_path: str, _bucket: str, _key: str) -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise OSError("storage is starting")
+
+    monkeypatch.setattr(event_db._s3, "upload_file", fake_upload)
+    monkeypatch.setattr(event_db, "_ensure_bucket", lambda: None)
+    monkeypatch.setattr(event_db.time, "sleep", sleeps.append)
+
+    assert event_db._upload_sync("/tmp/frame.jpg", "clips/event.jpg") == "clips/event.jpg"
+    assert attempts == 3
+    assert sleeps == [1, 2]
 
 
 def test_consumed_frame_cleanup_stays_inside_frame_root(tmp_path, monkeypatch):

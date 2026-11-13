@@ -8,6 +8,7 @@ import asyncio
 import logging
 import math
 import os
+import time
 from pathlib import Path
 from uuid import UUID
 
@@ -32,6 +33,7 @@ _FRAME_ROOT = Path(os.getenv("FRAME_STORE_PATH", "/tmp/frames")).resolve()
 _DEFAULT_RETENTION_DAYS = max(
     1, int(os.getenv("DEFAULT_RETENTION_DAYS", "30"))
 )
+_UPLOAD_ATTEMPTS = 3
 
 if os.getenv("ENVIRONMENT", "development").lower() == "production" and (
     not _S3_KEY or not _S3_SECRET or _S3_KEY == "minioadmin" or _S3_SECRET == "minioadmin"
@@ -59,8 +61,18 @@ def _ensure_bucket() -> None:
 
 
 def _upload_sync(local_path: str, key: str) -> str:
-    _ensure_bucket()
-    _s3.upload_file(local_path, _BUCKET, key)
+    for attempt in range(_UPLOAD_ATTEMPTS):
+        try:
+            _ensure_bucket()
+            _s3.upload_file(local_path, _BUCKET, key)
+            break
+        except (BotoCoreError, ClientError, OSError):
+            if attempt == _UPLOAD_ATTEMPTS - 1:
+                raise
+            # MinIO/RustFS may be listening before its API is ready during a
+            # Compose boot. A short bounded retry avoids persisting an event
+            # without its evidence clip for a transient storage race.
+            time.sleep(2**attempt)
     # Persist only the object key. URLs are signed at read time by the API.
     return key
 
