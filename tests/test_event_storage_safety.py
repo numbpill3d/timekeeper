@@ -26,6 +26,7 @@ def _load_event_processor_db():
 
 
 purge_expired_events = _load_event_processor_db().purge_expired_events
+purge_expired_detections = _load_event_processor_db().purge_expired_detections
 
 
 def test_object_key_rejects_traversal():
@@ -92,3 +93,12 @@ async def test_retention_deletes_alert_deliveries_with_expired_events():
     assert deleted == 1
     assert "DELETE FROM alert_deliveries" in db.statements[0]
     assert "DELETE FROM events" in db.statements[1]
+
+
+@pytest.mark.asyncio
+async def test_retention_deletes_a_bounded_batch_of_raw_detections():
+    class Db:
+        async def execute(self, _sql: str, *_params: object):
+            return "DELETE 37"
+
+    assert await purge_expired_detections(Db()) == 37

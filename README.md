@@ -24,7 +24,8 @@ invent an identity or action when the evidence is missing or weak.
 - Answers natural-language questions through RAG + text-to-SQL, with a
   parameterized no-LLM fallback for common item/person/time questions.
 - Provides a React/Vite dashboard, FastAPI API, mobile app foundation, alerts,
-  retention cleanup, and private signed clip URLs.
+  bounded retention cleanup for raw detections/events/clips, and private signed
+  clip URLs.
 - Keeps camera/provider credentials out of event data and rejects credential
   material embedded in camera URLs or provider configuration.
 

@@ -20,7 +20,12 @@ from omniscient_shared.models.entity import DetectionMessage
 
 from .aggregator import CameraAggregator
 from .correlator import Correlator
-from .db import persist_event, purge_expired_events, store_clip
+from .db import (
+    persist_event,
+    purge_expired_detections,
+    purge_expired_events,
+    store_clip,
+)
 from .storage import cleanup_frame
 
 log = logging.getLogger(__name__)
@@ -177,9 +182,14 @@ async def _retention_loop() -> None:
             retention_db = await asyncpg.connect(
                 _DB_URL, timeout=_DB_CONNECT_TIMEOUT_SECONDS
             )
-            deleted = await purge_expired_events(retention_db)
-            if deleted:
-                log.info("retention removed %d expired events", deleted)
+            deleted_events = await purge_expired_events(retention_db)
+            deleted_detections = await purge_expired_detections(retention_db)
+            if deleted_events or deleted_detections:
+                log.info(
+                    "retention removed %d expired events and %d raw detections",
+                    deleted_events,
+                    deleted_detections,
+                )
         except asyncio.CancelledError:
             raise
         except (OSError, asyncpg.PostgresError, TimeoutError) as exc:

@@ -178,6 +178,35 @@ async def purge_expired_events(conn: asyncpg.Connection) -> int:
     return len(deletable_ids)
 
 
+async def purge_expired_detections(conn: asyncpg.Connection) -> int:
+    """Delete one bounded batch of raw detections beyond retention."""
+    result = await conn.execute(
+        """
+        WITH expired AS (
+            SELECT d.id, d.timestamp
+            FROM detections d
+            JOIN cameras c ON c.id = d.camera_id
+            WHERE d.timestamp < NOW() - make_interval(days => COALESCE(
+                (SELECT p.retention_days
+                 FROM persons p
+                 WHERE p.id = d.person_id),
+                $1
+            ))
+            ORDER BY d.timestamp, d.id
+            LIMIT 5000
+        )
+        DELETE FROM detections d
+        USING expired
+        WHERE d.id = expired.id AND d.timestamp = expired.timestamp
+        """,
+        _DEFAULT_RETENTION_DAYS,
+    )
+    try:
+        return int(result.rsplit(" ", 1)[-1])
+    except (AttributeError, ValueError) as exc:
+        raise RuntimeError("database returned an invalid detection delete count") from exc
+
+
 def _delete_objects_sync(keys: list[str]) -> None:
     for start in range(0, len(keys), 1000):
         response = _s3.delete_objects(

@@ -58,5 +58,5 @@ Do not treat a low-confidence match as proof of identity.
 - Run the complete Docker stack and verify Kafka, TimescaleDB, MinIO, Ollama,
   ingestion, vision, event processing, query, alerts, and API health.
 - Test token expiry/rotation using the provider’s official OAuth flow.
-- Verify retention deletes both database events and their corresponding object
-  keys, including legacy URL-shaped clip values.
+- Verify retention deletes raw detections, database events, and their
+  corresponding object keys, including legacy URL-shaped clip values.
