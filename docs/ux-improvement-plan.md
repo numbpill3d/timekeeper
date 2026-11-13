@@ -47,8 +47,8 @@ local camera evidence system.
 20. **Camera diagnostics baseline** — show health state, last frame,
    resolution/FPS, failure count, sanitized error code, and a remediation path.
 21. **Evidence-first answer cards** — show answer confidence, event time,
-   matched labels, camera, evidence confidence, and one-click clip verification;
-   make “not enough evidence” a first-class state.
+   matched labels, camera, evidence confidence, one-click clip verification,
+   and a local copy action; make “not enough evidence” a first-class state.
 22. **Timeline grouping and navigation** — group consecutive events by local
    hour with counts on web and mobile, add `j`/`k` page shortcuts on web, and
    retain URL-persisted filters plus keyboard/touch clip access.

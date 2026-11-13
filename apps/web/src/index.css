@@ -231,6 +231,8 @@ input::placeholder, textarea::placeholder { color: var(--text-dim); }
 .chat-remove-saved { border: 0; background: transparent; color: var(--text-dim); cursor: pointer; font-size: 13px; padding: 2px 3px; }
 .chat-remove-saved:hover { color: var(--accent-hi); }
 .chat-save { padding: 7px 9px; }
+.chat-answer-line { display: flex; align-items: flex-start; gap: 8px; }
+.chat-copy { flex-shrink: 0; padding: 2px 5px; font-size: 9px; }
 .chat-error { margin-top: 8px; padding: 7px 9px; border: 1px solid var(--accent-dim); color: var(--accent-hi); font-size: 10px; line-height: 1.5; }
 
 @media (prefers-reduced-motion: reduce) {

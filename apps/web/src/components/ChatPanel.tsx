@@ -53,13 +53,18 @@ export function ChatPanel() {
   const [error, setError] = useState("");
   const [failedQuestion, setFailedQuestion] = useState("");
   const [savedQuestions, setSavedQuestions] = useState<string[]>(loadSavedQuestions);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollTimerRef = useRef<number | null>(null);
+  const copyTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
       if (scrollTimerRef.current !== null) {
         window.clearTimeout(scrollTimerRef.current);
+      }
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
       }
     };
   }, []);
@@ -113,6 +118,22 @@ export function ChatPanel() {
         () => bottomRef.current?.scrollIntoView({ behavior: "smooth" }),
         50
       );
+    }
+  }
+
+  async function copyAnswer(id: number, content: string) {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedId(id);
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = window.setTimeout(() => {
+        copyTimerRef.current = null;
+        setCopiedId(null);
+      }, 1800);
+    } catch {
+      setError("could not copy the answer — check browser clipboard permissions.");
     }
   }
 
@@ -205,7 +226,19 @@ export function ChatPanel() {
                 ▸ evidence answer
               </span>
             )}
-            <span style={{ color: "var(--text)" }}>{m.content}</span>
+            <div className="chat-answer-line">
+              <span style={{ color: "var(--text)" }}>{m.content}</span>
+              {m.role === "assistant" && (
+                <button
+                  className="btn btn-ghost chat-copy"
+                  type="button"
+                  aria-label="Copy evidence answer"
+                  onClick={() => void copyAnswer(m.id, m.content)}
+                >
+                  {copiedId === m.id ? "copied" : "copy"}
+                </button>
+              )}
+            </div>
             {m.confidence !== undefined && m.confidence < 0.8 && (
               <div
                 style={{
