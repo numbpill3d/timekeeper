@@ -18,6 +18,28 @@ const STATUS_COLOR = {
   error: "var(--accent)",
 } as const;
 
+function cameraDiagnostic(cam: Camera): string {
+  if (cam.is_edge_only) {
+    return "external agent required before this source can be captured";
+  }
+  if (cam.status === "paused") {
+    return "capture paused — resume to collect new evidence";
+  }
+  if (cam.status === "starting") {
+    return "waiting for the first frame — check source reachability and configuration";
+  }
+  if (cam.status === "stale") {
+    return "no recent frame — check the camera network and source availability";
+  }
+  if (cam.status === "error") {
+    const attempts = cam.consecutive_failures > 1
+      ? ` (${cam.consecutive_failures} consecutive failures)`
+      : "";
+    return `capture error${attempts} — check the source and ingestion logs`;
+  }
+  return "receiving frames normally";
+}
+
 function CameraCard({
   cam,
   onToggle,
@@ -210,6 +232,17 @@ function CameraCard({
         {cam.observed_fps
           ? ` · ~${cam.observed_fps.toFixed(1)} fps`
           : ""}
+      </div>
+      <div
+        role="status"
+        style={{
+          borderLeft: `2px solid ${STATUS_COLOR[cam.status]}`,
+          paddingLeft: 8,
+          color: STATUS_COLOR[cam.status],
+          fontSize: 10,
+        }}
+      >
+        {cameraDiagnostic(cam)}
       </div>
 
       {/* Actions */}
