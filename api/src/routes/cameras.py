@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
@@ -32,6 +33,7 @@ _URL_CONFIG_KEYS = {
 }
 _MAX_PROVIDER_CONFIG_BYTES = 16 * 1024
 _CAMERA_STALE_AFTER = timedelta(seconds=45)
+_DEFAULT_RETENTION_DAYS = max(1, int(os.getenv("DEFAULT_RETENTION_DAYS", "30")))
 
 
 def _normalized_key(key: object) -> str:
@@ -305,6 +307,7 @@ class CameraOut(BaseModel):
     last_frame_width: int | None = None
     last_frame_height: int | None = None
     observed_fps: float | None = None
+    default_retention_days: int = _DEFAULT_RETENTION_DAYS
 
 
 def _camera_status(data: dict, now: datetime | None = None) -> str:

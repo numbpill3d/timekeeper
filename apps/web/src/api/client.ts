@@ -79,6 +79,7 @@ export interface Camera {
   last_frame_width: number | null;
   last_frame_height: number | null;
   observed_fps: number | null;
+  default_retention_days: number;
 }
 
 export interface Person {

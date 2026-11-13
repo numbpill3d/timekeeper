@@ -260,7 +260,7 @@ function CameraCard({
           privacy &amp; retention
         </div>
         <div style={{ color: "var(--text-dim)", fontSize: 10 }}>
-          evidence kept locally for {DEFAULT_RETENTION_DAYS} days by default
+          evidence kept locally for {cam.default_retention_days ?? DEFAULT_RETENTION_DAYS} days by default
         </div>
         <div style={{ color: "var(--text-dim)", fontSize: 10 }}>
           person-specific retention can override this window

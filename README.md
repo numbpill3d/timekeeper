@@ -181,8 +181,9 @@ GitHub Actions. Hardware/provider smoke tests remain a separate release check.
 
 ## Privacy and operational boundaries
 
-Run only on feeds you are authorized to monitor and retain. Configure retention
-periods, access controls, backups, and notice/consent requirements for your
+Run only on feeds you are authorized to monitor and retain. Configure the
+`DEFAULT_RETENTION_DAYS` deployment setting and any person-specific overrides,
+along with access controls, backups, and notice/consent requirements for your
 jurisdiction before using the system around other people. Timekeeper is an
 evidence retrieval system, not a guarantee of identity or intent.
 

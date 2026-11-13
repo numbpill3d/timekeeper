@@ -85,7 +85,7 @@ export function CamerasScreen() {
             >
               <Text style={styles.privacyTitle}>privacy &amp; retention</Text>
               <Text style={styles.privacyText}>
-                evidence kept locally for 30 days by default
+                evidence kept locally for {item.default_retention_days ?? 30} days by default
               </Text>
               <Text style={styles.privacyText}>
                 person-specific retention can override this window
