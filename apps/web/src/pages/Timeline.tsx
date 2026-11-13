@@ -32,6 +32,11 @@ function localDateTimeValue(date: Date): string {
     + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function csvCell(value: string | number | null): string {
+  const text = value == null ? "" : String(value);
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
 export function Timeline() {
   const [searchParams, setSearchParams] = useSearchParams();
   const eventType = searchParams.get("event_type") ?? "";
@@ -114,6 +119,43 @@ export function Timeline() {
     setSearchDraft("");
     setSearchParams(new URLSearchParams());
     setOffset(0);
+  }
+
+  function exportVisiblePage() {
+    if (!data.length) return;
+    const headers = [
+      "timestamp",
+      "camera",
+      "event_type",
+      "action",
+      "location",
+      "person",
+      "item",
+      "confidence",
+      "clip_path",
+    ];
+    const rows = data.map((event) => [
+      event.timestamp,
+      event.camera_name,
+      event.event_type,
+      event.action_label,
+      event.location_label,
+      event.person_label,
+      event.object_label,
+      `${Math.round(event.confidence * 100)}%`,
+      event.clip_path,
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) => row.map((value) => csvCell(value)).join(","))
+      .join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `timekeeper-timeline-page-${Math.floor(offset / PAGE) + 1}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -246,6 +288,16 @@ export function Timeline() {
         )}
 
         <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+          <button
+            className="btn btn-ghost"
+            type="button"
+            onClick={exportVisiblePage}
+            disabled={!data.length || isLoading}
+            aria-label="Export visible timeline results as CSV"
+            style={{ padding: "4px 9px" }}
+          >
+            export page
+          </button>
           <span
             style={{ fontSize: 11, color: "var(--text-dim)", alignSelf: "center" }}
           >

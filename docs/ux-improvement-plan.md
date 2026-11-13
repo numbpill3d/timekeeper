@@ -46,15 +46,17 @@ local camera evidence system.
    presets so common investigations do not require manual date entry.
 20. **Camera diagnostics baseline** — show health state, last frame,
    resolution/FPS, failure count, sanitized error code, and a remediation path.
+21. **Evidence-first answer cards** — show answer confidence, event time,
+   matched labels, camera, evidence confidence, and one-click clip verification;
+   make “not enough evidence” a first-class state.
+22. **Timeline grouping and navigation** — group consecutive events by local
+   hour with counts while retaining URL-persisted filters and keyboard clip access.
+23. **Timeline CSV snapshot** — export the currently filtered visible page with
+   timestamps, sources, labels, confidence, and clip paths for an audit handoff.
 
 ## Next high-value improvements
 
-21. **Evidence-first answer cards** — show the answer, confidence, event time,
-    matched person/object labels, camera, and one-click clip preview together.
-    Make “not enough evidence” a first-class state.
-22. **Timeline grouping and navigation** — group events by hour/location, add
-    date presets, keyboard shortcuts, and URL-persisted filters.
-23. **Trust and retention controls** — add per-camera retention previews,
+24. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins.
 
