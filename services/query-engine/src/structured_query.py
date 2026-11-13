@@ -52,7 +52,8 @@ _TIME_RANGE_RE = re.compile(
 
 def _terms(question: str) -> list[str]:
     quoted = re.findall(r"[\"']([^\"']+)[\"']", question)
-    words = re.findall(r"[a-z0-9][a-z0-9_-]{1,31}", question.lower())
+    unquoted = re.sub(r"[\"'][^\"']+[\"']", " ", question.lower())
+    words = re.findall(r"[a-z0-9][a-z0-9_-]{1,31}", unquoted)
     candidates = quoted + [
         word for word in words
         if word not in _STOPWORDS and not word.isdigit()

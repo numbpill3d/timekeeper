@@ -41,6 +41,14 @@ def test_fallback_query_keeps_location_out_of_an_arbitrary_item_label():
     assert params[1] == "%garage%"
 
 
+def test_fallback_query_preserves_a_quoted_arbitrary_item_label():
+    sql, params = build_fallback_query(
+        "what happened to my 'blue xyz' item today?"
+    )
+    assert "o.label ILIKE $2" in sql
+    assert params[0] == "%blue xyz%"
+
+
 def test_fallback_query_does_not_require_a_search_term():
     sql, params = build_fallback_query("what happened today?")
     assert "e.timestamp >= $2" in sql
