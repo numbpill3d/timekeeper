@@ -2,6 +2,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
 
+from llm import _format_evidence_response
+
 from scripts.seed_synthetic import _base_time, _id, _story_events
 
 
@@ -49,6 +51,43 @@ def test_demo_story_uses_two_cameras_and_preserves_handoff_path():
     assert events[2]["camera_id"] == garage_camera
     assert events[2]["metadata"]["from_camera_name"].endswith("· kitchen")
     assert events[2]["metadata"]["to_camera_name"].endswith("· garage")
+
+
+def test_demo_story_formats_as_an_investigation_narrative():
+    events = _story_events(
+        datetime(2026, 11, 13, 16, 30, tzinfo=UTC),
+        UUID(int=10),
+        UUID(int=11),
+        UUID(int=12),
+        UUID(int=13),
+        "toolbox-demo",
+    )
+    rows = [
+        {
+            "event_type": event["event_type"],
+            "timestamp": event["timestamp"],
+            "action_label": event["action"],
+            "location_label": event["location"],
+            "person_label": "John",
+            "object_label": "blue toolbox" if event["object_id"] else None,
+            "camera_name": (
+                "Synthetic demo · toolbox-demo · garage"
+                if event["camera_id"] == UUID(int=11)
+                else "Synthetic demo · toolbox-demo · kitchen"
+            ),
+            "from_camera_name": event["metadata"].get("from_camera_name"),
+            "to_camera_name": event["metadata"].get("to_camera_name"),
+        }
+        for event in events
+    ]
+
+    answer = _format_evidence_response(rows)
+
+    assert "John picked up blue toolbox" in answer
+    assert "John moved blue toolbox from kitchen to garage" in answer
+    assert "from camera Synthetic demo · toolbox-demo · kitchen" in answer
+    assert "John placed blue toolbox at garage" in answer
+    assert "John left at garage" in answer
 
 
 def test_fixture_supports_email_owner_lookup_without_account_creation():

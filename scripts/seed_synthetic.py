@@ -187,7 +187,7 @@ def _story_events(
         {
             "event_type": "person_entered",
             "timestamp": start,
-            "action": "John entered the kitchen",
+            "action": "Person entered kitchen",
             "location": "kitchen",
             "camera_id": kitchen_camera_id,
             "person_id": person_id,
@@ -197,7 +197,7 @@ def _story_events(
         {
             "event_type": "object_picked_up",
             "timestamp": start + timedelta(minutes=5),
-            "action": "John picked up the blue toolbox",
+            "action": "Blue toolbox picked up",
             "location": "kitchen",
             "camera_id": kitchen_camera_id,
             "person_id": person_id,
@@ -207,7 +207,7 @@ def _story_events(
         {
             "event_type": "object_moved",
             "timestamp": start + timedelta(minutes=9),
-            "action": "John moved the blue toolbox from the kitchen to the garage",
+            "action": "moved blue toolbox from kitchen to garage",
             "location": "garage",
             "camera_id": garage_camera_id,
             "person_id": person_id,
@@ -221,7 +221,7 @@ def _story_events(
         {
             "event_type": "object_placed",
             "timestamp": start + timedelta(minutes=11),
-            "action": "John placed the blue toolbox in the garage",
+            "action": "Blue toolbox placed at garage",
             "location": "garage",
             "camera_id": garage_camera_id,
             "person_id": person_id,
@@ -231,7 +231,7 @@ def _story_events(
         {
             "event_type": "person_exited",
             "timestamp": start + timedelta(minutes=15),
-            "action": "John left the garage",
+            "action": "Person left garage",
             "location": "garage",
             "camera_id": garage_camera_id,
             "person_id": person_id,
