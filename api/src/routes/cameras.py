@@ -285,6 +285,9 @@ class CameraOut(BaseModel):
     last_error_at: datetime | None = None
     last_error_code: str | None = None
     consecutive_failures: int = 0
+    last_frame_width: int | None = None
+    last_frame_height: int | None = None
+    observed_fps: float | None = None
 
 
 def _camera_status(data: dict, now: datetime | None = None) -> str:

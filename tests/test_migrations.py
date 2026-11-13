@@ -45,3 +45,11 @@ def test_camera_health_migration_records_status_columns():
     assert "last_frame_at" in migration
     assert "last_error_code" in migration
     assert "VALUES ('006_camera_health')" in migration
+
+
+def test_camera_frame_metrics_migration_records_diagnostic_columns():
+    migration = (MIGRATION_DIR / "007_camera_frame_metrics.sql").read_text(encoding="utf-8")
+    assert "last_frame_width" in migration
+    assert "last_frame_height" in migration
+    assert "observed_fps" in migration
+    assert "VALUES ('007_camera_frame_metrics')" in migration

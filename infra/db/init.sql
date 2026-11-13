@@ -37,6 +37,9 @@ CREATE TABLE cameras (
     last_error_at  TIMESTAMPTZ,
     last_error_code TEXT,
     consecutive_failures INTEGER NOT NULL DEFAULT 0,
+    last_frame_width INTEGER,
+    last_frame_height INTEGER,
+    observed_fps REAL,
     created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

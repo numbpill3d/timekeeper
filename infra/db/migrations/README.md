@@ -39,3 +39,6 @@ Persons listing.
 
 `006_camera_health.sql` adds bounded ingestion heartbeat/error fields used to
 distinguish online, starting, stale, error, and paused camera states.
+
+`007_camera_frame_metrics.sql` adds the latest observed frame dimensions and
+sampled FPS for diagnostics without retaining additional image data.

@@ -204,6 +204,12 @@ function CameraCard({
         {cam.status === "error" && cam.last_error_code
           ? ` · ${cam.last_error_code}`
           : ""}
+        {cam.last_frame_width && cam.last_frame_height
+          ? ` · ${cam.last_frame_width}×${cam.last_frame_height}`
+          : ""}
+        {cam.observed_fps
+          ? ` · ~${cam.observed_fps.toFixed(1)} fps`
+          : ""}
       </div>
 
       {/* Actions */}

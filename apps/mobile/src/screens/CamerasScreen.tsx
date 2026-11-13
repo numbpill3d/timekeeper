@@ -70,6 +70,12 @@ export function CamerasScreen() {
               {item.status === "error" && item.last_error_code
                 ? ` · ${item.last_error_code}`
                 : ""}
+              {item.last_frame_width && item.last_frame_height
+                ? ` · ${item.last_frame_width}×${item.last_frame_height}`
+                : ""}
+              {item.observed_fps
+                ? ` · ~${item.observed_fps.toFixed(1)} fps`
+                : ""}
             </Text>
             <Pressable
               accessibilityRole="button"

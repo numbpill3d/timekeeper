@@ -34,23 +34,25 @@ local camera evidence system.
    refresh, browser navigation, or shared link preserves the operator’s view.
 14. **Camera health visibility** — record throttled frame heartbeats and safe
    error codes, then show online, starting, stale, error, or paused state.
-15. **Provider setup guardrails** — infer matching cloud adapters from device
+15. **Frame diagnostics** — expose the latest observed resolution and sampled
+   FPS next to freshness state without retaining extra image data.
+16. **Provider setup guardrails** — infer matching cloud adapters from device
    URL schemes and reject contradictory explicit protocols before persistence.
-16. **Evidence source labels** — show camera context directly in web and mobile
+17. **Evidence source labels** — show camera context directly in web and mobile
    answer cards alongside matched people, objects, and locations.
-17. **Camera setup wizard** — split source naming/type from URL/location entry,
+18. **Camera setup wizard** — split source naming/type from URL/location entry,
    add provider-specific placeholders, and validate the draft before submit.
 
 ## Next high-value improvements
 
-18. **Camera diagnostics** — show last frame, last successful connection,
+19. **Camera diagnostics** — show last frame, last successful connection,
     reconnect attempts, codec/fps, clock skew, and a clear remediation path.
-19. **Evidence-first answer cards** — show the answer, confidence, event time,
+20. **Evidence-first answer cards** — show the answer, confidence, event time,
     matched person/object labels, camera, and one-click clip preview together.
     Make “not enough evidence” a first-class state.
-20. **Timeline grouping and navigation** — group events by hour/location, add
+21. **Timeline grouping and navigation** — group events by hour/location, add
     date presets, keyboard shortcuts, and URL-persisted filters.
-21. **Trust and retention controls** — add per-camera retention previews,
+22. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins.
 

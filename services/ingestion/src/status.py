@@ -40,6 +40,9 @@ class CameraStatusReporter:
         camera_id: object,
         status: str,
         error_code: str | None = None,
+        width: int | None = None,
+        height: int | None = None,
+        fps: float | None = None,
     ) -> None:
         pool = self._pool
         if pool is None:
@@ -53,10 +56,16 @@ class CameraStatusReporter:
                         SET last_frame_at = NOW(),
                             last_error_at = NULL,
                             last_error_code = NULL,
-                            consecutive_failures = 0
+                            consecutive_failures = 0,
+                            last_frame_width = $2,
+                            last_frame_height = $3,
+                            observed_fps = $4
                         WHERE id = $1
                         """,
                         camera_id,
+                        width,
+                        height,
+                        fps,
                     )
                 else:
                     await conn.execute(

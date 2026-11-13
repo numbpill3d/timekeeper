@@ -38,12 +38,18 @@ STATUS_REPORT_INTERVAL_S = 15.0
 
 
 async def _report_status(
-    status_cb, camera: Camera, status: str, error_code: str | None = None
+    status_cb,
+    camera: Camera,
+    status: str,
+    error_code: str | None = None,
+    width: int | None = None,
+    height: int | None = None,
+    fps: float | None = None,
 ) -> None:
     if status_cb is None:
         return
     try:
-        await status_cb(camera.id, status, error_code)
+        await status_cb(camera.id, status, error_code, width, height, fps)
     except Exception:  # noqa: BLE001 - health reporting is non-critical
         log.warning("camera health callback failed for %s", camera.name)
 
@@ -95,7 +101,8 @@ async def stream_camera(
 
 async def _read_loop(camera: Camera, publish_cb, status_cb=None) -> None:
     last_publish = 0.0
-    last_status_report = 0.0
+    last_status_report: float | None = None
+    frames_since_status = 0
     async for img in frames_for(camera):
         # PTS is not comparable across reconnects; use wall-clock time to
         # enforce the sampling interval consistently for live and file feeds.
@@ -128,9 +135,29 @@ async def _read_loop(camera: Camera, publish_cb, status_cb=None) -> None:
             )
             await publish_cb(msg)
             published = True
-            if now - last_status_report >= STATUS_REPORT_INTERVAL_S:
-                await _report_status(status_cb, camera, "online")
+            frames_since_status += 1
+            if last_status_report is None:
+                await _report_status(
+                    status_cb,
+                    camera,
+                    "online",
+                    width=msg.width,
+                    height=msg.height,
+                )
                 last_status_report = now
+                frames_since_status = 0
+            elif now - last_status_report >= STATUS_REPORT_INTERVAL_S:
+                elapsed = max(now - last_status_report, 1.0)
+                await _report_status(
+                    status_cb,
+                    camera,
+                    "online",
+                    width=msg.width,
+                    height=msg.height,
+                    fps=min(frames_since_status / elapsed, 120.0),
+                )
+                last_status_report = now
+                frames_since_status = 0
         finally:
             if not published:
                 path.unlink(missing_ok=True)

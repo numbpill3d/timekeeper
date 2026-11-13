@@ -76,6 +76,9 @@ export interface Camera {
   last_error_at: string | null;
   last_error_code: string | null;
   consecutive_failures: number;
+  last_frame_width: number | null;
+  last_frame_height: number | null;
+  observed_fps: number | null;
 }
 
 export interface Person {
