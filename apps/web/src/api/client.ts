@@ -145,6 +145,16 @@ export const addCamera = (data: {
   provider_config?: Record<string, unknown>;
 }) => api.post<Camera>("/cameras", data);
 
+export const updateCamera = (
+  id: string,
+  data: {
+    name?: string;
+    location_label?: string | null;
+    is_active?: boolean;
+    provider_config?: Record<string, unknown>;
+  },
+) => api.patch<Camera>(`/cameras/${id}`, data);
+
 export const deleteCamera = (id: string) => api.delete(`/cameras/${id}`);
 
 // ── Persons ───────────────────────────────────────────────────────

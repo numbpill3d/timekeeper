@@ -1,15 +1,25 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listCameras, addCamera, deleteCamera, Camera } from "../api/client";
+import {
+  listCameras,
+  addCamera,
+  updateCamera,
+  deleteCamera,
+  Camera,
+} from "../api/client";
 
 const PROTOCOLS = ["rtsp", "http", "https", "hls", "file", "onvif", "ring", "nest", "arlo", "wyze"];
 
 function CameraCard({
   cam,
+  onToggle,
   onDelete,
+  togglePending,
 }: {
   cam: Camera;
+  onToggle: () => void;
   onDelete: () => void;
+  togglePending: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
 
@@ -133,13 +143,24 @@ function CameraCard({
             </button>
           </>
         ) : (
-          <button
-            className="btn btn-ghost"
-            style={{ padding: "4px 10px", marginLeft: "auto" }}
-            onClick={() => setConfirming(true)}
-          >
-            remove
-          </button>
+          <>
+            <button
+              className="btn btn-ghost"
+              style={{ padding: "4px 10px" }}
+              onClick={onToggle}
+              disabled={togglePending}
+              aria-label={`${cam.is_active ? "Pause" : "Resume"} ${cam.name}`}
+            >
+              {togglePending ? "..." : cam.is_active ? "pause" : "resume"}
+            </button>
+            <button
+              className="btn btn-ghost"
+              style={{ padding: "4px 10px", marginLeft: "auto" }}
+              onClick={() => setConfirming(true)}
+            >
+              remove
+            </button>
+          </>
         )}
       </div>
     </div>
@@ -196,6 +217,13 @@ export function Cameras() {
   const remove = useMutation({
     mutationFn: deleteCamera,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["cameras"] }),
+  });
+
+  const toggle = useMutation({
+    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
+      updateCamera(id, { is_active }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["cameras"] }),
+    onError: () => setError("failed to update camera status"),
   });
 
   const activeCams = cameras.filter((c) => c.is_active).length;
@@ -374,7 +402,12 @@ export function Cameras() {
               <CameraCard
                 key={c.id}
                 cam={c}
+                onToggle={() => {
+                  setError("");
+                  toggle.mutate({ id: c.id, is_active: !c.is_active });
+                }}
                 onDelete={() => remove.mutate(c.id)}
+                togglePending={toggle.isPending && toggle.variables?.id === c.id}
               />
             ))}
           </div>

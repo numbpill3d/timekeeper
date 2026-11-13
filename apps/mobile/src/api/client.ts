@@ -85,6 +85,17 @@ export const listEvents = (params?: {
   since?: string;
 }) => api.get<OmniscientEvent[]>("/events", { params });
 
+export interface Camera {
+  id: string;
+  name: string;
+  protocol: string;
+  location_label: string | null;
+  is_active: boolean;
+}
+
+export const updateCamera = (id: string, is_active: boolean) =>
+  api.patch<Camera>(`/cameras/${id}`, { is_active });
+
 // ── WebSocket ─────────────────────────────────────────────────────
 
 export interface EventStream {
