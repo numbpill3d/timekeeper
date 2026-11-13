@@ -9,6 +9,8 @@ export function CamerasScreen() {
   const { data, isLoading, isRefetching, isError, refetch } = useQuery({
     queryKey: ["cameras"],
     queryFn: () => api.get<Camera[]>("/cameras").then((r) => r.data),
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
   });
   const toggle = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>

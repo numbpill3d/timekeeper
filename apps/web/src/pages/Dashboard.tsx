@@ -55,7 +55,8 @@ export function Dashboard() {
   const { data: cameras = [] } = useQuery({
     queryKey: ["cameras"],
     queryFn: () => listCameras().then((r) => r.data),
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
   });
 
   const { data: alerts = [] } = useQuery({

@@ -44,11 +44,11 @@ local camera evidence system.
    add provider-specific placeholders, and validate the draft before submit.
 19. **Timeline quick ranges** — add URL-backed today, 24-hour, and 7-day
    presets so common investigations do not require manual date entry.
+20. **Camera diagnostics baseline** — show health state, last frame,
+   resolution/FPS, failure count, sanitized error code, and a remediation path.
 
 ## Next high-value improvements
 
-20. **Camera diagnostics** — show last frame, last successful connection,
-    reconnect attempts, codec/fps, clock skew, and a clear remediation path.
 21. **Evidence-first answer cards** — show the answer, confidence, event time,
     matched person/object labels, camera, and one-click clip preview together.
     Make “not enough evidence” a first-class state.
