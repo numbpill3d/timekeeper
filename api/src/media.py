@@ -76,6 +76,8 @@ async def delete_clip_objects(values: list[str | None]) -> None:
         except ValueError:
             log.warning("skipping invalid clip key during camera removal")
             continue
+        if key is None:
+            continue
         if key not in keys:
             keys.append(key)
     if not keys:

@@ -129,7 +129,9 @@ async def events_stream(websocket: WebSocket) -> None:
                         message = disconnect_task.result()
                     except WebSocketDisconnect:
                         break
-                    if message.get("type") == "websocket.disconnect":
+                    if isinstance(message, dict) and message.get(
+                        "type"
+                    ) == "websocket.disconnect":
                         break
                     # Ignore client messages and continue watching for a close.
                     disconnect_task = asyncio.create_task(websocket.receive())

@@ -14,10 +14,11 @@ import numpy as np
 import torch
 
 try:
-    import torchreid
+    import torchreid as _torchreid
 
     _TORCHREID_AVAILABLE = True
 except ImportError:
+    _torchreid = None
     _TORCHREID_AVAILABLE = False
     logging.getLogger(__name__).warning(
         "torchreid not available — ReID disabled; "
@@ -37,9 +38,9 @@ class ReIDModel:
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self._model = None
 
-        if _TORCHREID_AVAILABLE:
+        if _TORCHREID_AVAILABLE and _torchreid is not None:
             try:
-                self._model = torchreid.models.build_model(
+                self._model = _torchreid.models.build_model(
                     name=model_name,
                     num_classes=1000,
                     pretrained=True,

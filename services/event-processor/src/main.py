@@ -67,6 +67,8 @@ async def main() -> None:
         await producer.start()
         producer_started = True
         db = await asyncpg.connect(_DB_URL, timeout=_DB_CONNECT_TIMEOUT_SECONDS)
+        if db is None:
+            raise RuntimeError("event processor database connection was not created")
         cam_rows = await db.fetch(
             "SELECT id, location_label, owner_id FROM cameras "
             "WHERE is_active = TRUE"

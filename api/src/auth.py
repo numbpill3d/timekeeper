@@ -17,7 +17,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 
-_SECRET = os.getenv("JWT_SECRET")
+_SECRET = os.getenv("JWT_SECRET") or ""
 if not _SECRET:
     raise RuntimeError(
         "JWT_SECRET environment variable is not set. "

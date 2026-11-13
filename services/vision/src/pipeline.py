@@ -515,6 +515,8 @@ class VisionPipeline:
                 refresh_db = await asyncpg.connect(
                     _DB_URL, timeout=_DB_CONNECT_TIMEOUT_SECONDS
                 )
+                if refresh_db is None:
+                    raise RuntimeError("vision refresh database connection was not created")
                 rows = await refresh_db.fetch(
                     "SELECT id, owner_id FROM cameras WHERE is_active = TRUE"
                 )
