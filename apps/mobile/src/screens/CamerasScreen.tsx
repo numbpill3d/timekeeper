@@ -57,12 +57,20 @@ export function CamerasScreen() {
           <View style={styles.card}>
             <Text style={styles.name}>{item.name}</Text>
             <Text style={styles.meta}>
-              {item.location_label ?? "no location"} · {item.protocol} · {item.is_active ? "active" : "paused"}
+              {item.location_label ?? "no location"} · {item.protocol} · {item.status}
             </Text>
             <View
-              accessibilityLabel={item.is_active ? "Camera active" : "Camera paused"}
-              style={[styles.dot, item.is_active ? styles.online : styles.offline]}
+              accessibilityLabel={`Camera ${item.status}`}
+              style={[styles.dot, item.status === "online" ? styles.online : styles.offline]}
             />
+            <Text style={styles.health}>
+              {item.last_frame_at
+                ? `last frame ${new Date(item.last_frame_at).toLocaleTimeString()}`
+                : "no frame received yet"}
+              {item.status === "error" && item.last_error_code
+                ? ` · ${item.last_error_code}`
+                : ""}
+            </Text>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${item.is_active ? "Pause" : "Resume"} ${item.name}`}
@@ -98,6 +106,7 @@ const styles = StyleSheet.create({
   },
   name: { color: "#fff", fontSize: 15, fontWeight: "600" },
   meta: { color: "#888", fontSize: 12, marginTop: 2 },
+  health: { color: "#777", fontSize: 11, marginTop: 4 },
   dot: { width: 8, height: 8, borderRadius: 4, marginTop: 8 },
   online: { backgroundColor: "#0c0" },
   offline: { backgroundColor: "#600" },

@@ -34,11 +34,24 @@ FRAME_DIR = Path(os.getenv("FRAME_STORE_PATH", "/tmp/frames"))
 FRAME_INTERVAL_S = parse_frame_interval(
     os.getenv("FRAME_INTERVAL_S", "0.1")
 )  # 10 fps default
+STATUS_REPORT_INTERVAL_S = 15.0
+
+
+async def _report_status(
+    status_cb, camera: Camera, status: str, error_code: str | None = None
+) -> None:
+    if status_cb is None:
+        return
+    try:
+        await status_cb(camera.id, status, error_code)
+    except Exception:  # noqa: BLE001 - health reporting is non-critical
+        log.warning("camera health callback failed for %s", camera.name)
 
 
 async def stream_camera(
     camera: Camera,
     publish_cb,  # async callable(FrameMessage)
+    status_cb=None,
 ) -> None:
     """Continuously read a camera stream and publish frames.
 
@@ -49,12 +62,13 @@ async def stream_camera(
 
     while True:
         try:
-            await _read_loop(camera, publish_cb)
+            await _read_loop(camera, publish_cb, status_cb)
             backoff = 1.0
             # A clean EOF is common for local-file feeds. Avoid a hot loop
             # that reopens and replays the source continuously at full CPU.
             await asyncio.sleep(NORMAL_RECONNECT_DELAY_S)
         except (ProviderError, OSError) as exc:
+            await _report_status(status_cb, camera, "error", type(exc).__name__)
             log.warning(
                 "stream error for %s — retrying in %.0fs",
                 safe_stream_error_context(camera, exc), backoff,
@@ -67,6 +81,7 @@ async def stream_camera(
             # camera task while the reload loop still considers it present.
             # Do not emit a traceback here: provider/client exceptions can
             # contain the configured stream URL or other connection details.
+            await _report_status(status_cb, camera, "error", type(exc).__name__)
             log.error(
                 "unexpected stream failure for %s — retrying in %.0fs",
                 safe_stream_error_context(camera, exc),
@@ -78,8 +93,9 @@ async def stream_camera(
             break
 
 
-async def _read_loop(camera: Camera, publish_cb) -> None:
+async def _read_loop(camera: Camera, publish_cb, status_cb=None) -> None:
     last_publish = 0.0
+    last_status_report = 0.0
     async for img in frames_for(camera):
         # PTS is not comparable across reconnects; use wall-clock time to
         # enforce the sampling interval consistently for live and file feeds.
@@ -112,6 +128,9 @@ async def _read_loop(camera: Camera, publish_cb) -> None:
             )
             await publish_cb(msg)
             published = True
+            if now - last_status_report >= STATUS_REPORT_INTERVAL_S:
+                await _report_status(status_cb, camera, "online")
+                last_status_report = now
         finally:
             if not published:
                 path.unlink(missing_ok=True)

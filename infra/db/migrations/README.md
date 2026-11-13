@@ -36,3 +36,6 @@ and camera-removal cleanup.
 
 `005_person_owner_last_seen_index.sql` adds the tenant/time index used by the
 Persons listing.
+
+`006_camera_health.sql` adds bounded ingestion heartbeat/error fields used to
+distinguish online, starting, stale, error, and paused camera states.

@@ -106,6 +106,11 @@ export interface Camera {
   protocol: string;
   location_label: string | null;
   is_active: boolean;
+  status: "paused" | "starting" | "online" | "stale" | "error";
+  last_frame_at: string | null;
+  last_error_at: string | null;
+  last_error_code: string | null;
+  consecutive_failures: number;
 }
 
 export const updateCamera = (id: string, is_active: boolean) =>

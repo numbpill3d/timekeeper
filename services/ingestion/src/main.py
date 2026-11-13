@@ -17,6 +17,7 @@ import asyncpg
 from omniscient_shared.models.camera import Camera, CameraProtocol
 
 from .frame_publisher import FramePublisher
+from .status import CameraStatusReporter
 from .stream import stream_camera
 
 log = logging.getLogger(__name__)
@@ -64,6 +65,8 @@ def _camera_stream_signature(camera: Camera) -> tuple[str, str, str]:
 async def main() -> None:
     publisher = FramePublisher()
     await publisher.start()
+    status = CameraStatusReporter(_DB_URL)
+    await status.start()
 
     # camera_id -> running task
     tasks: dict[str, asyncio.Task] = {}
@@ -136,7 +139,7 @@ async def main() -> None:
                 if cid not in tasks:
                     log.info("starting stream: %s (%s)", cam.name, cid)
                     tasks[cid] = asyncio.create_task(
-                        stream_camera(cam, publisher.publish)
+                        stream_camera(cam, publisher.publish, status.report)
                     )
                     stream_signatures[cid] = _camera_stream_signature(cam)
 
@@ -149,6 +152,7 @@ async def main() -> None:
         if tasks:
             await asyncio.gather(*tasks.values(), return_exceptions=True)
         await publisher.stop()
+        await status.close()
 
 
 if __name__ == "__main__":

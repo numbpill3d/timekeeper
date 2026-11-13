@@ -9,6 +9,7 @@ from omniscient_shared.models.camera import Camera, CameraProtocol
 
 from api.src.main import app
 from services.ingestion.src.main import _camera_stream_signature
+from services.ingestion.src.status import CameraStatusReporter
 
 
 def test_api_entrypoint_imports_with_runtime_dependencies():
@@ -39,3 +40,8 @@ def test_ingestion_stream_signature_changes_when_source_settings_change():
     assert original != _camera_stream_signature(
         camera.model_copy(update={"provider_config": {"whep_url": "https://camera/live"}})
     )
+
+
+def test_camera_status_reporter_is_disabled_without_database_url():
+    reporter = CameraStatusReporter("")
+    assert reporter._pool is None

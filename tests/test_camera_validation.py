@@ -1,5 +1,7 @@
 """Camera input validation must not persist credentials."""
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from fastapi import HTTPException
 from omniscient_shared.models.entity import Detection, DetectionMessage, FrameMessage
@@ -9,6 +11,7 @@ from pydantic import ValidationError
 from api.src.routes.cameras import (
     CameraCreate,
     CameraUpdate,
+    _camera_status,
     _public_camera,
     delete_camera,
     update_camera,
@@ -83,6 +86,24 @@ def test_legacy_camera_output_redacts_credentials():
     )
     assert camera.stream_url == "rtsp://camera/live?quality=high"
     assert camera.provider_config == {"whep_url": "https://camera.example/live"}
+
+
+def test_camera_health_status_distinguishes_paused_online_stale_and_error():
+    now = datetime(2026, 1, 1, tzinfo=UTC)
+    assert _camera_status({"is_active": False}, now) == "paused"
+    assert _camera_status({"is_active": True}, now) == "starting"
+    assert _camera_status({"is_active": True, "last_frame_at": now}, now) == "online"
+    assert _camera_status(
+        {"is_active": True, "last_frame_at": now - timedelta(minutes=2)}, now
+    ) == "stale"
+    assert _camera_status(
+        {
+            "is_active": True,
+            "last_frame_at": now,
+            "last_error_at": now + timedelta(seconds=1),
+        },
+        now,
+    ) == "error"
 
 
 def test_camera_metadata_is_bounded():

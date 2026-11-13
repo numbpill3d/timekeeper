@@ -33,6 +33,10 @@ CREATE TABLE cameras (
     is_edge_only   BOOLEAN NOT NULL DEFAULT FALSE,
     is_active      BOOLEAN NOT NULL DEFAULT TRUE,
     provider_config JSONB NOT NULL DEFAULT '{}',
+    last_frame_at  TIMESTAMPTZ,
+    last_error_at  TIMESTAMPTZ,
+    last_error_code TEXT,
+    consecutive_failures INTEGER NOT NULL DEFAULT 0,
     created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

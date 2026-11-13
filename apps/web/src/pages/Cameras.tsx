@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatDistanceToNow } from "date-fns";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   listCameras,
@@ -9,6 +10,13 @@ import {
 } from "../api/client";
 
 const PROTOCOLS = ["rtsp", "http", "https", "hls", "file", "onvif", "ring", "nest", "arlo", "wyze"];
+const STATUS_COLOR = {
+  paused: "var(--text-dim)",
+  starting: "var(--amber)",
+  online: "var(--green)",
+  stale: "var(--amber)",
+  error: "var(--accent)",
+} as const;
 
 function CameraCard({
   cam,
@@ -114,7 +122,7 @@ function CameraCard({
             style={{
               width: 7,
               height: 7,
-              background: cam.is_active ? "var(--green)" : "var(--text-dim)",
+              background: STATUS_COLOR[cam.status],
               display: "inline-block",
               flexShrink: 0,
             }}
@@ -122,12 +130,12 @@ function CameraCard({
           <span
             style={{
               fontSize: 10,
-              color: cam.is_active ? "var(--green)" : "var(--text-dim)",
+              color: STATUS_COLOR[cam.status],
               textTransform: "uppercase",
               letterSpacing: "0.1em",
             }}
           >
-            {cam.is_active ? "active" : "paused"}
+            {cam.status}
           </span>
         </div>
       </div>
@@ -187,6 +195,15 @@ function CameraCard({
         {cam.is_edge_only && (
           <span className="badge badge-amber">external agent required</span>
         )}
+      </div>
+
+      <div style={{ fontSize: 10, color: "var(--text-dim)" }}>
+        {cam.last_frame_at
+          ? `last frame ${formatDistanceToNow(new Date(cam.last_frame_at), { addSuffix: true })}`
+          : "no frame received yet"}
+        {cam.status === "error" && cam.last_error_code
+          ? ` · ${cam.last_error_code}`
+          : ""}
       </div>
 
       {/* Actions */}
@@ -294,6 +311,7 @@ export function Cameras() {
   const { data: cameras = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["cameras"],
     queryFn: () => listCameras().then((r) => r.data),
+    refetchInterval: 15_000,
   });
 
   const add = useMutation({

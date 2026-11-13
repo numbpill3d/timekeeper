@@ -71,6 +71,11 @@ export interface Camera {
   is_edge_only: boolean;
   is_active: boolean;
   provider_config: Record<string, unknown>;
+  status: "paused" | "starting" | "online" | "stale" | "error";
+  last_frame_at: string | null;
+  last_error_at: string | null;
+  last_error_code: string | null;
+  consecutive_failures: number;
 }
 
 export interface Person {

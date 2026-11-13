@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from uuid import UUID
@@ -28,6 +29,7 @@ _URL_CONFIG_KEYS = {
     "whepurl", "rtspurl", "streamurl", "apiurl", "commandurl", "tokenurl",
 }
 _MAX_PROVIDER_CONFIG_BYTES = 16 * 1024
+_CAMERA_STALE_AFTER = timedelta(seconds=45)
 
 
 def _normalized_key(key: object) -> str:
@@ -263,10 +265,31 @@ class CameraOut(BaseModel):
     is_edge_only: bool
     is_active: bool
     provider_config: dict
+    status: str = "starting"
+    last_frame_at: datetime | None = None
+    last_error_at: datetime | None = None
+    last_error_code: str | None = None
+    consecutive_failures: int = 0
+
+
+def _camera_status(data: dict, now: datetime | None = None) -> str:
+    if not data.get("is_active", True):
+        return "paused"
+    last_frame = data.get("last_frame_at")
+    last_error = data.get("last_error_at")
+    if last_error is not None and (last_frame is None or last_error >= last_frame):
+        return "error"
+    if last_frame is None:
+        return "starting"
+    current = now or datetime.now(UTC)
+    if current - last_frame <= _CAMERA_STALE_AFTER:
+        return "online"
+    return "stale"
 
 
 def _public_camera(row: asyncpg.Record | dict) -> CameraOut:
     data = dict(row)
+    data["status"] = _camera_status(data)
     data["stream_url"] = _redact_url(str(data["stream_url"]))
     data["provider_config"] = _redact_provider_config(data["provider_config"] or {})
     return CameraOut(**data)

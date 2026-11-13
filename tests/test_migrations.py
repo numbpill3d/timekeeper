@@ -38,3 +38,10 @@ def test_fresh_and_upgraded_embedding_indexes_use_one_canonical_name():
     assert "CREATE INDEX events_embedding_384_idx" in init
     assert "DROP INDEX IF EXISTS events_embedding_idx" in migration
     assert "CREATE INDEX IF NOT EXISTS events_embedding_384_idx" in migration
+
+
+def test_camera_health_migration_records_status_columns():
+    migration = (MIGRATION_DIR / "006_camera_health.sql").read_text(encoding="utf-8")
+    assert "last_frame_at" in migration
+    assert "last_error_code" in migration
+    assert "VALUES ('006_camera_health')" in migration
