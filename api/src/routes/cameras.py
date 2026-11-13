@@ -288,8 +288,14 @@ async def add_camera(
 async def update_camera(
     camera_id: UUID, req: CameraUpdate, user: CurrentUser, db: DB
 ) -> CameraOut:
-    updates = {k: v for k, v in req.model_dump(exclude_none=True).items()
-               if k in _UPDATE_ALLOWED}
+    # `exclude_unset` keeps an explicit null location distinct from an omitted
+    # field, allowing clients to clear a stale location label without turning
+    # other nullable patch fields into invalid SQL values.
+    updates = {
+        k: v
+        for k, v in req.model_dump(exclude_unset=True).items()
+        if k in _UPDATE_ALLOWED and (v is not None or k == "location_label")
+    }
     if not updates:
         raise HTTPException(status_code=422, detail="no fields to update")
     sets = ", ".join(f"{col} = ${i + 3}" for i, col in enumerate(updates))

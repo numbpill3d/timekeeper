@@ -106,6 +106,11 @@ def test_camera_updates_reject_blank_names_and_normalize_locations():
     ) == {"name": "garage", "location_label": "back door"}
 
 
+def test_camera_update_preserves_explicit_null_location_for_patch():
+    update = CameraUpdate(location_label=None)
+    assert update.model_dump(exclude_unset=True) == {"location_label": None}
+
+
 def test_edge_only_camera_requires_an_external_agent():
     with pytest.raises(ValidationError, match="external edge agent"):
         CameraCreate(
@@ -243,6 +248,37 @@ async def test_camera_update_returns_owner_scoped_row_atomically():
         "00000000-0000-0000-0000-000000000001",
         "owner-1",
         "garage",
+    )
+
+
+@pytest.mark.asyncio
+async def test_camera_update_can_clear_location_label():
+    db = _CameraUpdateDb(
+        {
+            "id": "00000000-0000-0000-0000-000000000001",
+            "name": "garage",
+            "stream_url": "rtsp://camera/live",
+            "protocol": "rtsp",
+            "location_label": None,
+            "is_edge_only": False,
+            "is_active": True,
+            "provider_config": {},
+        }
+    )
+
+    await update_camera(
+        "00000000-0000-0000-0000-000000000001",
+        CameraUpdate(location_label=None),
+        {"sub": "owner-1"},
+        db,
+    )
+
+    assert db.query is not None
+    _sql, params = db.query
+    assert params == (
+        "00000000-0000-0000-0000-000000000001",
+        "owner-1",
+        None,
     )
 
 
