@@ -48,6 +48,15 @@ class DetectionMessage(BaseModel):
     frame_path: str | None = Field(default=None, max_length=1024)  # propagated from FrameMessage for clip extraction
     detections: list[Detection] = Field(default_factory=list, max_length=512)
 
+    @model_validator(mode="after")
+    def _detections_match_frame(self) -> DetectionMessage:
+        for detection in self.detections:
+            if detection.camera_id != self.camera_id:
+                raise ValueError("detection camera_id must match message camera_id")
+            if detection.frame_id != self.frame_id:
+                raise ValueError("detection frame_id must match message frame_id")
+        return self
+
 
 class Person(BaseModel):
     id: UUID = Field(default_factory=uuid4)

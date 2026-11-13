@@ -151,6 +151,34 @@ def test_detection_message_bounds_untrusted_frame_payloads():
         )
 
 
+def test_detection_message_rejects_inner_camera_or_frame_mismatch():
+    detection = {
+        "camera_id": "00000000-0000-0000-0000-000000000002",
+        "timestamp": "2026-01-01T00:00:00Z",
+        "frame_id": "other-frame",
+        "track_id": 1,
+        "class_name": "person",
+        "confidence": 0.9,
+        "bbox": (0.1, 0.1, 0.5, 0.5),
+    }
+    with pytest.raises(ValidationError, match="camera_id"):
+        DetectionMessage(
+            camera_id="00000000-0000-0000-0000-000000000001",
+            timestamp="2026-01-01T00:00:00Z",
+            frame_id="frame",
+            detections=[detection],
+        )
+
+    detection["camera_id"] = "00000000-0000-0000-0000-000000000001"
+    with pytest.raises(ValidationError, match="frame_id"):
+        DetectionMessage(
+            camera_id="00000000-0000-0000-0000-000000000001",
+            timestamp="2026-01-01T00:00:00Z",
+            frame_id="frame",
+            detections=[detection],
+        )
+
+
 def test_event_contract_rejects_oversized_or_non_json_metadata():
     base = {
         "camera_id": "00000000-0000-0000-0000-000000000001",

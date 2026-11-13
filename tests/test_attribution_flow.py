@@ -41,7 +41,14 @@ def test_named_person_item_pickup_survives_event_pipeline():
             camera_id=camera_id,
             timestamp=timestamp + STILL_TIMEOUT,
             frame_id="frame-1b",
-            detections=[detection.model_copy(update={"timestamp": timestamp + STILL_TIMEOUT})],
+            detections=[
+                detection.model_copy(
+                    update={
+                        "timestamp": timestamp + STILL_TIMEOUT,
+                        "frame_id": "frame-1b",
+                    }
+                )
+            ],
         )
     )
     events = aggregator.process(
