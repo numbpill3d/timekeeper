@@ -30,6 +30,7 @@ async def main() -> None:
         bootstrap_servers=_BROKERS,
         group_id=GROUP_ALERT_ENGINE,
         value_deserializer=lambda v: json.loads(v.decode()),
+        enable_auto_commit=False,
     )
     consumer_started = False
     db: asyncpg.Connection | None = None
@@ -43,18 +44,21 @@ async def main() -> None:
                 event = Event(**msg.value)
             except (TypeError, ValueError) as exc:
                 log.warning("dropping malformed event message: %s", exc)
+                await consumer.commit()
                 continue
             try:
                 await _evaluate(event, db)
             except asyncio.CancelledError:
                 raise
             except Exception:
-                # One broken rule, provider, or transient database operation
-                # must not stop alert evaluation for every later event.
+                # Preserve the offset so a container restart replays this
+                # valid event instead of losing an alert on auto-commit.
                 log.exception(
-                    "alert evaluation failed for event %s; continuing",
+                    "alert evaluation failed for event %s; restarting for replay",
                     event.id,
                 )
+                raise
+            await consumer.commit()
     finally:
         if consumer_started:
             await consumer.stop()

@@ -33,12 +33,17 @@ _RETENTION_INTERVAL = max(
 )
 
 
+class _DropDetection(Exception):
+    """A valid message that is intentionally discarded and acknowledged."""
+
+
 async def main() -> None:
     consumer = AIOKafkaConsumer(
         DETECTIONS,
         bootstrap_servers=_BROKERS,
         group_id=GROUP_EVENT_PROCESSOR,
         value_deserializer=lambda v: json.loads(v.decode()),
+        enable_auto_commit=False,
     )
     producer = AIOKafkaProducer(
         bootstrap_servers=_BROKERS,
@@ -73,8 +78,10 @@ async def main() -> None:
                 det_msg = DetectionMessage(**msg.value)
             except (TypeError, ValueError) as exc:
                 log.warning("dropping malformed detection message: %s", exc)
+                await consumer.commit()
                 continue
             cam_key = str(det_msg.camera_id)
+            processed = False
             try:
                 if cam_key not in cam_locations:
                     row = await db.fetchrow(
@@ -84,7 +91,7 @@ async def main() -> None:
                     )
                     if not row:
                         log.warning("dropping detection for unknown/inactive camera %s", cam_key)
-                        continue
+                        raise _DropDetection
                     cam_locations[cam_key] = row["location_label"]
                     cam_owners[cam_key] = str(row["owner_id"])
 
@@ -114,19 +121,25 @@ async def main() -> None:
                     await producer.send(
                         EVENTS, value=event.model_dump(mode="json")
                     )
+                processed = True
+            except _DropDetection:
+                processed = True
             except asyncio.CancelledError:
                 raise
             except Exception:
-                # A transient database, object-store, or Kafka failure must
-                # not terminate the worker and stop every camera. The frame
-                # is still cleaned below; the consumer's normal restart and
-                # replay behavior can recover the failed message.
+                # Do not advance the group offset after a valid message fails.
+                # Exiting lets the container restart and replay it instead of
+                # auto-commit acknowledging the failed detection.
                 log.exception(
-                    "detection processing failed for camera %s; continuing",
+                    "detection processing failed for camera %s; restarting for replay",
                     cam_key,
                 )
             finally:
-                cleanup_frame(det_msg.frame_path)
+                if processed:
+                    cleanup_frame(det_msg.frame_path)
+            if not processed:
+                raise RuntimeError("detection processing failed; replay required")
+            await consumer.commit()
     finally:
         if retention_task:
             retention_task.cancel()

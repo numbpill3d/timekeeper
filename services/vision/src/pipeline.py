@@ -84,6 +84,7 @@ class VisionPipeline:
             bootstrap_servers=brokers,
             group_id=GROUP_VISION,
             value_deserializer=lambda v: json.loads(v.decode()),
+            enable_auto_commit=False,
         )
         self._producer = AIOKafkaProducer(
             bootstrap_servers=brokers,
@@ -112,9 +113,11 @@ class VisionPipeline:
                 except asyncio.CancelledError:
                     raise
                 except Exception:
-                    # A corrupt frame or transient per-camera/database error
-                    # must not stop processing every other camera.
-                    log.exception("frame processing failed; continuing")
+                    # Preserve the offset so a restart replays a valid frame
+                    # instead of allowing auto-commit to skip it permanently.
+                    log.exception("frame processing failed; restarting for replay")
+                    raise
+                await self._consumer.commit()
         finally:
             if producer_started:
                 await self._producer.stop()
