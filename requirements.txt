@@ -30,9 +30,6 @@ aiohttp>=3.9.0
 aiortc>=1.9.0
 
 # LLM & RAG
-langchain>=0.1.0
-langchain-community>=0.0.13
-langchain-openai>=0.0.5
 openai>=1.10.0
 ollama>=0.1.6
 sentence-transformers==3.4.1
