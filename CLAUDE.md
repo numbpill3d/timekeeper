@@ -45,10 +45,18 @@ eas build --platform android
 
 ### DB migrations
 
-Schema lives entirely in `infra/db/init.sql`. Apply manually against a running TimescaleDB:
+The base schema lives in `infra/db/init.sql`; incremental upgrades live in
+`infra/db/migrations/` and are applied by the Compose `db-migrate` sidecar.
+For a manual run, apply the numbered migrations after the base schema against
+a running TimescaleDB:
 
 ```bash
-docker compose exec timescaledb psql -U omniscient -d omniscient -f /docker-entrypoint-initdb.d/init.sql
+docker compose exec -T timescaledb psql -U omniscient -d omniscient \
+  -f /docker-entrypoint-initdb.d/init.sql
+for migration in infra/db/migrations/*.sql; do
+  docker compose exec -T timescaledb psql -U omniscient -d omniscient \
+    -f - < "$migration"
+done
 ```
 
 ## Architecture
@@ -64,7 +72,7 @@ cameras → ingestion (direct streams or provider WebRTC adapters) → Kafka: om
                                       ↓ omniscient.events
                   ┌───────────────────┴───────────────────┐
              alert-engine                             query-engine
-             (:8002, Twilio/FCM)               (:8001, RAG+SQL+Ollama)
+             (Kafka consumer, Twilio/FCM)      (:8001, RAG+SQL+Ollama)
                                                          ↑
                                                    api (:8000, FastAPI)
                                                          ↑
@@ -77,7 +85,7 @@ cameras → ingestion (direct streams or provider WebRTC adapters) → Kafka: om
 |---|---|
 | api (FastAPI) | 8000 |
 | query-engine | 8001 |
-| alert-engine | 8002 |
+| alert-engine | Kafka consumer (no HTTP port) |
 | TimescaleDB | 5432 |
 | Kafka | 9092 |
 | Redis | 6379 |
@@ -126,20 +134,34 @@ environment-only and non-secret endpoint/device settings live in
 
 ### Auth (`api/src/auth.py`)
 
-JWT (PyJWT + bcrypt). `CurrentUser = Annotated[dict, Depends(get_current_user)]`. Tier enforcement via `require_tier(*tiers)` factory. Camera limits: free=2, home=5, family=10, pro=9999.
+JWT (PyJWT + bcrypt). `CurrentUser = Annotated[dict, Depends(get_current_user)]`.
+The API enforces the free query quota and camera limits from the user's stored
+subscription tier: free=2 cameras and 10 queries/month, home=5, family=10,
+pro=9999 cameras.
 
 ### WebSocket live events
 
-`/ws/events?token=JWT` — AIOKafkaConsumer per connection, `auto_offset_reset="latest"`, events filtered to the requesting user's `owner_id`.
+`/ws/events` — the browser/mobile client sends the JWT in the
+`timekeeper-auth` WebSocket subprotocol rather than the URL; an
+`AIOKafkaConsumer` is created per connection with `auto_offset_reset="latest"`,
+and events are filtered to the requesting user's `owner_id`.
 
 ## Database schema (`infra/db/init.sql`)
 
-Key tables: `users`, `cameras`, `persons` (VECTOR(512) ReID + VECTOR(2048) face), `tracked_objects`, `detections` (TimescaleDB hypertable), `events` (hypertable + VECTOR(384) embedding), `alert_rules`, `alert_deliveries`. ivfflat indexes on all vector columns.
+Key tables: `users`, `cameras`, `persons` (VECTOR(512) ReID + VECTOR(512)
+FaceNet), `tracked_objects`, `detections` (TimescaleDB hypertable), `events`
+(hypertable + VECTOR(384) embedding), `alert_rules`, and
+`alert_deliveries`. IVFFlat indexes cover the vector columns.
 
 ## Web app (`apps/web/`)
 
-React 18 + Vite + Tailwind + TanStack Query + Zustand. Theme: `--accent: #cc0000`, `--bg: #000000`, Terminus font. Vite proxies `/api/*` → `http://localhost:8000`. Pages: Dashboard (activity feed + ChatPanel), Timeline (event table), Cameras (CRUD).
+React 18 + Vite + TanStack Query + Axios. Theme: `--accent: #cc0000`,
+`--bg: #000000`, Terminus font. Vite proxies `/api/*` →
+`http://localhost:8000`. Pages: Dashboard (activity feed + ChatPanel),
+Timeline (event table), Cameras (CRUD), Persons, Alerts, and Settings.
 
 ## Mobile app (`apps/mobile/`)
 
-Expo React Native. Bottom tabs: Home (activity summary), Chat (NL query), Cameras. ChatScreen is the primary NL interface — sends to `/api/query`, shows confidence badge if < 0.8.
+Expo React Native. Bottom tabs: Home (activity summary), Chat (NL query),
+Timeline, and Cameras. ChatScreen is the primary NL interface — sends to the
+authenticated `/query` API route and shows a confidence badge if < 0.8.
