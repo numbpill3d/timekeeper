@@ -33,8 +33,13 @@ integration demonstrably requires a narrowly scoped capability.
 Prefer a secret manager or mounted secret files. For example:
 
 ```bash
+TIMEKEEPER_SECRETS_DIR=/srv/timekeeper/secrets
 RING_ACCESS_TOKEN_FILE=/run/secrets/ring_access_token
 ```
+
+Compose mounts `TIMEKEEPER_SECRETS_DIR` read-only at `/run/secrets` in the
+ingestion and alert services. Keep the directory outside the repository and
+restrict its files to the service account that runs Compose.
 
 The ingestion service reads `*_ACCESS_TOKEN_FILE` without persisting the
 secret in `provider_config`. Provider-specific OAuth refresh requires the
