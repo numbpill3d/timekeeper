@@ -71,6 +71,18 @@ def test_evidence_formatter_preserves_cross_camera_movement_path():
     )
 
 
+def test_evidence_formatter_names_a_person_for_exit_events():
+    answer = llm._format_evidence_response([
+        {
+            "event_type": "person_exited",
+            "timestamp": datetime(2026, 11, 11, 16, 31, tzinfo=UTC),
+            "person_label": "John",
+            "location_label": "front door",
+        }
+    ])
+    assert answer == "At 04:31 PM, John left at front door."
+
+
 def test_empty_model_content_falls_back_to_recorded_evidence(monkeypatch):
     async def empty(system: str, user: str) -> str:
         return "   "

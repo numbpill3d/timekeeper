@@ -197,6 +197,10 @@ def _format_evidence_response(rows: list[dict]) -> str:
             )
         elif action == "object_placed":
             lines.append(f"At {time_text}, {person} was associated with {item}{where}.")
+        elif action == "person_entered":
+            lines.append(f"At {time_text}, {person} entered{where}.")
+        elif action == "person_exited":
+            lines.append(f"At {time_text}, {person} left{where}.")
         else:
             label = row.get("action_label") or action.replace("_", " ")
             lines.append(f"At {time_text}, the system recorded {label}{where}.")
