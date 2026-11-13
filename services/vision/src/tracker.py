@@ -126,7 +126,9 @@ class Tracker:
             # boxes back to source detections instead of assuming positions
             # remain stable after a dropout.
             used: set[int] = set()
-            for tracked_box, tid in zip(tracked.xyxy, tracked.tracker_id):
+            for tracked_box, tid in zip(
+                tracked.xyxy, tracked.tracker_id, strict=True
+            ):
                 if tid is None:
                     continue
                 best_index, _ = max(
