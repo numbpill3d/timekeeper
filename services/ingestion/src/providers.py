@@ -13,8 +13,10 @@ import asyncio
 import json
 import os
 import re
+import threading
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
+from queue import Empty, Full, Queue
 from typing import Any
 from urllib.parse import parse_qsl, urlparse
 
@@ -69,15 +71,56 @@ async def _direct_frames(camera: Camera) -> AsyncIterator[np.ndarray]:
     options = {"rtsp_transport": "tcp", "stimeout": "5000000"}
     if camera.protocol.value not in {"rtsp", "onvif"}:
         options = {}
+
+    # PyAV demux/decode is synchronous. Keep it off the event loop so a
+    # stalled RTSP/file source cannot freeze every other camera task.
+    frames: Queue[object] = Queue(maxsize=2)
+    stop = threading.Event()
+    end = object()
+
+    def put(item: object) -> None:
+        while not stop.is_set():
+            try:
+                frames.put(item, timeout=0.25)
+                return
+            except Full:
+                continue
+
+    def read() -> None:
+        try:
+            with av.open(camera.stream_url, options=options) as container:
+                stream = container.streams.video[0]
+                stream.thread_type = "AUTO"
+                for packet in container.demux(stream):
+                    if stop.is_set():
+                        break
+                    for frame in packet.decode():
+                        if stop.is_set():
+                            break
+                        put(frame.to_ndarray(format="bgr24"))
+        except Exception as exc:  # noqa: BLE001 - isolate provider worker failures
+            put(exc)
+        finally:
+            put(end)
+
+    reader = asyncio.create_task(asyncio.to_thread(read))
     try:
-        with av.open(camera.stream_url, options=options) as container:
-            stream = container.streams.video[0]
-            stream.thread_type = "AUTO"
-            for packet in container.demux(stream):
-                for frame in packet.decode():
-                    yield frame.to_ndarray(format="bgr24")
-    except Exception as exc:
-        raise ProviderError(f"direct stream failed for {camera.name}: {exc}") from exc
+        while True:
+            try:
+                item = await asyncio.to_thread(frames.get, True, 0.25)
+            except Empty:
+                continue
+            if item is end:
+                break
+            if isinstance(item, Exception):
+                raise ProviderError(
+                    f"direct stream failed for {camera.name}: {item}"
+                ) from item
+            yield item  # type: ignore[misc]  # validated queue payload
+    finally:
+        stop.set()
+        if reader.done():
+            reader.result()
 
 
 def _token(config: dict[str, Any], default_env: str) -> str:

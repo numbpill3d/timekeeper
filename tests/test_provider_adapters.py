@@ -13,6 +13,7 @@ from providers import (
     ProviderError,
     _configured_direct_camera,
     _device_id,
+    _direct_frames,
     _OAuthCredentials,
     _provider_endpoint,
     _token,
@@ -183,3 +184,42 @@ def test_webrtc_adapter_completes_offer_answer_and_yields_video(monkeypatch):
     frame = asyncio.run(read_one())
     assert frame.shape == (2, 2, 3)
     assert captured["offer"] == "fake-offer"
+
+
+def test_direct_adapter_decodes_on_a_worker_thread(monkeypatch):
+    class FakeFrame:
+        def to_ndarray(self, format: str):
+            assert format == "bgr24"
+            return np.ones((2, 2, 3), dtype=np.uint8)
+
+    class FakePacket:
+        def decode(self):
+            return [FakeFrame()]
+
+    class FakeContainer:
+        streams = types.SimpleNamespace(video=[types.SimpleNamespace()])
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def demux(self, _stream):
+            return [FakePacket()]
+
+    monkeypatch.setitem(
+        sys.modules,
+        "av",
+        types.SimpleNamespace(open=lambda _url, options: FakeContainer()),
+    )
+
+    async def read_one():
+        frames = _direct_frames(_camera(CameraProtocol.rtsp, "rtsp://camera"))
+        frame = await frames.__anext__()
+        await frames.aclose()
+        await asyncio.sleep(0)
+        return frame
+
+    frame = asyncio.run(read_one())
+    assert frame.shape == (2, 2, 3)
