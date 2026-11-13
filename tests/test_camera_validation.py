@@ -84,11 +84,19 @@ def test_direct_source_rejects_a_contradictory_protocol():
             stream_url="https://camera.example/live",
             protocol="file",
         )
+    with pytest.raises(ValidationError, match="protocol='https'"):
+        CameraCreate(
+            name="source",
+            stream_url="https://camera.example/live",
+            protocol="rtsp",
+        )
 
 
 def test_camera_update_infers_protocol_when_source_changes():
     update = CameraUpdate(stream_url="https://camera.example/live")
     assert update.protocol == "https"
+    with pytest.raises(ValidationError, match="protocol='https'"):
+        CameraUpdate(stream_url="https://camera.example/live", protocol="rtsp")
 
 
 def test_provider_config_rejects_credentials_in_nested_endpoint():

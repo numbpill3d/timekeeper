@@ -215,7 +215,11 @@ class CameraCreate(BaseModel):
         expected = _DIRECT_SCHEME_PROTOCOLS.get(scheme)
         if expected and self.protocol == "rtsp" and expected != "rtsp":
             # rtsp is the backwards-compatible default, so infer a more
-            # specific direct-feed adapter when the caller leaves it alone.
+            # specific direct-feed adapter only when the caller omitted it.
+            if "protocol" in self.model_fields_set:
+                raise ValueError(
+                    f"{scheme}:// sources must use protocol={expected!r}"
+                )
             self.protocol = expected
         elif expected and self.protocol not in (
             {expected, "hls"} if scheme in {"http", "https"} else {expected}
@@ -310,6 +314,10 @@ class CameraUpdate(BaseModel):
             self.protocol is None
             or (self.protocol == "rtsp" and expected != "rtsp")
         ):
+            if self.protocol == "rtsp" and "protocol" in self.model_fields_set:
+                raise ValueError(
+                    f"{scheme}:// sources must use protocol={expected!r}"
+                )
             self.protocol = expected
         elif expected and self.protocol not in (
             {expected, "hls"} if scheme in {"http", "https"} else {expected}
