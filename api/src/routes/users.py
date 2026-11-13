@@ -42,12 +42,6 @@ class RegisterRequest(BaseModel):
     def _canonical_email(cls, value: EmailStr) -> str:
         return _normalize_email(value)
 
-    @field_validator("password")
-    @classmethod
-    def _password_strength(cls, v: str) -> str:
-        return v
-
-
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(max_length=256)

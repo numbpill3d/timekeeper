@@ -10,7 +10,7 @@ import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from api.src.routes.events import count_events, list_events
+from api.src.routes.events import _event_filters, count_events, list_events
 from api.src.routes.persons import delete_person, list_persons
 from api.src.routes.query import _check_rate_limit
 from api.src.routes.users import (
@@ -33,6 +33,18 @@ def test_auth_passwords_have_a_bounded_request_size():
         RegisterRequest(email="user@example.com", password="x" * 257)
     with pytest.raises(ValidationError):
         LoginRequest(email="user@example.com", password="x" * 257)
+
+
+def test_event_time_filters_normalize_naive_datetimes_to_utc():
+    _, params = _event_filters(
+        "owner-1",
+        None,
+        None,
+        datetime(2026, 11, 13, 12, 0),
+        datetime(2026, 11, 13, 13, 0, tzinfo=UTC),
+    )
+    assert params[1].tzinfo is UTC
+    assert params[2].tzinfo is UTC
 
 
 class _AuthRateRedis:

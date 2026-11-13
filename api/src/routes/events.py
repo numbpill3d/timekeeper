@@ -8,6 +8,7 @@ from uuid import UUID
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query
+from omniscient_shared.time import to_utc
 from pydantic import BaseModel
 
 from ..auth import CurrentUser
@@ -55,6 +56,8 @@ def _event_filters(
         ("e.timestamp <=", until),
     ):
         if value is not None:
+            if isinstance(value, datetime):
+                value = to_utc(value)
             placeholder = len(params) + 1
             filters.append(f"{expression} ${placeholder}")
             params.append(value)
