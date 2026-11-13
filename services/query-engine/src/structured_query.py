@@ -263,6 +263,8 @@ def build_fallback_query(question: str) -> tuple[str, list[object]]:
         SELECT e.id AS event_id, e.timestamp, e.event_type, e.action_label, e.location_label,
                c.name AS camera_name,
                e.confidence, e.clip_path,
+               e.metadata->>'from_camera_name' AS from_camera_name,
+               e.metadata->>'to_camera_name' AS to_camera_name,
                p.label AS person_label,
                o.label AS object_label,
                o.category AS object_category

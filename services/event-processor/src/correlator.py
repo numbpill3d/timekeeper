@@ -75,6 +75,8 @@ class Correlator:
                             metadata={
                                 **event.metadata,
                                 "from_camera_id": from_cam,
+                                "from_camera_name": from_evt.metadata.get("camera_name"),
+                                "to_camera_name": event.metadata.get("camera_name"),
                                 "from_location": from_evt.location_label,
                                 "pickup_attribution": from_evt.metadata.get("attribution"),
                                 "placement_attribution": event.metadata.get("attribution"),

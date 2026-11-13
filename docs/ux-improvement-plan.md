@@ -75,10 +75,13 @@ local camera evidence system.
 30. **Chronological handoff answers** — order multi-event “what happened to”
    and follow-the-item results oldest-first while preserving newest-first
    behavior for latest-event questions.
+31. **Handoff source attribution** — preserve source and destination camera
+   names on correlated movement evidence so web/mobile answers can verify the
+   physical camera path, not only the inferred locations.
 
 ## Next high-value improvements
 
-31. **Trust and retention controls** — add per-camera retention previews,
+32. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins. Camera cards now surface the local
     configured local default and person-specific override behavior. Individual timeline

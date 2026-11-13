@@ -92,6 +92,8 @@ class Evidence(BaseModel):
     person_label: str | None = None
     object_label: str | None = None
     object_category: str | None = None
+    from_camera_name: str | None = None
+    to_camera_name: str | None = None
     clip_path: str | None = None
 
 

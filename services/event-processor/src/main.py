@@ -75,10 +75,11 @@ async def main() -> None:
         if db is None:
             raise RuntimeError("event processor database connection was not created")
         cam_rows = await db.fetch(
-            "SELECT id, location_label, owner_id FROM cameras "
+            "SELECT id, name, location_label, owner_id FROM cameras "
             "WHERE is_active = TRUE"
         )
         cam_locations = {str(r["id"]): r["location_label"] for r in cam_rows}
+        cam_names = {str(r["id"]): r["name"] for r in cam_rows}
         cam_owners = {str(r["id"]): str(r["owner_id"]) for r in cam_rows}
 
         log.info("event processor started")
@@ -87,7 +88,7 @@ async def main() -> None:
         # persist incoming detections while cleanup runs.
         retention_task = asyncio.create_task(_retention_loop())
         camera_refresh_task = asyncio.create_task(
-            _camera_refresh_loop(cam_locations, cam_owners, aggregators, correlator)
+            _camera_refresh_loop(cam_locations, cam_names, cam_owners, aggregators, correlator)
         )
         async for msg in consumer:
             try:
@@ -103,7 +104,7 @@ async def main() -> None:
             try:
                 if cam_key not in cam_locations:
                     row = await db.fetchrow(
-                        "SELECT location_label, owner_id FROM cameras "
+                        "SELECT name, location_label, owner_id FROM cameras "
                         "WHERE id = $1 AND is_active = TRUE",
                         det_msg.camera_id,
                     )
@@ -111,6 +112,7 @@ async def main() -> None:
                         log.warning("dropping detection for unknown/inactive camera %s", cam_key)
                         raise _DropDetection
                     cam_locations[cam_key] = row["location_label"]
+                    cam_names[cam_key] = row["name"]
                     cam_owners[cam_key] = str(row["owner_id"])
 
                 if cam_key not in aggregators:
@@ -126,6 +128,7 @@ async def main() -> None:
                 extra: list = []
                 for evt in events:
                     evt.metadata["owner_id"] = owner_id
+                    evt.metadata["camera_name"] = cam_names.get(cam_key)
                     extra.extend(correlator.process(evt))
                 events.extend(extra)
 
@@ -202,6 +205,7 @@ async def _retention_loop() -> None:
 
 async def _camera_refresh_loop(
     cam_locations: dict[str, str | None],
+    cam_names: dict[str, str],
     cam_owners: dict[str, str],
     aggregators: dict[str, CameraAggregator],
     correlator: Correlator,
@@ -214,19 +218,21 @@ async def _camera_refresh_loop(
                 _DB_URL, timeout=_DB_CONNECT_TIMEOUT_SECONDS
             )
             rows = await refresh_db.fetch(
-                "SELECT id, location_label, owner_id FROM cameras "
+                "SELECT id, name, location_label, owner_id FROM cameras "
                 "WHERE is_active = TRUE"
             )
             active = {
-                str(row["id"]): (row["location_label"], str(row["owner_id"]))
+                str(row["id"]): (row["name"], row["location_label"], str(row["owner_id"]))
                 for row in rows
             }
             for camera_id in set(cam_locations) - set(active):
                 cam_locations.pop(camera_id, None)
+                cam_names.pop(camera_id, None)
                 cam_owners.pop(camera_id, None)
                 aggregators.pop(camera_id, None)
                 correlator.remove_camera(camera_id)
-            for camera_id, (location, owner_id) in active.items():
+            for camera_id, (name, location, owner_id) in active.items():
+                cam_names[camera_id] = name
                 cam_locations[camera_id] = location
                 cam_owners[camera_id] = owner_id
                 if camera_id in aggregators:

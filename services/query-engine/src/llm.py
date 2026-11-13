@@ -43,6 +43,9 @@ Rules:
   tracked_objects.label/category AS object_label/object_category when useful.
 - When returning event rows, select events.id AS event_id so clients can
   identify the exact evidence row for verification or authorized redaction.
+- For cross-camera movement rows, select
+  events.metadata->>'from_camera_name' AS from_camera_name and
+  events.metadata->>'to_camera_name' AS to_camera_name when present.
 - When returning event rows, join cameras ON events.camera_id = cameras.id and
   select cameras.name AS camera_name when camera context helps identify the source.
 - For object/person questions, always include those person and object fields
@@ -201,6 +204,9 @@ def _format_evidence_response(rows: list[dict]) -> str:
                 movement = f"moved {item}"
             has_path = " from " in movement.lower() or " to " in movement.lower()
             camera_only = f" on camera {camera}" if camera else ""
+            source_camera = row.get("from_camera_name")
+            if source_camera and camera and source_camera != camera:
+                camera_only = f" from camera {source_camera} to camera {camera}"
             lines.append(
                 f"{at_prefix} {time_text}, {person} {movement}"
                 f"{camera_only if has_path else where}."

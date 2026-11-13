@@ -219,6 +219,7 @@ def _evidence(rows: list[dict]) -> list[dict]:
     fields = (
         "event_id", "timestamp", "event_type", "action_label", "location_label", "camera_name",
         "confidence", "person_label", "object_label", "object_category",
+        "from_camera_name", "to_camera_name",
         "clip_path",
     )
     return [{field: row.get(field) for field in fields} for row in rows[:20]]

@@ -76,11 +76,12 @@ def test_evidence_formatter_preserves_cross_camera_movement_path():
             "object_label": "keys",
             "location_label": "garage",
             "camera_name": "Garage camera",
+            "from_camera_name": "Kitchen camera",
         }
     ])
     assert answer == (
         "At 04:30 PM, John moved keys from kitchen to garage "
-        "on camera Garage camera."
+        "from camera Kitchen camera to camera Garage camera."
     )
 
 

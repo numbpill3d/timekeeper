@@ -110,6 +110,23 @@ def test_moved_event_carries_from_camera_metadata():
     assert extra[0].action_label == "moved test from kitchen to bedroom"
 
 
+def test_moved_event_carries_source_and_destination_camera_names():
+    correlator = Correlator()
+    obj_id = uuid4()
+    cam_a, cam_b = uuid4(), uuid4()
+    t = datetime.now(tz=UTC)
+    pickup = _event(EventType.object_picked_up, cam_a, obj_id, ts=t)
+    pickup.metadata["camera_name"] = "Kitchen camera"
+    placement = _event(EventType.object_placed, cam_b, obj_id, ts=t + timedelta(seconds=3))
+    placement.metadata["camera_name"] = "Garage camera"
+
+    correlator.process(pickup)
+    extra = correlator.process(placement)
+
+    assert extra[0].metadata["from_camera_name"] == "Kitchen camera"
+    assert extra[0].metadata["to_camera_name"] == "Garage camera"
+
+
 def test_replaying_a_cross_camera_pair_reuses_moved_event_id():
     obj_id = uuid4()
     cam_a, cam_b = uuid4(), uuid4()

@@ -19,6 +19,8 @@ invent an identity or action when the evidence is missing or weak.
 - Correlates cross-camera object movement with stable track IDs when available,
   and otherwise uses a conservative, lower-confidence category/time-window
   match only when the evidence is unambiguous.
+- Preserves source and destination camera names on correlated handoffs so an
+  answer can show the verified camera path as well as the recorded locations.
 - Stores events, labels, confidence, embeddings, and clip references in
   PostgreSQL/TimescaleDB with pgvector.
 - Answers natural-language questions through RAG + text-to-SQL, with a

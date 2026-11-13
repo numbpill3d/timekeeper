@@ -79,6 +79,8 @@ export interface QueryEvidence {
   person_label: string | null;
   object_label: string | null;
   object_category: string | null;
+  from_camera_name: string | null;
+  to_camera_name: string | null;
   clip_url: string | null;
 }
 

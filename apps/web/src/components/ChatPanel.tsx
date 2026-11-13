@@ -312,11 +312,14 @@ export function ChatPanel() {
                 <div className="query-evidence-title">supporting evidence</div>
                 {m.evidence.map((item, index) => {
                   const itemName = item.object_label ?? item.object_category;
+                  const cameraDetails = item.from_camera_name && item.to_camera_name
+                    ? `${item.from_camera_name} → ${item.to_camera_name}`
+                    : item.camera_name;
                   const details = [
                     item.person_label,
                     itemName,
                     item.location_label,
-                    item.camera_name,
+                    cameraDetails,
                   ]
                     .filter(Boolean)
                     .join(" · ");

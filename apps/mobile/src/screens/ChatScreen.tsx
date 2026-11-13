@@ -248,11 +248,14 @@ export function ChatScreen() {
                 <Text style={styles.evidenceTitle}>supporting evidence</Text>
                 {item.evidence.map((evidence: QueryEvidence, index: number) => {
                   const itemName = evidence.object_label ?? evidence.object_category;
+                  const cameraDetails = evidence.from_camera_name && evidence.to_camera_name
+                    ? `${evidence.from_camera_name} → ${evidence.to_camera_name}`
+                    : evidence.camera_name;
                   const details = [
                     evidence.person_label,
                     itemName,
                     evidence.location_label,
-                    evidence.camera_name,
+                    cameraDetails,
                   ]
                     .filter(Boolean)
                     .join(" · ");

@@ -82,6 +82,8 @@ class EvidenceOut(BaseModel):
     person_label: str | None = None
     object_label: str | None = None
     object_category: str | None = None
+    from_camera_name: str | None = None
+    to_camera_name: str | None = None
     clip_url: str | None = None
 
 
@@ -98,6 +100,8 @@ class QueryEvidenceIn(BaseModel):
     person_label: str | None = None
     object_label: str | None = None
     object_category: str | None = None
+    from_camera_name: str | None = None
+    to_camera_name: str | None = None
     clip_path: str | None = None
 
 
@@ -205,6 +209,8 @@ async def query(
             person_label=item.person_label,
             object_label=item.object_label,
             object_category=item.object_category,
+            from_camera_name=item.from_camera_name,
+            to_camera_name=item.to_camera_name,
             clip_url=safe_signed_clip_url(item.clip_path),
         )
         for item in data.evidence
