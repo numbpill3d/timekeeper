@@ -129,3 +129,29 @@ async def test_rag_context_is_not_sent_to_sql_planner(monkeypatch):
 
     assert "stored label" not in seen["planner"]
     assert "stored label" in seen["answer"]
+
+
+@pytest.mark.asyncio
+async def test_answer_confidence_includes_zero_confidence_rows(monkeypatch):
+    async def fake_retrieve(_question: str, _owner_id: str) -> str:
+        return ""
+
+    async def fake_plan(_question: str, _context: str) -> str:
+        return "SELECT e.id FROM events e"
+
+    async def fake_execute(_sql: str, _owner_id: str, _params: list[object]):
+        return [{"confidence": 0.0}, {"confidence": 1.0}]
+
+    async def fake_synthesize(_question: str, _rows: list[dict], _context: str) -> str:
+        return "evidence"
+
+    monkeypatch.setattr(router, "retrieve_context", fake_retrieve)
+    monkeypatch.setattr(router, "nl_to_sql", fake_plan)
+    monkeypatch.setattr(router, "_execute", fake_execute)
+    monkeypatch.setattr(router, "synthesize_response", fake_synthesize)
+
+    result = await router.answer(
+        "what happened?", "00000000-0000-0000-0000-000000000001"
+    )
+
+    assert result["confidence"] == 0.5

@@ -183,7 +183,11 @@ async def answer(
     answer_text = await synthesize_response(question, rows, answer_context)
 
     clips = [r["clip_path"] for r in rows if r.get("clip_path")]
-    confidences = [r["confidence"] for r in rows if r.get("confidence")]
+    # Zero is a valid confidence value and must not disappear from the
+    # aggregate merely because it is falsey.
+    confidences = [
+        r["confidence"] for r in rows if r.get("confidence") is not None
+    ]
     avg_conf = sum(confidences) / len(confidences) if confidences else 0.0
 
     return {
