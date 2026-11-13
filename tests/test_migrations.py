@@ -70,4 +70,5 @@ def test_event_lookup_indexes_cover_camera_person_and_object_histories():
     assert "events_camera_timestamp_idx" in migration
     assert "events_person_timestamp_idx" in migration
     assert "events_object_timestamp_idx" in migration
+    assert migration.count("CREATE INDEX CONCURRENTLY") == 3
     assert "VALUES ('010_event_lookup_indexes')" in migration
