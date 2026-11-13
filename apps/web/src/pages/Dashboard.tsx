@@ -158,6 +158,7 @@ export function Dashboard() {
                     <div className="event-meta">
                       {e.location_label && <span>{e.location_label}</span>}
                       {e.person_label && <span style={{ color: "var(--accent)" }}>{e.person_label}</span>}
+                      {e.object_label && <span style={{ color: "var(--amber)" }}>{e.object_label}</span>}
                       {e.clip_path && <span>▸ clip</span>}
                     </div>
                   </div>
