@@ -33,3 +33,6 @@ explicitly by an administrator first.
 
 `004_alert_delivery_event_index.sql` adds the event-id index used by retention
 and camera-removal cleanup.
+
+`005_person_owner_last_seen_index.sql` adds the tenant/time index used by the
+Persons listing.
