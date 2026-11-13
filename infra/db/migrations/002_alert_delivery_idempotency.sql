@@ -8,3 +8,7 @@ WHERE older.rule_id = newer.rule_id
 
 CREATE UNIQUE INDEX IF NOT EXISTS alert_deliveries_rule_event_idx
     ON alert_deliveries (rule_id, event_id);
+
+INSERT INTO schema_migrations (version)
+VALUES ('002_alert_delivery_idempotency')
+ON CONFLICT (version) DO NOTHING;
