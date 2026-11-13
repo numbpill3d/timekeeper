@@ -14,7 +14,7 @@ def _event(
     ts: datetime | None = None,
     location_label: str | None = None,
     category: str | None = None,
-    owner_id: str | None = None,
+    owner_id: str | None = "owner-1",
 ) -> Event:
     return Event(
         camera_id=camera_id or uuid4(),
@@ -212,6 +212,27 @@ def test_category_fallback_never_crosses_account_boundaries():
             uuid4(),
             ts=t + timedelta(seconds=5),
             category="keys",
+            owner_id="owner-b",
+        )
+    )
+    assert extra == []
+
+
+def test_exact_object_match_never_crosses_account_boundaries():
+    correlator = Correlator()
+    obj_id = uuid4()
+    cam_a, cam_b = uuid4(), uuid4()
+    t = datetime.now(tz=UTC)
+
+    correlator.process(
+        _event(EventType.object_picked_up, cam_a, obj_id, ts=t, owner_id="owner-a")
+    )
+    extra = correlator.process(
+        _event(
+            EventType.object_placed,
+            cam_b,
+            obj_id,
+            ts=t + timedelta(seconds=5),
             owner_id="owner-b",
         )
     )
