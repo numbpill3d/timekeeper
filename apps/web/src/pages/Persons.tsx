@@ -69,8 +69,8 @@ function PersonCard({ person }: { person: Person }) {
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  update.mutate({ label });
+                if (e.key === "Enter" && label.trim()) {
+                  update.mutate({ label: label.trim() });
                   setEditing(false);
                 }
                 if (e.key === "Escape") {
@@ -184,8 +184,9 @@ function PersonCard({ person }: { person: Person }) {
               <button
                 className="btn btn-primary"
                 style={{ padding: "4px 10px" }}
+                disabled={!label.trim() || update.isPending}
                 onClick={() => {
-                  update.mutate({ label });
+                  update.mutate({ label: label.trim() });
                   setEditing(false);
                 }}
               >
