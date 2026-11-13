@@ -16,6 +16,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import * as SecureStore from "expo-secure-store";
 import { askQuestion, QueryEvidence } from "../api/client";
 
@@ -47,9 +48,16 @@ export function ChatScreen() {
   const [loading, setLoading] = useState(false);
   const [queryError, setQueryError] = useState("");
   const [failedQuestion, setFailedQuestion] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState("");
   const [savedQuestions, setSavedQuestions] = useState<string[]>([]);
   const [savedQuestionsLoaded, setSavedQuestionsLoaded] = useState(false);
   const listRef = useRef<FlatList>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (copyTimerRef.current !== null) clearTimeout(copyTimerRef.current);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -125,6 +133,21 @@ export function ChatScreen() {
     }
   }
 
+  async function copyAnswer(id: string, content: string) {
+    try {
+      await Clipboard.setStringAsync(content);
+      setCopyError("");
+      setCopiedId(id);
+      if (copyTimerRef.current !== null) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => {
+        copyTimerRef.current = null;
+        setCopiedId(null);
+      }, 1800);
+    } catch {
+      setCopyError("couldn't copy the answer to the clipboard.");
+    }
+  }
+
   function saveQuestion() {
     const question = input.trim();
     if (!question) return;
@@ -154,6 +177,17 @@ export function ChatScreen() {
             ]}
           >
             <Text style={styles.bubbleText}>{item.content}</Text>
+            {item.role === "assistant" ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Copy evidence answer"
+                onPress={() => void copyAnswer(item.id, item.content)}
+              >
+                <Text style={copiedId === item.id ? styles.copiedText : styles.copyText}>
+                  {copiedId === item.id ? "copied" : "copy answer"}
+                </Text>
+              </Pressable>
+            ) : null}
             {item.confidence !== undefined && item.confidence < 0.8 && (
               <Text style={styles.confidence}>
                 {Math.round(item.confidence * 100)}% confidence
@@ -257,6 +291,11 @@ export function ChatScreen() {
           ) : null}
         </View>
       ) : null}
+      {copyError ? (
+        <Text style={styles.copyError} accessibilityRole="alert">
+          {copyError}
+        </Text>
+      ) : null}
 
       <View style={styles.inputRow}>
         <TextInput
@@ -338,6 +377,9 @@ const styles = StyleSheet.create({
   },
   errorText: { color: "#c66", fontSize: 11, flex: 1 },
   retryText: { color: "#ccc", fontSize: 12 },
+  copyText: { color: "#888", fontSize: 10, marginTop: 6, textDecorationLine: "underline" },
+  copiedText: { color: "#0c0", fontSize: 10, marginTop: 6 },
+  copyError: { color: "#c66", fontSize: 11, paddingHorizontal: 12, paddingVertical: 6 },
   savedRow: {
     flexDirection: "row",
     flexWrap: "wrap",
