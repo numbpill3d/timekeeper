@@ -10,6 +10,7 @@ import {
 } from "../api/client";
 
 const PROTOCOLS = ["rtsp", "http", "https", "hls", "file", "onvif", "ring", "nest", "arlo", "wyze"];
+const DEFAULT_RETENTION_DAYS = 30;
 const STATUS_COLOR = {
   paused: "var(--text-dim)",
   starting: "var(--amber)",
@@ -243,6 +244,27 @@ function CameraCard({
         }}
       >
         {cameraDiagnostic(cam)}
+      </div>
+
+      <div
+        style={{
+          background: "var(--surface-2)",
+          border: "1px solid var(--border)",
+          padding: "8px 10px",
+          display: "grid",
+          gap: 3,
+        }}
+        aria-label={`Privacy and retention for ${cam.name}`}
+      >
+        <div style={{ color: "var(--text-bright)", fontSize: 10, letterSpacing: "0.04em" }}>
+          privacy &amp; retention
+        </div>
+        <div style={{ color: "var(--text-dim)", fontSize: 10 }}>
+          evidence kept locally for {DEFAULT_RETENTION_DAYS} days by default
+        </div>
+        <div style={{ color: "var(--text-dim)", fontSize: 10 }}>
+          person-specific retention can override this window
+        </div>
       </div>
 
       {/* Actions */}
