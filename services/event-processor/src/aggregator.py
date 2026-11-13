@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from omniscient_shared.models.entity import Detection, DetectionMessage
 from omniscient_shared.models.event import Event, EventType
@@ -46,7 +47,7 @@ class CameraAggregator:
     def process(self, msg: DetectionMessage) -> list[Event]:
         events: list[Event] = []
         now = msg.timestamp
-        seen_ids: set[int] = set()
+        seen_ids: set[tuple[str, int]] = set()
 
         for det in msg.detections:
             key = (det.class_name, det.track_id)
@@ -75,7 +76,7 @@ class CameraAggregator:
         ]
         for key in stale:
             evt = (
-                self._on_exit(self._active[key], now)
+                self._on_exit(self._active[key], now, msg.frame_id)
                 if key[0] == "person" or key in self._stationary
                 else None
             )
@@ -101,6 +102,7 @@ class CameraAggregator:
             loc_suffix = f" {self.location_label}" if self.location_label else ""
             label = f"Person entered{loc_suffix}"
             return Event(
+                id=self._event_id(det, EventType.person_entered, det.frame_id),
                 camera_id=det.camera_id,
                 event_type=EventType.person_entered,
                 timestamp=now,
@@ -111,6 +113,7 @@ class CameraAggregator:
             )
         if det.class_name == "package" and self._is_entrance():
             return Event(
+                id=self._event_id(det, EventType.package_delivered, det.frame_id),
                 camera_id=det.camera_id,
                 event_type=EventType.package_delivered,
                 timestamp=now,
@@ -126,9 +129,10 @@ class CameraAggregator:
         # wait for the stationary transition before emitting that event.
         return None
 
-    def _on_exit(self, det: Detection, now: datetime) -> Event | None:
+    def _on_exit(self, det: Detection, now: datetime, frame_id: str) -> Event | None:
         if det.class_name == "person":
             return Event(
+                id=self._event_id(det, EventType.person_exited, frame_id),
                 camera_id=det.camera_id,
                 event_type=EventType.person_exited,
                 timestamp=now,
@@ -141,6 +145,7 @@ class CameraAggregator:
                 confidence=det.confidence,
             )
         return Event(
+            id=self._event_id(det, EventType.object_picked_up, frame_id),
             camera_id=det.camera_id,
             event_type=EventType.object_picked_up,
             timestamp=now,
@@ -154,6 +159,7 @@ class CameraAggregator:
 
     def _on_stationary(self, det: Detection, now: datetime) -> Event:
         return Event(
+            id=self._event_id(det, EventType.object_placed, det.frame_id),
             camera_id=det.camera_id,
             event_type=EventType.object_placed,
             timestamp=now,
@@ -167,6 +173,27 @@ class CameraAggregator:
             confidence=self._event_confidence(det),
             metadata=self._attribution_metadata(det),
         )
+
+    @staticmethod
+    def _event_id(det: Detection, event_type: EventType, source_frame_id: str) -> UUID:
+        """Derive an id stable across Kafka replay of one observation.
+
+        Detection offsets are committed after event persistence.  A crash in
+        between must replay safely instead of creating a second history row.
+        The frame id is unique per observation, while track/object/person
+        fields distinguish multiple events emitted from one frame.
+        """
+        source = ":".join(
+            (
+                str(det.camera_id),
+                source_frame_id,
+                event_type.value,
+                str(det.track_id),
+                str(det.object_id or ""),
+                str(det.person_id or ""),
+            )
+        )
+        return uuid5(NAMESPACE_URL, f"timekeeper:event:{source}")
 
     @staticmethod
     def _bbox_iou(

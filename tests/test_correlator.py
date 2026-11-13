@@ -109,6 +109,21 @@ def test_moved_event_carries_from_camera_metadata():
     assert extra[0].metadata.get("from_camera_id") == str(cam_a)
 
 
+def test_replaying_a_cross_camera_pair_reuses_moved_event_id():
+    obj_id = uuid4()
+    cam_a, cam_b = uuid4(), uuid4()
+    t = datetime.now(tz=UTC)
+
+    def run_once():
+        correlator = Correlator()
+        correlator.process(_event(EventType.object_picked_up, cam_a, obj_id, ts=t))
+        return correlator.process(
+            _event(EventType.object_placed, cam_b, obj_id, ts=t + timedelta(seconds=5))
+        )[0].id
+
+    assert run_once() == run_once()
+
+
 def test_category_fallback_correlates_camera_scoped_object_ids():
     correlator = Correlator()
     cam_a, cam_b = uuid4(), uuid4()

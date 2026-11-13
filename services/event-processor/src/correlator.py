@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
+from uuid import NAMESPACE_URL, uuid5
 
 from omniscient_shared.models.event import Event, EventType
 
@@ -55,6 +56,14 @@ class Correlator:
                         confidence *= 0.75
                     extra.append(
                         Event(
+                            id=uuid5(
+                                NAMESPACE_URL,
+                                "timekeeper:moved:"
+                                f"{from_evt.camera_id}:{event.camera_id}:"
+                                f"{event.object_id or from_evt.object_id or ''}:"
+                                f"{from_evt.timestamp.isoformat()}:{event.timestamp.isoformat()}:"
+                                f"{match_method}",
+                            ),
                             camera_id=event.camera_id,
                             event_type=EventType.object_moved,
                             timestamp=event.timestamp,

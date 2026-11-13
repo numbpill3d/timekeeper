@@ -170,3 +170,21 @@ def test_person_and_object_can_share_tracker_id_without_state_collision():
         EventType.person_exited,
         EventType.object_picked_up,
     }
+
+
+def test_replaying_the_same_observations_reuses_event_ids():
+    first = CameraAggregator("camera-1", "kitchen")
+    second = CameraAggregator("camera-1", "kitchen")
+    timestamp = datetime.now(tz=UTC)
+    messages = [
+        _msg([_det("person", track_id=1, ts=timestamp)], ts=timestamp),
+        _msg(
+            [_det("person", track_id=1, ts=timestamp + STILL_TIMEOUT)],
+            ts=timestamp + STILL_TIMEOUT,
+        ),
+        _msg([], ts=timestamp + STILL_TIMEOUT + EXIT_TIMEOUT + timedelta(seconds=1)),
+    ]
+
+    first_ids = [event.id for message in messages for event in first.process(message)]
+    second_ids = [event.id for message in messages for event in second.process(message)]
+    assert first_ids == second_ids
