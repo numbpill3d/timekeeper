@@ -111,6 +111,22 @@ def test_live_event_payload_validates_and_strips_internal_metadata(monkeypatch):
     assert public_event_payload({"event_type": "not-valid"}) is None
 
 
+def test_live_event_payload_preserves_resolved_public_labels():
+    payload = public_event_payload(
+        {
+            "camera_id": "00000000-0000-0000-0000-000000000001",
+            "event_type": EventType.object_picked_up,
+            "timestamp": "2026-01-01T00:00:00Z",
+            "action_label": "picked up keys",
+        },
+        person_label="John",
+        object_label="blue keys",
+    )
+    assert payload is not None
+    assert payload["person_label"] == "John"
+    assert payload["object_label"] == "blue keys"
+
+
 @pytest.mark.parametrize(
     "response",
     [

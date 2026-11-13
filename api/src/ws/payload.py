@@ -8,7 +8,12 @@ from pydantic import ValidationError
 from ..media import safe_signed_clip_url
 
 
-def public_event_payload(value: object) -> dict | None:
+def public_event_payload(
+    value: object,
+    *,
+    person_label: str | None = None,
+    object_label: str | None = None,
+) -> dict | None:
     """Validate Kafka data and expose only the REST-shaped public fields."""
     try:
         event = Event.model_validate(value)
@@ -25,6 +30,6 @@ def public_event_payload(value: object) -> dict | None:
         "location_label": serialized["location_label"],
         "confidence": serialized["confidence"],
         "clip_path": clip_path,
-        "person_label": None,
-        "object_label": None,
+        "person_label": person_label,
+        "object_label": object_label,
     }

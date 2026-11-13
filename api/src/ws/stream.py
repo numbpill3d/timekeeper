@@ -29,6 +29,40 @@ router = APIRouter()
 _BROKERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 
 
+async def _event_labels(
+    websocket: WebSocket, event: Event, owner_id: str
+) -> tuple[str | None, str | None]:
+    """Resolve live labels without allowing cross-tenant references."""
+    state = getattr(getattr(websocket, "app", None), "state", None)
+    pool = getattr(state, "db", None)
+    if pool is None:
+        return None, None
+    try:
+        async with pool.acquire() as db:
+            row = await db.fetchrow(
+                """
+                SELECT p.label AS person_label, o.label AS object_label
+                FROM events e
+                LEFT JOIN persons p
+                  ON e.person_id = p.id AND p.owner_id = $2
+                LEFT JOIN tracked_objects o
+                  ON e.object_id = o.id AND o.owner_id = $2
+                WHERE e.id = $1
+                  AND e.camera_id IN (
+                    SELECT id FROM cameras WHERE owner_id = $2
+                  )
+                """,
+                event.id,
+                owner_id,
+            )
+    except Exception as exc:  # noqa: BLE001 - live labels are best effort
+        log.warning("live event labels unavailable: %s", type(exc).__name__)
+        return None, None
+    if not row:
+        return None, None
+    return row["person_label"], row["object_label"]
+
+
 @router.websocket("/ws/events")
 async def events_stream(websocket: WebSocket) -> None:
     protocols = [
@@ -109,7 +143,14 @@ async def events_stream(websocket: WebSocket) -> None:
                     continue
 
                 try:
-                    payload = public_event_payload(event)
+                    person_label, object_label = await _event_labels(
+                        websocket, event, owner_id
+                    )
+                    payload = public_event_payload(
+                        event,
+                        person_label=person_label,
+                        object_label=object_label,
+                    )
                     if payload is not None:
                         await websocket.send_json(payload)
                 except WebSocketDisconnect:
