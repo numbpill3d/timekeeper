@@ -159,6 +159,14 @@ def test_camera_update_can_change_source_without_storing_credentials():
         CameraUpdate(stream_url="https://camera.example/live?token=secret")
 
 
+def test_camera_update_aligns_provider_protocol_when_only_source_changes():
+    update = CameraUpdate(stream_url="ring://camera-1")
+    assert update.protocol == "ring"
+    assert update.model_dump(exclude_unset=True)["protocol"] == "ring"
+    with pytest.raises(ValidationError, match="protocol='ring'"):
+        CameraUpdate(stream_url="ring://camera-1", protocol="nest")
+
+
 def test_edge_only_camera_requires_an_external_agent():
     with pytest.raises(ValidationError, match="external edge agent"):
         CameraCreate(

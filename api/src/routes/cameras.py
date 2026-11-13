@@ -270,6 +270,22 @@ class CameraUpdate(BaseModel):
         v = v.strip() if v is not None else None
         return v or None
 
+    @model_validator(mode="after")
+    def _align_device_protocol(self) -> CameraUpdate:
+        if self.stream_url is None:
+            return self
+        scheme = urlparse(self.stream_url).scheme
+        if scheme in _DEVICE_PROTOCOLS:
+            if self.protocol is None:
+                # A partial update that changes only the source still needs
+                # the matching adapter persisted with it.
+                self.protocol = scheme
+            elif self.protocol != scheme:
+                raise ValueError(
+                    f"{scheme}:// sources must use protocol={scheme!r}"
+                )
+        return self
+
 
 class CameraOut(BaseModel):
     id: UUID
