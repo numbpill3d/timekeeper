@@ -10,6 +10,25 @@ interface Message {
   evidence?: QueryEvidence[];
 }
 
+const SAVED_QUESTIONS_KEY = "timekeeper_saved_questions";
+const MAX_SAVED_QUESTIONS = 12;
+
+function loadSavedQuestions(): string[] {
+  try {
+    const raw = localStorage.getItem(SAVED_QUESTIONS_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((question): question is string => typeof question === "string")
+      .map((question) => question.trim())
+      .filter(Boolean)
+      .filter((question, index, questions) => questions.indexOf(question) === index)
+      .slice(0, MAX_SAVED_QUESTIONS);
+  } catch {
+    return [];
+  }
+}
+
 function evidenceTime(timestamp: string | null): string {
   if (!timestamp) return "unknown time";
   const date = new Date(timestamp);
@@ -33,6 +52,7 @@ export function ChatPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [failedQuestion, setFailedQuestion] = useState("");
+  const [savedQuestions, setSavedQuestions] = useState<string[]>(loadSavedQuestions);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollTimerRef = useRef<number | null>(null);
 
@@ -43,6 +63,14 @@ export function ChatPanel() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SAVED_QUESTIONS_KEY, JSON.stringify(savedQuestions));
+    } catch {
+      // Storage can be unavailable in private or restricted browser contexts.
+    }
+  }, [savedQuestions]);
 
   const history = messages.slice(-6).map((m) => ({
     role: m.role,
@@ -86,6 +114,16 @@ export function ChatPanel() {
         50
       );
     }
+  }
+
+  function saveQuestion(question = input) {
+    const q = question.trim();
+    if (!q) return;
+    setSavedQuestions((current) => [q, ...current.filter((item) => item !== q)].slice(0, MAX_SAVED_QUESTIONS));
+  }
+
+  function removeSavedQuestion(question: string) {
+    setSavedQuestions((current) => current.filter((item) => item !== question));
   }
 
   return (
@@ -251,17 +289,40 @@ export function ChatPanel() {
         ))}
         </div>
         {messages.length === 1 && !loading && (
-          <div className="chat-suggestions" role="group" aria-label="Suggested questions">
-            {["what happened today?", "did any packages arrive?", "who was in the garage?"] .map((suggestion) => (
-              <button
-                key={suggestion}
-                className="btn btn-ghost"
-                type="button"
-                onClick={() => send(suggestion)}
-              >
-                {suggestion}
-              </button>
-            ))}
+          <div className="chat-suggestion-groups">
+            {savedQuestions.length > 0 && (
+              <div className="chat-suggestions" role="group" aria-label="Saved questions">
+                <span className="chat-suggestion-label">saved</span>
+                {savedQuestions.map((question) => (
+                  <span className="chat-saved-question" key={question}>
+                    <button className="btn btn-ghost" type="button" onClick={() => void send(question)}>
+                      {question}
+                    </button>
+                    <button
+                      className="chat-remove-saved"
+                      type="button"
+                      aria-label={`Remove saved question: ${question}`}
+                      onClick={() => removeSavedQuestion(question)}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="chat-suggestions" role="group" aria-label="Suggested questions">
+              <span className="chat-suggestion-label">try asking</span>
+              {["what happened today?", "did any packages arrive?", "who was in the garage?"] .map((suggestion) => (
+                <button
+                  key={suggestion}
+                  className="btn btn-ghost"
+                  type="button"
+                  onClick={() => void send(suggestion)}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
           </div>
         )}
         {loading && (
@@ -329,6 +390,15 @@ export function ChatPanel() {
           style={{ padding: "7px 14px" }}
         >
           {loading ? "..." : "ask"}
+        </button>
+        <button
+          className="btn btn-ghost chat-save"
+          type="button"
+          aria-label="Save question"
+          onClick={() => saveQuestion()}
+          disabled={loading || !input.trim()}
+        >
+          save
         </button>
       </form>
     </div>
