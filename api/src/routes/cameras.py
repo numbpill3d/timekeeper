@@ -293,15 +293,16 @@ async def update_camera(
     if not updates:
         raise HTTPException(status_code=422, detail="no fields to update")
     sets = ", ".join(f"{col} = ${i + 3}" for i, col in enumerate(updates))
-    result = await db.execute(
-        f"UPDATE cameras SET {sets} WHERE id = $1 AND owner_id = $2",
+    row = await db.fetchrow(
+        f"UPDATE cameras SET {sets} "
+        "WHERE id = $1 AND owner_id = $2 "
+        "RETURNING *",
         camera_id,
         user["sub"],
         *updates.values(),
     )
-    if result == "UPDATE 0":
+    if not row:
         raise HTTPException(status_code=404, detail="camera not found")
-    row = await db.fetchrow("SELECT * FROM cameras WHERE id = $1", camera_id)
     return _public_camera(row)
 
 

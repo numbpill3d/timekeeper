@@ -1,6 +1,7 @@
 """Camera input validation must not persist credentials."""
 
 import pytest
+from fastapi import HTTPException
 from omniscient_shared.models.entity import Detection, DetectionMessage, FrameMessage
 from omniscient_shared.models.event import Event, EventType
 from pydantic import ValidationError
@@ -10,6 +11,7 @@ from api.src.routes.cameras import (
     CameraUpdate,
     _public_camera,
     delete_camera,
+    update_camera,
 )
 
 
@@ -198,6 +200,62 @@ class _CameraDeleteTransaction:
 
     async def __aexit__(self, *_args):
         return False
+
+
+class _CameraUpdateDb:
+    def __init__(self, row: dict | None) -> None:
+        self.row = row
+        self.query: tuple[str, tuple[object, ...]] | None = None
+
+    async def fetchrow(self, sql: str, *params: object) -> dict | None:
+        self.query = (sql, params)
+        return self.row
+
+
+@pytest.mark.asyncio
+async def test_camera_update_returns_owner_scoped_row_atomically():
+    db = _CameraUpdateDb(
+        {
+            "id": "00000000-0000-0000-0000-000000000001",
+            "name": "garage",
+            "stream_url": "rtsp://camera/live",
+            "protocol": "rtsp",
+            "location_label": "back door",
+            "is_edge_only": False,
+            "is_active": True,
+            "provider_config": {},
+        }
+    )
+
+    result = await update_camera(
+        "00000000-0000-0000-0000-000000000001",
+        CameraUpdate(name="garage"),
+        {"sub": "owner-1"},
+        db,
+    )
+
+    assert result.name == "garage"
+    assert db.query is not None
+    sql, params = db.query
+    assert "WHERE id = $1 AND owner_id = $2" in sql
+    assert "RETURNING *" in sql
+    assert params == (
+        "00000000-0000-0000-0000-000000000001",
+        "owner-1",
+        "garage",
+    )
+
+
+@pytest.mark.asyncio
+async def test_camera_update_maps_missing_owner_scoped_row_to_not_found():
+    with pytest.raises(HTTPException) as exc_info:
+        await update_camera(
+            "00000000-0000-0000-0000-000000000001",
+            CameraUpdate(name="garage"),
+            {"sub": "owner-1"},
+            _CameraUpdateDb(None),
+        )
+    assert exc_info.value.status_code == 404
 
 
 class _CameraDeleteDb:
