@@ -37,6 +37,19 @@ _TABLE_RE = re.compile(
     r"\b(?:FROM|JOIN)\s+(?:[a-zA-Z_][\w]*\.)?([a-zA-Z_][\w]*)",
     re.IGNORECASE,
 )
+_RELATION_RE = re.compile(
+    r"\b(?:FROM|JOIN)\s+(?:[a-zA-Z_][\w]*\.)?"
+    r"(?P<table>[a-zA-Z_][\w]*)"
+    r"(?:\s+(?:AS\s+)?(?P<alias>[a-zA-Z_][\w]*))?",
+    re.IGNORECASE,
+)
+_JOIN_RE = re.compile(
+    r"\bJOIN\s+(?:[a-zA-Z_][\w]*\.)?(?P<table>[a-zA-Z_][\w]*)"
+    r"(?:\s+(?:AS\s+)?(?P<alias>[a-zA-Z_][\w]*))?\s+ON\s+"
+    r"(?P<condition>.*?)(?=\b(?:JOIN|WHERE|GROUP\s+BY|ORDER\s+BY|"
+    r"HAVING|LIMIT|OFFSET)\b|$)",
+    re.IGNORECASE | re.DOTALL,
+)
 _FROM_SECTION_RE = re.compile(
     r"\bFROM\b(?P<section>.*?)(?=\bWHERE\b|\bGROUP\s+BY\b|"
     r"\bORDER\s+BY\b|\bHAVING\b|\bLIMIT\b|\bOFFSET\b|$)",
@@ -50,6 +63,22 @@ _UNSAFE_FUNCTION_RE = re.compile(
     re.IGNORECASE,
 )
 _ALLOWED_TABLES = {"events", "persons", "tracked_objects", "cameras"}
+_SQL_RESERVED = {
+    "WHERE", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "FULL", "CROSS",
+    "ON", "ORDER", "GROUP", "HAVING", "LIMIT", "OFFSET",
+}
+
+
+def _relations(sql: str) -> list[tuple[str, str]]:
+    """Return (table, alias) pairs for the flat query grammar."""
+    relations = []
+    for match in _RELATION_RE.finditer(sql):
+        table = match.group("table").lower()
+        alias = (match.group("alias") or table).lower()
+        if alias.upper() in _SQL_RESERVED:
+            alias = table
+        relations.append((table, alias))
+    return relations
 
 
 def _extract_sql(raw: str) -> str:
@@ -84,6 +113,31 @@ def _safe_sql(sql: str) -> str:
     unexpected = tables - _ALLOWED_TABLES
     if unexpected:
         raise ValueError(f"query references disallowed tables: {sorted(unexpected)}")
+    relations = _relations(sql)
+    event_relations = [alias for table, alias in relations if table == "events"]
+    if len(event_relations) != 1:
+        raise ValueError("query must contain exactly one events relation")
+    event_alias = event_relations[0]
+    join_keys = {
+        "persons": "person_id",
+        "tracked_objects": "object_id",
+        "cameras": "camera_id",
+    }
+    for match in _JOIN_RE.finditer(sql):
+        table = match.group("table").lower()
+        alias = (match.group("alias") or table).lower()
+        if alias.upper() in _SQL_RESERVED:
+            alias = table
+        key = join_keys.get(table)
+        if key and (
+            not re.search(rf"\b{re.escape(alias)}\.id\b", match.group("condition"), re.IGNORECASE)
+            or not re.search(
+                rf"\b{re.escape(event_alias)}\.{key}\b",
+                match.group("condition"),
+                re.IGNORECASE,
+            )
+        ):
+            raise ValueError(f"{table} joins must use events.{key}")
     return sql
 
 
@@ -154,13 +208,15 @@ def _inject_owner_scope(sql: str) -> str:
         sql,
         re.IGNORECASE,
     )
-    reserved = {
-        "WHERE", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "FULL", "CROSS",
-        "ON", "ORDER", "GROUP", "HAVING", "LIMIT", "OFFSET",
-    }
+    reserved = _SQL_RESERVED
     candidate = match.group(1) if match else None
     alias = candidate if candidate and candidate.upper() not in reserved else "events"
-    scope = f"{alias}.camera_id IN (SELECT id FROM cameras WHERE owner_id = $1::uuid)"
+    scopes = [
+        f"{alias}.camera_id IN (SELECT id FROM cameras WHERE owner_id = $1::uuid)"
+    ]
+    for table, relation_alias in _relations(sql):
+        if table in {"persons", "tracked_objects", "cameras"}:
+            scopes.append(f"{relation_alias}.owner_id = $1::uuid")
     statement = sql.rstrip(";").rstrip()
     # Filters must be added before ORDER BY/GROUP BY/LIMIT/OFFSET. Appending
     # after LIMIT produces invalid SQL and can make the caller mistake an
@@ -169,6 +225,7 @@ def _inject_owner_scope(sql: str) -> str:
     split_at = clause.start() if clause else len(statement)
     head = statement[:split_at].rstrip()
     tail = statement[split_at:].lstrip()
+    scope = " AND ".join(scopes)
     predicate = f" AND {scope}" if re.search(r"\bWHERE\b", head, re.IGNORECASE) else f" WHERE {scope}"
     return f"{head}{predicate}{(' ' + tail) if tail else ''}"
 

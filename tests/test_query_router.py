@@ -75,3 +75,27 @@ def test_safe_sql_allows_event_joins_but_not_account_tables():
         LEFT JOIN tracked_objects o ON o.id = e.object_id
     """
     assert _safe_sql(sql)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT e.id, p.label FROM events e JOIN persons p ON TRUE",
+        "SELECT e.id, o.label FROM events e JOIN tracked_objects o ON o.id = e.person_id",
+        "SELECT e.id, c.location_label FROM events e JOIN cameras c ON c.id = e.person_id",
+    ],
+)
+def test_safe_sql_rejects_unrelated_allowed_table_joins(sql):
+    with pytest.raises(ValueError):
+        _safe_sql(sql)
+
+
+def test_owner_scope_covers_joined_relations():
+    sql = _inject_owner_scope(
+        "SELECT e.id, p.label, o.category "
+        "FROM events e "
+        "LEFT JOIN persons p ON p.id = e.person_id "
+        "LEFT JOIN tracked_objects o ON o.id = e.object_id"
+    )
+    assert "p.owner_id = $1::uuid" in sql
+    assert "o.owner_id = $1::uuid" in sql
