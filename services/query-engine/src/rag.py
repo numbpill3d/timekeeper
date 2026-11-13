@@ -107,11 +107,3 @@ async def retrieve_context(question: str, owner_id: str) -> str:
         lines.append(f"  [{ts}] {who}: {what}{where}")
 
     return "\n".join(lines)
-
-
-def embed_event(action_label: str, event_type: str, location: str = "") -> list[float]:
-    """Produce an embedding for an event to store in events.embedding."""
-    text = f"{event_type}: {action_label}"
-    if location:
-        text += f" ({location})"
-    return embed_text(text)
