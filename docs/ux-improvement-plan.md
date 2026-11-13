@@ -38,12 +38,11 @@ local camera evidence system.
    URL schemes and reject contradictory explicit protocols before persistence.
 16. **Evidence source labels** — show camera context directly in web and mobile
    answer cards alongside matched people, objects, and locations.
+17. **Camera setup wizard** — split source naming/type from URL/location entry,
+   add provider-specific placeholders, and validate the draft before submit.
 
 ## Next high-value improvements
 
-17. **Camera setup wizard** — guide operators through source type, location,
-    credentials, connectivity test, retention, and a first-frame preview. Keep
-    secrets masked and never echo them in validation errors.
 18. **Camera diagnostics** — show last frame, last successful connection,
     reconnect attempts, codec/fps, clock skew, and a clear remediation path.
 19. **Evidence-first answer cards** — show the answer, confidence, event time,

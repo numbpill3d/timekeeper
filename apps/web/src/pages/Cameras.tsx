@@ -307,6 +307,7 @@ export function Cameras() {
   const [error, setError] = useState("");
   const [removeError, setRemoveError] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [setupStep, setSetupStep] = useState<1 | 2>(1);
 
   const { data: cameras = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["cameras"],
@@ -336,6 +337,7 @@ export function Cameras() {
       setProto("rtsp");
       setProviderConfigText("");
       setError("");
+      setSetupStep(1);
       setShowForm(false);
     },
     onError: (e: unknown) => {
@@ -377,6 +379,44 @@ export function Cameras() {
 
   const activeCams = cameras.filter((c) => c.is_active).length;
 
+  function validateSourceStep(): boolean {
+    if (!name.trim()) {
+      setError("give this camera a name first");
+      return false;
+    }
+    setError("");
+    setSetupStep(2);
+    return true;
+  }
+
+  function validateConnectionStep(): boolean {
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) {
+      setError("stream URL is required");
+      return false;
+    }
+    try {
+      const parsed = new URL(trimmedUrl);
+      const deviceProtocols = ["ring", "nest", "arlo", "wyze"];
+      if (deviceProtocols.includes(proto) && parsed.protocol !== `${proto}:`) {
+        setError(`use a ${proto}:// device URL for the ${proto} adapter`);
+        return false;
+      }
+      if (providerConfigText.trim()) {
+        const config = JSON.parse(providerConfigText) as unknown;
+        if (!config || Array.isArray(config) || typeof config !== "object") {
+          setError("provider config must be a JSON object");
+          return false;
+        }
+      }
+    } catch {
+      setError("enter a valid stream URL and provider JSON");
+      return false;
+    }
+    setError("");
+    return true;
+  }
+
   return (
     <div
       style={{
@@ -396,7 +436,11 @@ export function Cameras() {
         </div>
         <button
           className="btn btn-primary"
-          onClick={() => setShowForm((v) => !v)}
+          onClick={() => {
+            setShowForm((v) => !v);
+            setSetupStep(1);
+            setError("");
+          }}
         >
           {showForm ? "cancel" : "+ add camera"}
         </button>
@@ -421,7 +465,12 @@ export function Cameras() {
             flexShrink: 0,
           }}
         >
-          <div className="section-title">add camera</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+            <div className="section-title">add camera</div>
+            <span style={{ fontSize: 10, color: "var(--text-dim)" }}>
+              step {setupStep} of 2 · {setupStep === 1 ? "name the source" : "connect and place it"}
+            </span>
+          </div>
           <div
             style={{
               display: "grid",
@@ -429,61 +478,70 @@ export function Cameras() {
               gap: 10,
             }}
           >
-            <div>
-              <div className="label" style={{ marginBottom: 4 }}>
-                name
-              </div>
-              <input
-                aria-label="Camera name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="front door"
-                style={{ width: "100%", padding: "7px 10px" }}
-              />
-            </div>
-            <div>
-              <div className="label" style={{ marginBottom: 4 }}>
-                stream url
-              </div>
-              <input
-                aria-label="Camera stream URL"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="rtsp://192.168.1.100/stream"
-                style={{ width: "100%", padding: "7px 10px" }}
-              />
-            </div>
-            <div>
-              <div className="label" style={{ marginBottom: 4 }}>
-                location label
-              </div>
-              <input
-                aria-label="Camera location label"
-                value={loc}
-                onChange={(e) => setLoc(e.target.value)}
-                placeholder="front entrance (optional)"
-                style={{ width: "100%", padding: "7px 10px" }}
-              />
-            </div>
-            <div>
-              <div className="label" style={{ marginBottom: 4 }}>
-                protocol
-              </div>
-              <select
-                aria-label="Camera protocol"
-                value={proto}
-                onChange={(e) => setProto(e.target.value)}
-                style={{ width: "100%", padding: "7px 10px" }}
-              >
-                {PROTOCOLS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {setupStep === 1 ? (
+              <>
+                <div>
+                  <div className="label" style={{ marginBottom: 4 }}>
+                    name
+                  </div>
+                  <input
+                    aria-label="Camera name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="front door"
+                    autoFocus
+                    style={{ width: "100%", padding: "7px 10px" }}
+                  />
+                </div>
+                <div>
+                  <div className="label" style={{ marginBottom: 4 }}>
+                    source type
+                  </div>
+                  <select
+                    aria-label="Camera protocol"
+                    value={proto}
+                    onChange={(e) => setProto(e.target.value)}
+                    style={{ width: "100%", padding: "7px 10px" }}
+                  >
+                    {PROTOCOLS.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <div className="label" style={{ marginBottom: 4 }}>
+                    stream URL
+                  </div>
+                  <input
+                    aria-label="Camera stream URL"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder={proto === "ring" || proto === "nest" ? `${proto}://device-id` : "rtsp://192.168.1.100/stream"}
+                    autoFocus
+                    style={{ width: "100%", padding: "7px 10px" }}
+                  />
+                </div>
+                <div>
+                  <div className="label" style={{ marginBottom: 4 }}>
+                    location label
+                  </div>
+                  <input
+                    aria-label="Camera location label"
+                    value={loc}
+                    onChange={(e) => setLoc(e.target.value)}
+                    placeholder="front entrance (optional)"
+                    style={{ width: "100%", padding: "7px 10px" }}
+                  />
+                </div>
+              </>
+            )}
           </div>
-          {(proto === "ring" || proto === "nest" || proto === "arlo" || proto === "wyze") && (
+          {setupStep === 2 && (proto === "ring" || proto === "nest" || proto === "arlo" || proto === "wyze") && (
             <div>
               <div className="label" style={{ marginBottom: 4 }}>
                 provider config (JSON, no secrets)
@@ -512,12 +570,32 @@ export function Cameras() {
             </div>
           )}
           <div style={{ display: "flex", gap: 8 }}>
+            {setupStep === 2 && (
+              <button
+                className="btn btn-ghost"
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setSetupStep(1);
+                }}
+                disabled={add.isPending}
+              >
+                back
+              </button>
+            )}
             <button
               className="btn btn-primary"
-              disabled={!name || !url || add.isPending}
-              onClick={() => add.mutate()}
+              type="button"
+              disabled={add.isPending}
+              onClick={() => {
+                if (setupStep === 1) {
+                  validateSourceStep();
+                } else if (validateConnectionStep()) {
+                  add.mutate();
+                }
+              }}
             >
-              {add.isPending ? "..." : "add camera"}
+              {add.isPending ? "..." : setupStep === 1 ? "next" : "add camera"}
             </button>
           </div>
         </div>
