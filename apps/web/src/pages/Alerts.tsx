@@ -130,6 +130,7 @@ function AlertRow({ rule }: { rule: AlertRule }) {
         ) : (
           <button
             className="btn btn-ghost"
+            aria-label={`Delete alert rule ${rule.name}`}
             style={{ padding: "3px 8px", fontSize: 10 }}
             onClick={() => setConfirming(true)}
           >
@@ -236,6 +237,7 @@ export function Alerts() {
                 rule name
               </div>
               <input
+                aria-label="Alert rule name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="unknown visitor"
@@ -247,6 +249,7 @@ export function Alerts() {
                 natural language rule
               </div>
               <input
+                aria-label="Natural language alert rule"
                 value={ruleText}
                 onChange={(e) => setRuleText(e.target.value)}
                 placeholder="alert me when an unknown person enters the front door"
@@ -264,6 +267,7 @@ export function Alerts() {
                 {["critical", "important", "informational"].map((p) => (
                   <button
                     key={p}
+                    aria-pressed={priority === p}
                     onClick={() => setPriority(p)}
                     style={{
                       background:
@@ -295,6 +299,7 @@ export function Alerts() {
                 {["push", "sms"].map((ch) => (
                   <button
                     key={ch}
+                    aria-pressed={channels.includes(ch)}
                     onClick={() => toggleChannel(ch)}
                     style={{
                       background: channels.includes(ch)

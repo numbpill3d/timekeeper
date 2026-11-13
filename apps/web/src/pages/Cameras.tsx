@@ -251,6 +251,7 @@ export function Cameras() {
                 name
               </div>
               <input
+                aria-label="Camera name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="front door"
@@ -262,6 +263,7 @@ export function Cameras() {
                 stream url
               </div>
               <input
+                aria-label="Camera stream URL"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="rtsp://192.168.1.100/stream"
@@ -273,6 +275,7 @@ export function Cameras() {
                 location label
               </div>
               <input
+                aria-label="Camera location label"
                 value={loc}
                 onChange={(e) => setLoc(e.target.value)}
                 placeholder="front entrance (optional)"
@@ -284,6 +287,7 @@ export function Cameras() {
                 protocol
               </div>
               <select
+                aria-label="Camera protocol"
                 value={proto}
                 onChange={(e) => setProto(e.target.value)}
                 style={{ width: "100%", padding: "7px 10px" }}
@@ -302,6 +306,7 @@ export function Cameras() {
                 provider config (JSON, no secrets)
               </div>
               <input
+                aria-label="Camera provider configuration JSON"
                 value={providerConfigText}
                 onChange={(e) => setProviderConfigText(e.target.value)}
                 placeholder='{"whep_url":"https://..."}'

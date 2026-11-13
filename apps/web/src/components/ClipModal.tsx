@@ -89,6 +89,7 @@ export function ClipModal({ event, onClose }: Props) {
           <button
             ref={closeRef}
             className="btn btn-ghost"
+            aria-label="Close event evidence"
             style={{ padding: "3px 10px" }}
             onClick={onClose}
           >
@@ -110,7 +111,7 @@ export function ClipModal({ event, onClose }: Props) {
             isImage ? (
               <img
                 src={event.clip_path}
-                alt="event clip"
+                alt={`Evidence image for ${event.action_label}`}
                 style={{ maxWidth: "100%", maxHeight: 480, display: "block" }}
               />
             ) : (
@@ -118,6 +119,7 @@ export function ClipModal({ event, onClose }: Props) {
                 src={event.clip_path}
                 controls
                 autoPlay
+                aria-label={`Evidence video for ${event.action_label}`}
                 style={{ maxWidth: "100%", maxHeight: 480 }}
               />
             )

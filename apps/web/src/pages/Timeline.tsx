@@ -69,6 +69,7 @@ export function Timeline() {
             event type
           </div>
           <select
+            aria-label="Filter by event type"
             value={eventType}
             onChange={(e) => {
               setEventType(e.target.value);
@@ -97,6 +98,7 @@ export function Timeline() {
             since
           </div>
           <input
+            aria-label="Show events since"
             type="datetime-local"
             value={sinceDate}
             onChange={(e) => {

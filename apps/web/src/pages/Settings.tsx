@@ -242,6 +242,7 @@ export function Settings() {
                     paste your device FCM token to receive push notifications
                   </div>
                   <input
+                    aria-label="FCM push token"
                     value={fcmToken}
                     onChange={(e) => setFcmToken(e.target.value)}
                     placeholder="fcm token from your mobile app..."
@@ -259,6 +260,7 @@ export function Settings() {
                     E.164 format — +12125551234 — required for SMS alerts
                   </div>
                   <input
+                    aria-label="Phone number for SMS alerts"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+12125551234"

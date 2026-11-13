@@ -65,6 +65,7 @@ function PersonCard({ person }: { person: Person }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           {editing ? (
             <input
+              aria-label={`Edit label for ${person.label}`}
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               onKeyDown={(e) => {
