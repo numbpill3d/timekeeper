@@ -15,11 +15,13 @@ function CameraCard({
   onToggle,
   onDelete,
   togglePending,
+  deletePending,
 }: {
   cam: Camera;
   onToggle: () => void;
   onDelete: () => void;
   togglePending: boolean;
+  deletePending: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
 
@@ -131,13 +133,15 @@ function CameraCard({
               className="btn btn-danger"
               style={{ padding: "4px 10px" }}
               onClick={onDelete}
+              disabled={deletePending}
             >
-              yes
+              {deletePending ? "removing..." : "yes"}
             </button>
             <button
               className="btn btn-ghost"
               style={{ padding: "4px 10px" }}
               onClick={() => setConfirming(false)}
+              disabled={deletePending}
             >
               no
             </button>
@@ -148,7 +152,7 @@ function CameraCard({
               className="btn btn-ghost"
               style={{ padding: "4px 10px" }}
               onClick={onToggle}
-              disabled={togglePending}
+              disabled={togglePending || deletePending}
               aria-label={`${cam.is_active ? "Pause" : "Resume"} ${cam.name}`}
             >
               {togglePending ? "..." : cam.is_active ? "pause" : "resume"}
@@ -157,6 +161,7 @@ function CameraCard({
               className="btn btn-ghost"
               style={{ padding: "4px 10px", marginLeft: "auto" }}
               onClick={() => setConfirming(true)}
+              disabled={togglePending || deletePending}
             >
               remove
             </button>
@@ -175,6 +180,7 @@ export function Cameras() {
   const [proto, setProto] = useState("rtsp");
   const [providerConfigText, setProviderConfigText] = useState("");
   const [error, setError] = useState("");
+  const [removeError, setRemoveError] = useState("");
   const [showForm, setShowForm] = useState(false);
 
   const { data: cameras = [], isLoading } = useQuery({
@@ -216,7 +222,11 @@ export function Cameras() {
 
   const remove = useMutation({
     mutationFn: deleteCamera,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["cameras"] }),
+    onSuccess: () => {
+      setRemoveError("");
+      qc.invalidateQueries({ queryKey: ["cameras"] });
+    },
+    onError: () => setRemoveError("failed to remove camera; its history was preserved"),
   });
 
   const toggle = useMutation({
@@ -252,6 +262,12 @@ export function Cameras() {
           {showForm ? "cancel" : "+ add camera"}
         </button>
       </div>
+
+      {removeError && (
+        <div role="alert" style={{ padding: "8px 20px", color: "var(--accent)", fontSize: 11 }}>
+          ! {removeError}
+        </div>
+      )}
 
       {/* Add form */}
       {showForm && (
@@ -408,6 +424,7 @@ export function Cameras() {
                 }}
                 onDelete={() => remove.mutate(c.id)}
                 togglePending={toggle.isPending && toggle.variables?.id === c.id}
+                deletePending={remove.isPending && remove.variables === c.id}
               />
             ))}
           </div>
