@@ -60,10 +60,10 @@ local camera evidence system.
 24. **Trust and retention controls** — add per-camera retention previews,
     export/delete audit logs, event redaction controls, and an explicit privacy
     status indicator before recording begins. Camera cards now surface the local
-    30-day default and person-specific override behavior; audit-log export and
-    redaction controls remain follow-on work. Individual timeline events can now
-    be deliberately redacted from web and mobile, with an owner-scoped audit
-    record and clip cleanup.
+    30-day default and person-specific override behavior. Individual timeline
+    events can be deliberately redacted from web and mobile, with an
+    owner-scoped audit record, clip cleanup, and a settings audit-log view/export.
+    Event redaction controls now ship; broader redaction policies remain follow-on work.
 
 ## Product-level follow-ons
 

@@ -111,6 +111,15 @@ export interface UserProfile {
   created_at: string;
 }
 
+export interface AuditRecord {
+  id: string;
+  action: string;
+  resource_type: string;
+  resource_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
 // ── Auth ──────────────────────────────────────────────────────────
 
 export const login = (email: string, password: string) =>
@@ -120,6 +129,9 @@ export const register = (email: string, password: string) =>
   api.post<{ access_token: string }>("/auth/register", { email, password });
 
 export const getProfile = () => api.get<UserProfile>("/auth/me");
+
+export const listAuditLog = (limit = 50) =>
+  api.get<AuditRecord[]>("/audit", { params: { limit } });
 
 export const getHealth = () =>
   api.get<{ status: string; database: string; redis: string }>("/health");

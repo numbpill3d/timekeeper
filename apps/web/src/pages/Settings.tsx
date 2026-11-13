@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   createPipedreamConnectToken,
   getProfile,
+  listAuditLog,
   updateProfile,
 } from "../api/client";
 
@@ -79,6 +80,15 @@ export function Settings() {
     queryKey: ["profile"],
     queryFn: () => getProfile().then((r) => r.data),
   });
+  const {
+    data: audit = [],
+    isLoading: auditLoading,
+    isError: auditError,
+    refetch: refetchAudit,
+  } = useQuery({
+    queryKey: ["audit-log"],
+    queryFn: () => listAuditLog().then((r) => r.data),
+  });
 
   useEffect(() => {
     if (profile) {
@@ -125,6 +135,28 @@ export function Settings() {
   });
 
   const tier = TIER_INFO[profile?.tier ?? "free"] ?? TIER_INFO.free;
+
+  function exportAuditLog() {
+    if (!audit.length) return;
+    const headers = ["created_at", "action", "resource_type", "resource_id", "metadata"];
+    const csvCell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+    const rows = audit.map((entry) => [
+      entry.created_at,
+      entry.action,
+      entry.resource_type,
+      entry.resource_id,
+      JSON.stringify(entry.metadata),
+    ]);
+    const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "timekeeper-audit-log.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div
@@ -338,6 +370,44 @@ export function Settings() {
                   <div style={{ fontSize: 11, color: "var(--accent)" }}>
                     ! {connectError}
                   </div>
+                )}
+              </div>
+            </Section>
+
+            {/* Audit history */}
+            <Section title="audit history">
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ fontSize: 12, color: "var(--text-dim)" }}>
+                  recent destructive actions are recorded for this account. sensitive evidence content is not copied into the log.
+                </div>
+                {auditLoading ? (
+                  <div style={{ color: "var(--text-dim)", fontSize: 11 }}>loading audit history...</div>
+                ) : auditError ? (
+                  <div role="alert" style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--accent)", fontSize: 11 }}>
+                    couldn't load audit history.
+                    <button className="btn btn-ghost" onClick={() => void refetchAudit()}>retry</button>
+                  </div>
+                ) : audit.length === 0 ? (
+                  <div style={{ color: "var(--text-dim)", fontSize: 11 }}>no destructive actions recorded.</div>
+                ) : (
+                  <>
+                    <div style={{ display: "grid", gap: 6 }}>
+                      {audit.map((entry) => (
+                        <div key={entry.id} style={{ borderLeft: "2px solid var(--border-hi)", padding: "6px 8px", fontSize: 11 }}>
+                          <div style={{ color: "var(--text-bright)" }}>
+                            {entry.action} {entry.resource_type}
+                          </div>
+                          <div style={{ color: "var(--text-dim)", marginTop: 2 }}>
+                            {new Date(entry.created_at).toLocaleString()}
+                            {entry.resource_id ? ` · ${entry.resource_id.slice(0, 8)}...` : ""}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <button className="btn btn-ghost" style={{ alignSelf: "flex-start" }} onClick={exportAuditLog}>
+                      export audit log
+                    </button>
+                  </>
                 )}
               </div>
             </Section>
