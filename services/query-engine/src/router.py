@@ -75,6 +75,7 @@ _HISTORY_QUESTION_RE = re.compile(
 _ITEM_EVENT_TYPES = {"object_picked_up", "object_moved", "object_placed"}
 _EXIT_EVENTS_SQL = """
     SELECT e.id AS event_id, e.timestamp, e.event_type, e.action_label, e.location_label,
+           e.camera_id AS camera_id,
            c.name AS camera_name,
            e.confidence, e.clip_path,
            NULL::text AS from_camera_name,
@@ -304,7 +305,7 @@ def _order_history_rows(question: str, rows: list[dict]) -> list[dict]:
 def _evidence(rows: list[dict]) -> list[dict]:
     """Project query rows to bounded, non-sensitive answer evidence."""
     fields = (
-        "event_id", "timestamp", "event_type", "action_label", "location_label", "camera_name",
+        "event_id", "timestamp", "event_type", "action_label", "location_label", "camera_id", "camera_name",
         "confidence", "person_label", "object_label", "object_category",
         "from_camera_name", "to_camera_name",
         "clip_path",

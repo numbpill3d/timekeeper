@@ -74,6 +74,7 @@ export interface QueryEvidence {
   event_type: string | null;
   action_label: string | null;
   location_label: string | null;
+  camera_id: string | null;
   camera_name: string | null;
   confidence: number | null;
   person_label: string | null;

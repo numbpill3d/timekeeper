@@ -191,6 +191,7 @@ def test_evidence_projection_is_bounded_and_excludes_unrequested_columns():
 
     assert len(evidence) == 20
     assert evidence[0]["person_label"] == "John"
+    assert "camera_id" in evidence[0]
     assert "private_metadata" not in evidence[0]
 
 

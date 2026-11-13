@@ -17,6 +17,7 @@ def test_fallback_query_searches_item_and_today():
     assert "e.event_type = $5" in sql
     assert params[3] == "object_picked_up"
     assert "p.id AS person_id" in sql
+    assert "e.camera_id AS camera_id" in sql
 
 
 def test_fallback_query_uses_yesterday_range_without_interpolating_text():

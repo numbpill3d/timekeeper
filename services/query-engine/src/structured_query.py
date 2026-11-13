@@ -273,6 +273,7 @@ def build_fallback_query(question: str) -> tuple[str, list[object]]:
     ordering = "ASC" if _HISTORY_QUESTION_RE.search(question) else "DESC"
     sql = f"""
         SELECT e.id AS event_id, e.timestamp, e.event_type, e.action_label, e.location_label,
+               e.camera_id AS camera_id,
                c.name AS camera_name,
                e.confidence, e.clip_path,
                e.metadata->>'from_camera_name' AS from_camera_name,

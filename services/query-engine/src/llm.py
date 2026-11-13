@@ -49,7 +49,8 @@ Rules:
   events.metadata->>'from_camera_name' AS from_camera_name and
   events.metadata->>'to_camera_name' AS to_camera_name when present.
 - When returning event rows, join cameras ON events.camera_id = cameras.id and
-  select cameras.name AS camera_name when camera context helps identify the source.
+  select events.camera_id AS camera_id and cameras.name AS camera_name when
+  camera context helps identify the source.
 - For object/person questions, always include those person and object fields
   in the SELECT so the answer can name the evidence-bearing entities.
 - Limit results to 50 unless the user asks for more.
