@@ -116,9 +116,11 @@ async def _evaluate(event: Event, db: asyncpg.Connection) -> None:
                 # match-all predicate. Keep it disabled until edited.
                 compiled = {"_disabled": True}
             await db.execute(
-                "UPDATE alert_rules SET compiled_rule = $1 WHERE id = $2",
+                "UPDATE alert_rules SET compiled_rule = $1 "
+                "WHERE id = $2 AND compiled_rule IS NULL AND rule_text = $3",
                 json.dumps(compiled),
                 rule_row["id"],
+                rule_row["rule_text"],
             )
         else:
             compiled = normalize_rule(compiled)

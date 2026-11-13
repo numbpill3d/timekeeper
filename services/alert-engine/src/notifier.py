@@ -81,7 +81,9 @@ async def _send_fcm_v1(token: str, title: str, body: str) -> bool:
         }
     }
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(
+            timeout=5.0, follow_redirects=False
+        ) as client:
             response = await client.post(
                 f"https://fcm.googleapis.com/v1/projects/{_FCM_PROJECT_ID}/messages:send",
                 json=payload,
@@ -121,7 +123,9 @@ async def _send_fcm_legacy(token: str, title: str, body: str) -> bool:
         "priority": "high",
     }
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(
+            timeout=5.0, follow_redirects=False
+        ) as client:
             r = await client.post(
                 _FCM_URL,
                 json=payload,
