@@ -171,7 +171,6 @@ class ProfileUpdate(BaseModel):
 async def update_profile(
     req: ProfileUpdate, user: CurrentUser, db: DB
 ) -> dict:
-    _ALLOWED = {"fcm_token", "phone"}
     updates: dict = {}
     # `model_fields_set` distinguishes an omitted field (leave it unchanged)
     # from an explicit null (clear the stored notification destination).

@@ -58,6 +58,13 @@ class Event(BaseModel):
         """Human-readable event description for LLM context."""
         parts = [f"[{self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}]"]
         parts.append(self.action_label)
+        object_category = self.metadata.get("object_category")
+        if (
+            isinstance(object_category, str)
+            and object_category.strip()
+            and object_category.lower() not in self.action_label.lower()
+        ):
+            parts.append(f"item: {object_category.strip()}")
         if self.location_label:
             parts.append(f"at {self.location_label}")
         if self.confidence < 0.8:

@@ -94,7 +94,6 @@ async def get_person(person_id: UUID, user: CurrentUser, db: DB) -> PersonOut:
 async def update_person(
     person_id: UUID, req: PersonUpdate, user: CurrentUser, db: DB
 ) -> PersonOut:
-    _ALLOWED = {"label", "is_known"}
     updates: dict = {}
     if req.label is not None:
         updates["label"] = req.label

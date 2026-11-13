@@ -45,3 +45,15 @@ def test_event_and_frame_models_normalize_naive_timestamps_to_utc():
     assert event.timestamp.tzinfo == UTC
     assert frame.timestamp.tzinfo == UTC
     assert detection_message.timestamp.tzinfo == UTC
+
+
+def test_event_text_includes_object_category_for_embedding_recall():
+    event = Event(
+        camera_id="00000000-0000-0000-0000-000000000001",
+        event_type=EventType.object_picked_up,
+        timestamp="2026-01-01T16:30:00Z",
+        action_label="Object picked up",
+        metadata={"object_category": "toolbox"},
+    )
+
+    assert "item: toolbox" in event.to_text()
