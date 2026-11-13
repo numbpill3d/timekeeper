@@ -144,7 +144,6 @@ async def delete_person(
             "UPDATE events SET person_id = NULL WHERE person_id = $1",
             person_id,
         )
-        await db.execute("DELETE FROM persons WHERE id = $1", person_id)
         await record_audit(
             db,
             user["sub"],
@@ -152,3 +151,4 @@ async def delete_person(
             "person",
             person_id,
         )
+        await db.execute("DELETE FROM persons WHERE id = $1", person_id)
