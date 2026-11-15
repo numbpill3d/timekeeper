@@ -147,14 +147,13 @@ consumer group:
 docker compose up --build --scale vision=4
 ```
 
-`KAFKA_TOPIC_PARTITIONS` defaults to four for fresh local topics. Keep it at or
-above the maximum number of vision replicas, and expand an existing topic
-before scaling a deployment whose topics were created with fewer partitions:
+`KAFKA_TOPIC_PARTITIONS` defaults to four. Keep it at or above the maximum
+number of vision replicas. The one-shot `kafka-topics-init` Compose service
+creates the application topics and expands existing topics when the configured
+partition count is higher:
 
 ```bash
-docker compose exec kafka kafka-topics.sh \
-  --bootstrap-server localhost:9092 \
-  --alter --topic omniscient.frames --partitions 4
+docker compose up --build --scale vision=4
 ```
 
 Frames are keyed by camera ID and all replicas use the same

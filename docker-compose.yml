@@ -83,6 +83,35 @@ services:
       timeout: 10s
       retries: 5
 
+  kafka-topics-init:
+    image: bitnamilegacy/kafka:3.6@sha256:287cec8bf1b254efe016ec66ea77628e31f242b09f3c68a15eec74d93c21a410
+    restart: "no"
+    environment:
+      KAFKA_TOPIC_PARTITIONS: ${KAFKA_TOPIC_PARTITIONS:-4}
+    entrypoint: ["/bin/bash", "-ec"]
+    command: >-
+      case "$$KAFKA_TOPIC_PARTITIONS" in
+        ''|*[!0-9]*|0) echo "KAFKA_TOPIC_PARTITIONS must be a positive integer" >&2; exit 1 ;;
+      esac;
+      for topic in omniscient.frames omniscient.detections omniscient.events omniscient.alerts; do
+        kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists
+          --topic "$$topic" --partitions "$$KAFKA_TOPIC_PARTITIONS"
+          --replication-factor 1;
+        current=$$(kafka-topics.sh --bootstrap-server kafka:9092 --describe
+          --topic "$$topic" | sed -n 's/.*PartitionCount:\([0-9]*\).*/\1/p' | head -n 1);
+        if [ -z "$$current" ]; then
+          echo "could not determine partition count for $$topic" >&2;
+          exit 1;
+        fi;
+        if [ "$$current" -lt "$$KAFKA_TOPIC_PARTITIONS" ]; then
+          kafka-topics.sh --bootstrap-server kafka:9092 --alter --topic "$$topic"
+            --partitions "$$KAFKA_TOPIC_PARTITIONS";
+        fi;
+      done
+    depends_on:
+      kafka:
+        condition: service_healthy
+
   redis:
     image: redis:7-alpine@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe
     volumes:
@@ -166,8 +195,8 @@ services:
       - framesdata:/tmp/frames
       - ${TIMEKEEPER_SECRETS_DIR:-./secrets}:/run/secrets:ro
     depends_on:
-      kafka:
-        condition: service_healthy
+      kafka-topics-init:
+        condition: service_completed_successfully
       db-migrate:
         condition: service_completed_successfully
 
@@ -188,8 +217,8 @@ services:
       - ./shared:/shared:ro
       - framesdata:/tmp/frames
     depends_on:
-      kafka:
-        condition: service_healthy
+      kafka-topics-init:
+        condition: service_completed_successfully
       db-migrate:
         condition: service_completed_successfully
   event-processor:
@@ -214,8 +243,8 @@ services:
       - ./shared:/shared:ro
       - framesdata:/tmp/frames
     depends_on:
-      kafka:
-        condition: service_healthy
+      kafka-topics-init:
+        condition: service_completed_successfully
       db-migrate:
         condition: service_completed_successfully
       minio:
@@ -255,8 +284,8 @@ services:
     volumes:
       - ${TIMEKEEPER_SECRETS_DIR:-./secrets}:/run/secrets:ro
     depends_on:
-      kafka:
-        condition: service_healthy
+      kafka-topics-init:
+        condition: service_completed_successfully
       db-migrate:
         condition: service_completed_successfully
 
@@ -294,6 +323,8 @@ services:
       timeout: 5s
       retries: 3
     depends_on:
+      kafka-topics-init:
+        condition: service_completed_successfully
       db-migrate:
         condition: service_completed_successfully
       redis:
