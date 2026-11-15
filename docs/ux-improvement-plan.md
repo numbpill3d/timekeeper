@@ -106,6 +106,10 @@ local camera evidence system.
 40. **Camera-scoped timeline review** — filter timeline evidence by its source
     camera on web and mobile, preserving the existing tenant scope, search,
     bounded since/until time ranges, and event-type filters.
+42. **Multi-camera operating contract** — keep simultaneous active-camera
+    ingestion, per-camera vision state, camera-keyed event processing, and
+    cross-camera handoff correlation covered by regression tests and operator
+    documentation as new providers are added.
 
 ## Next high-value improvements
 

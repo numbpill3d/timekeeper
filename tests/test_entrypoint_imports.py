@@ -8,7 +8,7 @@ os.environ.setdefault("JWT_SECRET", "test-secret-for-unit-tests-only-must-be-32c
 from omniscient_shared.models.camera import Camera, CameraProtocol
 
 from api.src.main import app
-from services.ingestion.src.main import _camera_stream_signature
+from services.ingestion.src.main import _camera_stream_signature, _load_cameras
 from services.ingestion.src.status import CameraStatusReporter
 
 
@@ -45,3 +45,41 @@ def test_ingestion_stream_signature_changes_when_source_settings_change():
 def test_camera_status_reporter_is_disabled_without_database_url():
     reporter = CameraStatusReporter("")
     assert reporter._pool is None
+
+
+def test_ingestion_loads_multiple_active_cameras_independently():
+    class CameraDb:
+        async def fetch(self, _sql: str):
+            return [
+                {
+                    "id": uuid4(),
+                    "owner_id": uuid4(),
+                    "name": "front door",
+                    "stream_url": "rtsp://front-door/live",
+                    "protocol": "rtsp",
+                    "location_label": "front door",
+                    "is_edge_only": False,
+                    "provider_config": {},
+                },
+                {
+                    "id": uuid4(),
+                    "owner_id": uuid4(),
+                    "name": "garage",
+                    "stream_url": "http://garage/live",
+                    "protocol": "http",
+                    "location_label": "garage",
+                    "is_edge_only": False,
+                    "provider_config": {"stream_url": "http://garage/live"},
+                },
+            ]
+
+    import asyncio
+
+    cameras = asyncio.run(_load_cameras(CameraDb()))
+
+    assert [camera.name for camera in cameras] == ["front door", "garage"]
+    assert len({camera.id for camera in cameras}) == 2
+    assert {camera.protocol for camera in cameras} == {
+        CameraProtocol.rtsp,
+        CameraProtocol.http,
+    }

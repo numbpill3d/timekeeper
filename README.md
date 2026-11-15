@@ -132,6 +132,14 @@ repository does not include an external edge agent; new edge-only cameras are
 rejected and existing ones are skipped by ingestion until such an agent is
 connected.
 
+Multiple cameras can run concurrently. The ingestion service creates one
+reconnecting stream task per active camera and reloads additions, removals, and
+source edits without restarting the service. Vision keeps tracker state scoped
+to each camera, while the event processor keeps per-camera aggregators and
+correlates supported item handoffs across cameras. Add cameras individually in
+the Cameras screen; each feed publishes camera-keyed frames and evidence keeps
+its source camera identity.
+
 Removing a camera is destructive: its detections, events, alert-delivery
 records, event annotations, and private evidence clips are removed as part of
 the operation.
