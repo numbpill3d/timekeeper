@@ -40,3 +40,11 @@ def test_ingestion_declares_all_provider_credential_inputs():
         ):
             name = f"{provider}_{suffix}"
             assert f"{name}: ${{{name}}}" in ingestion
+
+
+def test_compose_provisions_partitions_and_configures_scalable_vision_workers():
+    compose = (_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "KAFKA_CFG_NUM_PARTITIONS: ${KAFKA_TOPIC_PARTITIONS:-4}" in compose
+    vision = compose.split("  vision:\n", 1)[1].split("  event-processor:\n", 1)[0]
+    assert "VISION_CONSUMER_GROUP: ${VISION_CONSUMER_GROUP:-vision-pipeline}" in vision
+    assert "VISION_MAX_POLL_INTERVAL_MS: ${VISION_MAX_POLL_INTERVAL_MS:-900000}" in vision

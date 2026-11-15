@@ -69,6 +69,10 @@ services:
       KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      # Fresh topics get enough partitions for horizontally scaled vision
+      # and event-processor replicas. Existing topics can be expanded with
+      # kafka-topics.sh; Kafka never shrinks a topic.
+      KAFKA_CFG_NUM_PARTITIONS: ${KAFKA_TOPIC_PARTITIONS:-4}
     volumes:
       - kafkadata:/bitnami/kafka
     ports:
@@ -178,6 +182,8 @@ services:
       CAMERA_REFRESH_INTERVAL_S: ${CAMERA_REFRESH_INTERVAL_S}
       TORCH_DEVICE: ${TORCH_DEVICE}
       YOLO_MODEL: ${YOLO_MODEL}
+      VISION_CONSUMER_GROUP: ${VISION_CONSUMER_GROUP:-vision-pipeline}
+      VISION_MAX_POLL_INTERVAL_MS: ${VISION_MAX_POLL_INTERVAL_MS:-900000}
     volumes:
       - ./shared:/shared:ro
       - framesdata:/tmp/frames

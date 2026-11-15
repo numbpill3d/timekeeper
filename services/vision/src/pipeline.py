@@ -63,6 +63,12 @@ _FRAME_ROOT = Path(os.getenv("FRAME_STORE_PATH", "/tmp/frames")).resolve()
 _CAMERA_REFRESH_INTERVAL = max(
     1, int(os.getenv("CAMERA_REFRESH_INTERVAL_S", "30"))
 )
+_VISION_CONSUMER_GROUP = os.getenv(
+    "VISION_CONSUMER_GROUP", GROUP_VISION
+).strip() or GROUP_VISION
+_VISION_MAX_POLL_INTERVAL_MS = max(
+    300_000, int(os.getenv("VISION_MAX_POLL_INTERVAL_MS", "900000"))
+)
 
 
 class VisionPipeline:
@@ -98,9 +104,17 @@ class VisionPipeline:
         self._consumer = AIOKafkaConsumer(
             FRAMES,
             bootstrap_servers=brokers,
-            group_id=GROUP_VISION,
+            # Replicas intentionally share this group. Frames are published
+            # with camera_id as the Kafka key, so every camera stays on one
+            # partition/worker and its stateful tracker remains ordered.
+            group_id=_VISION_CONSUMER_GROUP,
             value_deserializer=lambda v: json.loads(v.decode()),
             enable_auto_commit=False,
+            # A detector/ReID pass can exceed Kafka's five-minute default on
+            # CPU. Keep the consumer in the group while the event loop remains
+            # responsive via the to_thread inference boundaries below.
+            max_poll_interval_ms=_VISION_MAX_POLL_INTERVAL_MS,
+            max_poll_records=1,
         )
         self._producer = AIOKafkaProducer(
             bootstrap_servers=brokers,

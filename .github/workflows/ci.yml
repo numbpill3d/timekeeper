@@ -100,7 +100,7 @@ jobs:
         run: docker compose --env-file .env.example config --quiet
 
   runtime-audit:
-    name: Runtime dependency audit (${{ matrix.requirements }})
+    name: Runtime dependency audit (Python 3.11 / ${{ matrix.requirements }})
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false

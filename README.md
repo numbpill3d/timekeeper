@@ -140,6 +140,28 @@ correlates supported item handoffs across cameras. Add cameras individually in
 the Cameras screen; each feed publishes camera-keyed frames and evidence keeps
 its source camera identity.
 
+For larger deployments, run multiple vision replicas in the same Kafka
+consumer group:
+
+```bash
+docker compose up --build --scale vision=4
+```
+
+`KAFKA_TOPIC_PARTITIONS` defaults to four for fresh local topics. Keep it at or
+above the maximum number of vision replicas, and expand an existing topic
+before scaling a deployment whose topics were created with fewer partitions:
+
+```bash
+docker compose exec kafka kafka-topics.sh \
+  --bootstrap-server localhost:9092 \
+  --alter --topic omniscient.frames --partitions 4
+```
+
+Frames are keyed by camera ID and all replicas use the same
+`VISION_CONSUMER_GROUP`, so Kafka keeps each camera's ordered tracker state on
+one worker. The same pattern can be applied to `event-processor` after
+expanding `omniscient.detections` when downstream throughput requires it.
+
 Removing a camera is destructive: its detections, events, alert-delivery
 records, event annotations, and private evidence clips are removed as part of
 the operation.

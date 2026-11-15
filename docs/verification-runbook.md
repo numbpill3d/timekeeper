@@ -6,6 +6,10 @@ The complete Python dependency set is tested on Python 3.11. On Python 3.13+
 or newer, the pinned vision packages currently declare incompatible NumPy
 markers; use the repository's Python 3.11 environment for `make test`.
 
+The CI runtime-audit matrix also pins `actions/setup-python` to Python 3.11
+for every declared requirement file, including the full vision stack. Do not
+use a workstation Python 3.14 environment as evidence for that audit.
+
 ```bash
 make PYTHON=.venv/bin/python test
 make mobile-typecheck
