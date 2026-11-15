@@ -1,4 +1,4 @@
-.PHONY: test lint web-build mobile-typecheck synthetic-fixture compose-config check
+.PHONY: test lint security web-build mobile-typecheck synthetic-fixture compose-config check
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python)
 COMPOSE ?= docker-compose
@@ -10,6 +10,9 @@ test:
 lint:
 	ruff check api services shared tests
 	ruff check --select B api services shared tests
+
+security:
+	$(PYTHON) -m pip_audit --strict --no-deps -r api/requirements.txt
 
 web-build:
 	cd apps/web && npm ci && npm run build

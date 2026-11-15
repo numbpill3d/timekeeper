@@ -187,10 +187,16 @@ From the repository root:
 
 ```bash
 make PYTHON=.venv/bin/python test
+make PYTHON=.venv/bin/python security
 make mobile-typecheck
 python -m compileall -q api services shared tests
 docker compose --env-file .env.example config --quiet
 ```
+
+`requirements-dev.txt` includes the dependency-audit tool used by the
+`security` target. The local target checks the API requirement file without
+resolving heavyweight ML packages; CI additionally resolves and audits the
+complete runtime matrix and its transitive dependency graphs.
 
 The complete local checklist is in
 [`docs/verification-runbook.md`](docs/verification-runbook.md). Live provider
