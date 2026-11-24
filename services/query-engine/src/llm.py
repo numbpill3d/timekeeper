@@ -38,8 +38,10 @@ Rules:
 - Use timestamp >= NOW() - INTERVAL '...' for relative time filters.
 - Join persons ON events.person_id = persons.id when the query mentions names.
 - Join tracked_objects ON events.object_id = tracked_objects.id for objects.
+- For explicit last-sighting questions, use event_type = 'object_last_seen'.
 - When returning event rows, select timestamp, action_label, location_label,
-  confidence, clip_path, persons.label AS person_label, and
+  event_type, confidence, clip_path, events.metadata->>'inference' AS inference,
+  persons.label AS person_label, and
   tracked_objects.label/category AS object_label/object_category when useful.
 - When returning event rows, also select persons.id AS person_id when a person
   join is present so related exit events can be correlated safely.
@@ -70,6 +72,11 @@ Rules:
 - Include timestamps in human-readable format (e.g. "4:21 PM today").
 - If confidence < 0.8, qualify with "I think" or "probably".
 - If no results, say so clearly and suggest the user check the camera feed.
+- Describe object_last_seen as the last recorded sighting.
+- A possible_pickup inference indicates a disappearance with nearby person
+  attribution. Describe a possible pickup and preserve uncertainty about who
+  acted. A possible_handoff inference indicates a possible camera-to-camera
+  match. Describe it as inferred even if a person label is available.
 - Never hallucinate events not present in the data.
 - Treat every row as evidence, not as a guess. If the data does not establish
   who, what, or when, say that it is unknown.
@@ -155,6 +162,14 @@ async def synthesize_response(
     """Turn SQL result rows into a natural language answer."""
     if not rows:
         return "I couldn't find a matching recorded event in the selected camera history."
+    if any(
+        row.get("inference")
+        or row.get("event_type") == "object_last_seen"
+        or (row.get("event_type") == "object_picked_up" and not row.get("person_label"))
+        or str(row.get("action_label") or "").startswith(("Possible pickup", "Possible handoff"))
+        for row in rows
+    ):
+        return _format_evidence_response(rows)
     rows_text = json.dumps(rows[:20], default=str, ensure_ascii=False)
     prompt = (
         f"<question>{question}</question>\n\n"
@@ -180,7 +195,8 @@ def _format_evidence_response(rows: list[dict]) -> str:
         if timestamp:
             timestamp = to_local(timestamp)
         time_text = timestamp.strftime("%I:%M %p") if timestamp else "an unknown time"
-        person = row.get("person_label") or "An unidentified person"
+        person_label = row.get("person_label")
+        person = person_label or "An unidentified person"
         item = row.get("object_label") or row.get("object_category") or "the recorded item"
         action = str(row.get("event_type") or row.get("action_label") or "activity")
         location = row.get("location_label")
@@ -194,8 +210,26 @@ def _format_evidence_response(rows: list[dict]) -> str:
             qualifier = "Probably, "
         at_prefix = f"{qualifier}at" if qualifier else "At"
 
-        if action == "object_picked_up":
-            lines.append(f"{at_prefix} {time_text}, {person} picked up {item}{where}.")
+        if action == "object_last_seen":
+            lines.append(f"At {time_text}, the system last saw {item}{where}.")
+        elif row.get("inference") == "possible_pickup" or str(
+            row.get("action_label") or ""
+        ).startswith("Possible pickup"):
+            nearby = f" {person_label} was associated with the item." if person_label else ""
+            lines.append(
+                f"At {time_text}, the system inferred a possible pickup of {item}{where}.{nearby}"
+            )
+        elif action == "object_picked_up":
+            if person_label:
+                lines.append(f"{at_prefix} {time_text}, {person} picked up {item}{where}.")
+            else:
+                lines.append(f"At {time_text}, a possible pickup of {item} was recorded{where}.")
+        elif row.get("inference") == "possible_handoff" or str(
+            row.get("action_label") or ""
+        ).startswith("Possible handoff"):
+            source = row.get("from_camera_name")
+            route = f" from camera {source} to camera {camera}" if source and camera else where
+            lines.append(f"At {time_text}, the system inferred a possible handoff of {item}{route}.")
         elif action == "object_moved":
             recorded = str(row.get("action_label") or "").strip()
             if recorded.lower().startswith("moved "):

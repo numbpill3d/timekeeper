@@ -55,6 +55,8 @@ def test_object_pickup_event_preserves_person_attribution():
     )
     event = next(e for e in events if e.event_type == EventType.object_picked_up)
     assert event.person_id == person_id
+    assert event.metadata["inference"] == "possible_pickup"
+    assert event.metadata["before_frame_id"] == detection.frame_id
 
 
 def _msg(dets: list[Detection], ts: datetime | None = None) -> DetectionMessage:
@@ -200,8 +202,11 @@ def test_person_and_object_can_share_tracker_id_without_state_collision():
     events = agg.process(_msg([], ts=later))
     assert {event.event_type for event in events} == {
         EventType.person_exited,
-        EventType.object_picked_up,
+        EventType.object_last_seen,
     }
+    last_seen = next(event for event in events if event.event_type == EventType.object_last_seen)
+    assert last_seen.timestamp == t + STILL_TIMEOUT
+    assert last_seen.person_id is None
 
 
 def test_replaying_the_same_observations_reuses_event_ids():

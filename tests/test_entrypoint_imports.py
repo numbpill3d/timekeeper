@@ -59,7 +59,7 @@ def test_ingestion_loads_multiple_active_cameras_independently():
                     "protocol": "rtsp",
                     "location_label": "front door",
                     "is_edge_only": False,
-                    "provider_config": {},
+                    "provider_config": "{}",
                 },
                 {
                     "id": uuid4(),
@@ -69,7 +69,7 @@ def test_ingestion_loads_multiple_active_cameras_independently():
                     "protocol": "http",
                     "location_label": "garage",
                     "is_edge_only": False,
-                    "provider_config": {"stream_url": "http://garage/live"},
+                    "provider_config": '{"stream_url": "http://garage/live"}',
                 },
             ]
 

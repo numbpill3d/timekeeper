@@ -80,6 +80,11 @@ class Correlator:
                     if event.location_label:
                         label += f" to {event.location_label}"
                     confidence = min(from_evt.confidence, event.confidence)
+                    inferred = match_method == "category_time_window" or bool(
+                        from_evt.metadata.get("inference")
+                    )
+                    if inferred:
+                        label = label.replace("moved ", "Possible handoff of ", 1)
                     if match_method == "category_time_window":
                         confidence *= 0.75
                     extra.append(
@@ -109,6 +114,7 @@ class Correlator:
                                 "pickup_attribution": from_evt.metadata.get("attribution"),
                                 "placement_attribution": event.metadata.get("attribution"),
                                 "identity_match": match_method,
+                                **({"inference": "possible_handoff"} if inferred else {}),
                             },
                         )
                     )
@@ -135,7 +141,7 @@ class Correlator:
         if event.object_id:
             key = str(event.object_id)
             pickup = self._pending_pickups.get(key)
-            if pickup and self._same_owner(pickup[1], event):
+            if pickup and self._eligible_pickup(pickup[1], event):
                 return key, pickup[0], pickup[1], "object_id"
 
         category = event.metadata.get("object_category")
@@ -145,7 +151,7 @@ class Correlator:
             (key, *pickup)
             for key, pickup in self._pending_pickups.items()
             if pickup[0] != str(event.camera_id)
-            and self._same_owner(pickup[1], event)
+            and self._eligible_pickup(pickup[1], event)
             and pickup[1].metadata.get("object_category") == category
         ]
         if len(candidates) != 1:
@@ -154,11 +160,14 @@ class Correlator:
         return key, from_cam, from_evt, "category_time_window"
 
     @staticmethod
-    def _same_owner(first: Event, second: Event) -> bool:
-        """Require explicit matching ownership before correlating evidence."""
-        first_owner = first.metadata.get("owner_id")
-        second_owner = second.metadata.get("owner_id")
-        return bool(first_owner and second_owner and first_owner == second_owner)
+    def _eligible_pickup(pickup: Event, placement: Event) -> bool:
+        """Require same-owner evidence and an earlier pickup within the window."""
+        owner = pickup.metadata.get("owner_id")
+        return (
+            bool(owner)
+            and owner == placement.metadata.get("owner_id")
+            and timedelta(0) <= placement.timestamp - pickup.timestamp <= CROSS_CAMERA_WINDOW
+        )
 
     def _expire(self, now: datetime) -> None:
         cutoff = now - CROSS_CAMERA_WINDOW

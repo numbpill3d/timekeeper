@@ -16,6 +16,7 @@ class EventType(str, Enum):
     person_detected = "person_detected"
     object_moved = "object_moved"
     object_placed = "object_placed"
+    object_last_seen = "object_last_seen"
     object_picked_up = "object_picked_up"
     door_opened = "door_opened"
     door_closed = "door_closed"

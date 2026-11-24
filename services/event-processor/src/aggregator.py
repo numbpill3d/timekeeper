@@ -6,7 +6,8 @@ Rules (Phase 1):
   - person_exited:   track_id disappeared for > EXIT_TIMEOUT seconds
   - object_moved:    tracked object's camera_id changed between detections
   - object_placed:   object track that was moving is now stationary > STILL_TIMEOUT
-  - object_picked_up: stationary object track disappeared
+  - object_last_seen: stationary object track disappeared without attribution
+  - object_picked_up: inferred from disappearance with person attribution
   - package_delivered: 'package' class detected near entrance camera for first time
 
 Cross-camera correlation lives in correlator.py; this file handles
@@ -148,17 +149,29 @@ class CameraAggregator:
                 ),
                 confidence=det.confidence,
             )
+        metadata = {
+            **self._attribution_metadata(det),
+            "before_frame_id": det.frame_id,
+            "last_seen_at": det.timestamp.isoformat(),
+        }
+        if det.person_id:
+            event_type = EventType.object_picked_up
+            label = f"Possible pickup of {det.class_name}"
+            metadata["inference"] = "possible_pickup"
+        else:
+            event_type = EventType.object_last_seen
+            label = f"{det.class_name.capitalize()} last seen"
         return Event(
-            id=self._event_id(det, EventType.object_picked_up, frame_id),
+            id=self._event_id(det, event_type, frame_id),
             camera_id=det.camera_id,
-            event_type=EventType.object_picked_up,
-            timestamp=now,
+            event_type=event_type,
+            timestamp=now if det.person_id else det.timestamp,
             object_id=det.object_id,
             person_id=det.person_id,
             location_label=self.location_label,
-            action_label=f"{det.class_name.capitalize()} picked up",
+            action_label=label,
             confidence=self._event_confidence(det),
-            metadata=self._attribution_metadata(det),
+            metadata=metadata,
         )
 
     def _on_stationary(self, det: Detection, now: datetime) -> Event:

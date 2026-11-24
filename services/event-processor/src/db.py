@@ -5,11 +5,13 @@ Persist events to TimescaleDB and embed them for RAG via the query engine.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import math
 import os
 import time
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from uuid import UUID
 
 import asyncpg
@@ -18,7 +20,9 @@ import httpx
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 from omniscient_shared.models.event import Event
+from PIL import Image
 
+from .evidence import read_frame, write_comparison
 from .storage import object_key
 
 log = logging.getLogger(__name__)
@@ -77,26 +81,46 @@ def _upload_sync(local_path: str, key: str) -> str:
     return key
 
 
-async def store_clip(frame_path: str, event_id: UUID) -> str | None:
-    """Upload frame JPEG and return its private object key."""
+def _frame_path(frame_path: str) -> Path:
+    path = Path(frame_path).resolve()
+    path.relative_to(_FRAME_ROOT)
+    return path
+
+
+def cacheable_frame(frame_path: str) -> bytes | None:
     try:
-        path = Path(frame_path).resolve()
-        path.relative_to(_FRAME_ROOT)
+        return read_frame(_frame_path(frame_path))
+    except (OSError, ValueError):
+        return None
+
+
+def _upload_evidence(path: Path, key: str, before: bytes | None) -> str:
+    if before:
+        try:
+            with NamedTemporaryFile(suffix=".jpg") as comparison:
+                write_comparison(before, path, comparison.name)
+                return _upload_sync(comparison.name, key)
+        except (OSError, ValueError, Image.DecompressionBombError):
+            log.warning("could not store paired evidence for %s; trying current frame", key)
+    return _upload_sync(str(path), key)
+
+
+async def store_clip(
+    frame_path: str, event_id: UUID, before: bytes | None = None
+) -> str | None:
+    """Upload the current frame or a paired before-and-after JPEG."""
+    try:
+        path = _frame_path(frame_path)
     except (OSError, ValueError):
         log.warning("rejected clip path outside frame store")
         return None
-    if not path.exists():
+    if not path.is_file():
         return None
     key = f"clips/{event_id}.jpg"
     try:
-        url = await asyncio.get_event_loop().run_in_executor(
-            None, _upload_sync, frame_path, key
-        )
-        return url
+        return await asyncio.to_thread(_upload_evidence, path, key, before)
     except (BotoCoreError, ClientError, OSError) as exc:
-        log.warning(
-            "clip upload failed for event %s (%s)", event_id, type(exc).__name__
-        )
+        log.warning("clip upload failed for event %s (%s)", event_id, type(exc).__name__)
         return None
 
 
@@ -121,7 +145,7 @@ async def persist_event(conn: asyncpg.Connection, event: Event) -> None:
         event.location_label,
         event.action_label,
         event.confidence,
-        event.metadata,
+        json.dumps(event.metadata),
         event.clip_path,
         embedding,
     )

@@ -341,3 +341,18 @@ def test_exact_object_match_never_crosses_account_boundaries():
         )
     )
     assert extra == []
+
+
+def test_category_match_ignores_pickup_from_a_later_frame():
+    correlator = Correlator()
+    now = datetime.now(tz=UTC)
+    correlator.process(
+        _event(EventType.object_picked_up, uuid4(), uuid4(), ts=now, category="keys")
+    )
+
+    assert correlator.process(
+        _event(
+            EventType.object_placed, uuid4(), uuid4(),
+            ts=now - timedelta(seconds=1), category="keys",
+        )
+    ) == []

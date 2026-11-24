@@ -131,3 +131,22 @@ async def test_retention_deletes_a_bounded_batch_of_raw_detections():
     db = Db()
     assert await purge_expired_detections(db) == 37
     assert "c.retention_days" in db.sql
+
+
+def test_paired_jpeg_contains_before_and_after_frames(tmp_path):
+    from io import BytesIO
+
+    from PIL import Image
+
+    before = BytesIO()
+    after = tmp_path / "after.jpg"
+    evidence = tmp_path / "paired.jpg"
+    with Image.new("RGB", (640, 360), "blue") as frame:
+        frame.save(before, format="JPEG")
+    with Image.new("RGB", (640, 360), "red") as frame:
+        frame.save(after)
+    event_db.write_comparison(before.getvalue(), after, str(evidence))
+    with Image.open(evidence) as result:
+        assert result.size == (1280, 384)
+        assert result.getpixel((100, 100))[2] > 200
+        assert result.getpixel((740, 100))[0] > 200

@@ -47,7 +47,7 @@ async def _load_cameras(conn: asyncpg.Connection) -> list[Camera]:
             protocol=CameraProtocol(r["protocol"]),
             location_label=r["location_label"],
             is_edge_only=r["is_edge_only"],
-            provider_config=r["provider_config"] or {},
+            provider_config=json.loads(r["provider_config"]) or {},
         )
         for r in rows
     ]

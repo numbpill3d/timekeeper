@@ -152,3 +152,9 @@ def test_fallback_query_supports_24_hour_ranges():
 def test_fallback_query_wraps_overnight_ranges_to_the_next_day():
     _, params = build_fallback_query("who was there between 11 pm and 1 am?")
     assert params[1] - params[0] == timedelta(hours=2)
+
+
+def test_fallback_can_filter_to_recorded_last_sightings():
+    sql, params = build_fallback_query("Where were the keys last seen?")
+    assert "e.event_type = $" in sql
+    assert params[-1] == "object_last_seen"

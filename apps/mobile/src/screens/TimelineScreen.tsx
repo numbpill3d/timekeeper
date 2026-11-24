@@ -19,6 +19,7 @@ const EVENT_TYPES = [
   "person_detected",
   "object_placed",
   "object_picked_up",
+  "object_last_seen",
   "object_moved",
   "door_opened",
   "door_closed",

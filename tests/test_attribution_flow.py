@@ -66,10 +66,12 @@ def test_named_person_item_pickup_survives_event_pipeline():
 
     answer = _format_evidence_response([{
         "event_type": pickup.event_type.value,
+        "inference": pickup.metadata["inference"],
         "timestamp": pickup.timestamp,
         "person_label": "John",
         "object_category": "keys",
         "location_label": pickup.location_label,
     }])
-    assert "John picked up keys" in answer
+    assert "possible pickup of keys" in answer
+    assert "John was associated with the item" in answer
     assert "kitchen" in answer

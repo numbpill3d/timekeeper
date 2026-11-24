@@ -47,6 +47,7 @@ _HISTORY_QUESTION_RE = re.compile(
     re.IGNORECASE,
 )
 _ACTION_EVENT_TYPES = (
+    (re.compile(r"\b(?:last seen|last sighting)\b", re.IGNORECASE), "object_last_seen"),
     (re.compile(r"\b(?:pick|picked|pickup|grab|grabbed|take|took)\b", re.IGNORECASE), "object_picked_up"),
     (re.compile(r"\b(?:place|placed|put|set)\b", re.IGNORECASE), "object_placed"),
     (re.compile(r"\b(?:move|moved|carry|carried)\b", re.IGNORECASE), "object_moved"),
@@ -276,12 +277,13 @@ def build_fallback_query(question: str) -> tuple[str, list[object]]:
                e.camera_id AS camera_id,
                c.name AS camera_name,
                e.confidence, e.clip_path,
+               e.metadata->>'inference' AS inference,
                e.metadata->>'from_camera_name' AS from_camera_name,
                e.metadata->>'to_camera_name' AS to_camera_name,
                p.id AS person_id,
                p.label AS person_label,
                o.label AS object_label,
-               o.category AS object_category
+               COALESCE(o.category, e.metadata->>'object_category') AS object_category
         FROM events e
         JOIN cameras c ON e.camera_id = c.id
         LEFT JOIN persons p ON e.person_id = p.id
