@@ -20,7 +20,7 @@ invent an identity or action when the evidence is missing or weak.
   and otherwise uses a conservative, lower-confidence category/time-window
   match only when the evidence is unambiguous.
 - Preserves source and destination camera names on correlated handoffs so an
-  answer can show the verified camera path as well as the recorded locations.
+  answer can show the cameras and locations involved in the inferred handoff.
 - Stores events, labels, confidence, embeddings, and clip references in
   PostgreSQL/TimescaleDB with pgvector.
 - Answers natural-language questions through RAG + text-to-SQL, with a
@@ -148,18 +148,15 @@ docker compose up --build --scale vision=4
 ```
 
 `KAFKA_TOPIC_PARTITIONS` defaults to four. Keep it at or above the maximum
-number of vision replicas. The one-shot `kafka-topics-init` Compose service
-creates the application topics and expands existing topics when the configured
-partition count is higher:
-
-```bash
-docker compose up --build --scale vision=4
-```
+number of vision replicas. The one-shot `kafka-topics-init` service creates
+application topics and expands them when configured with a higher count.
 
 Frames are keyed by camera ID and all replicas use the same
-`VISION_CONSUMER_GROUP`, so Kafka keeps each camera's ordered tracker state on
-one worker. The same pattern can be applied to `event-processor` after
-expanding `omniscient.detections` when downstream throughput requires it.
+`VISION_CONSUMER_GROUP`, so each camera's ordered stream goes to one vision
+worker. Run one event processor per database. Its correlator needs to see
+pickup and placement events across camera partitions. Vision's object IDs
+are camera-scoped, so the bundled pipeline uses an unambiguous category and
+time-window match for live cross-camera handoffs.
 
 Removing a camera is destructive: its detections, events, alert-delivery
 records, event annotations, and private evidence clips are removed as part of
@@ -180,8 +177,10 @@ What happened in the garage this afternoon?
 What happened to the toolbox between 4:30 and 5:15 pm?
 ```
 
-An empty or low-confidence result is reported as uncertain rather than being
-presented as a fact. An Ollama model or configured OpenAI-compatible provider
+An empty or low-confidence result is reported as uncertain. When a stationary
+item disappears, Timekeeper records its last sighting or a possible pickup if
+the tracker associated a person with the item. When both frames are still
+available, the evidence image shows the last sighting beside the later frame. An Ollama model or configured OpenAI-compatible provider
 is required for richer natural-language synthesis; the structured fallback does
 not require either provider and understands common bounded time ranges,
 including overnight ranges such as “between 11 pm and 1 am.” When a fallback
@@ -249,8 +248,9 @@ same handoff evidence shown by a live multi-camera setup.
 Ask the UI: `What happened to the blue toolbox?` or
 `Who picked up the blue toolbox?`.
 
-Every push and pull request runs the Python, web, mobile, and Compose gates in
-GitHub Actions. Hardware/provider smoke tests remain a separate release check.
+GitHub Actions checks Python, web, mobile, and Compose and runs a hardware-free
+Kafka-to-API smoke test with a processor restart. Live camera and provider
+validation remain separate release checks.
 
 ## Repository layout
 

@@ -22,11 +22,13 @@ from omniscient_shared.models.event import Event, EventType
 from .aggregator import CameraAggregator
 from .correlator import CROSS_CAMERA_WINDOW, Correlator
 from .db import (
+    cacheable_frame,
     persist_event,
     purge_expired_detections,
     purge_expired_events,
     store_clip,
 )
+from .evidence import RecentFrames
 from .storage import cleanup_frame
 
 log = logging.getLogger(__name__)
@@ -35,6 +37,7 @@ logging.basicConfig(level=logging.INFO)
 _BROKERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 _DB_URL = os.getenv("DATABASE_URL", "")
 _DB_CONNECT_TIMEOUT_SECONDS = 15
+_PROCESSOR_LOCK = 0x544B4556454E54
 _RETENTION_INTERVAL = max(
     300, int(os.getenv("RETENTION_INTERVAL_SECONDS", "3600"))
 )
@@ -54,6 +57,7 @@ async def main() -> None:
         group_id=GROUP_EVENT_PROCESSOR,
         value_deserializer=lambda v: json.loads(v.decode()),
         enable_auto_commit=False,
+        auto_offset_reset="earliest",
     )
     producer = AIOKafkaProducer(
         bootstrap_servers=_BROKERS,
@@ -62,19 +66,19 @@ async def main() -> None:
 
     aggregators: dict[str, CameraAggregator] = {}
     correlator = Correlator()
+    recent_frames = RecentFrames()
     consumer_started = False
     producer_started = False
     db: asyncpg.Connection | None = None
     retention_task: asyncio.Task | None = None
     camera_refresh_task: asyncio.Task | None = None
     try:
-        await consumer.start()
-        consumer_started = True
-        await producer.start()
-        producer_started = True
         db = await asyncpg.connect(_DB_URL, timeout=_DB_CONNECT_TIMEOUT_SECONDS)
         if db is None:
             raise RuntimeError("event processor database connection was not created")
+        # Camera-keyed partitions feed a single cross-camera correlator.
+        if not await db.fetchval("SELECT pg_try_advisory_lock($1)", _PROCESSOR_LOCK):
+            raise RuntimeError("another event processor already owns cross-camera correlation")
         cam_rows = await db.fetch(
             "SELECT id, name, location_label, owner_id FROM cameras "
             "WHERE is_active = TRUE"
@@ -84,8 +88,9 @@ async def main() -> None:
         cam_owners = {str(r["id"]): str(r["owner_id"]) for r in cam_rows}
         recent_handoff_events = await db.fetch(
             """
-            SELECT id, camera_id, event_type, timestamp, person_id, object_id,
-                   location_label, action_label, confidence, metadata, clip_path
+            SELECT e.id, e.camera_id, e.event_type, e.timestamp, e.person_id,
+                   e.object_id, e.location_label, e.action_label, e.confidence,
+                   e.metadata, e.clip_path
             FROM events e
             JOIN cameras c ON c.id = e.camera_id AND c.is_active = TRUE
             WHERE e.event_type IN ($1, $2)
@@ -97,15 +102,24 @@ async def main() -> None:
             EventType.object_placed.value,
             int(CROSS_CAMERA_WINDOW.total_seconds()),
         )
-        correlator.restore([Event(**dict(row)) for row in recent_handoff_events])
+        correlator.restore([
+            Event(**{**row, "metadata": json.loads(row["metadata"])})
+            for row in recent_handoff_events
+        ])
 
+        await producer.start()
+        producer_started = True
+        await consumer.start()
+        consumer_started = True
         log.info("event processor started")
         # Retention uses its own connection. asyncpg connections do not allow
         # concurrent operations, and the consumer loop must remain free to
         # persist incoming detections while cleanup runs.
         retention_task = asyncio.create_task(_retention_loop())
         camera_refresh_task = asyncio.create_task(
-            _camera_refresh_loop(cam_locations, cam_names, cam_owners, aggregators, correlator)
+            _camera_refresh_loop(
+                cam_locations, cam_names, cam_owners, aggregators, correlator, recent_frames
+            )
         )
         async for msg in consumer:
             try:
@@ -139,6 +153,12 @@ async def main() -> None:
                     )
 
                 events = aggregators[cam_key].process(det_msg)
+                if det_msg.frame_path and any(
+                    det.class_name != "person" for det in det_msg.detections
+                ):
+                    frame = await asyncio.to_thread(cacheable_frame, det_msg.frame_path)
+                    if frame:
+                        recent_frames.remember(cam_key, det_msg.frame_id, frame)
                 owner_id = cam_owners.get(cam_key, "")
 
                 # cross-camera correlation may produce additional events
@@ -152,9 +172,9 @@ async def main() -> None:
                 for event in events:
                     event.metadata["owner_id"] = owner_id
                     if det_msg.frame_path and not event.clip_path:
-                        event.clip_path = await store_clip(
-                            det_msg.frame_path, event.id
-                        )
+                        before_id = event.metadata.get("before_frame_id")
+                        before = recent_frames.get(cam_key, before_id) if before_id else None
+                        event.clip_path = await store_clip(det_msg.frame_path, event.id, before)
                     await persist_event(db, event)
                     await producer.send_and_wait(
                         EVENTS,
@@ -174,12 +194,10 @@ async def main() -> None:
                     "detection processing failed for camera %s; restarting for replay",
                     cam_key,
                 )
-            finally:
-                if processed:
-                    cleanup_frame(det_msg.frame_path)
             if not processed:
                 raise RuntimeError("detection processing failed; replay required")
             await consumer.commit()
+            cleanup_frame(det_msg.frame_path)
     finally:
         if retention_task:
             retention_task.cancel()
@@ -226,6 +244,7 @@ async def _camera_refresh_loop(
     cam_owners: dict[str, str],
     aggregators: dict[str, CameraAggregator],
     correlator: Correlator,
+    recent_frames: RecentFrames,
 ) -> None:
     """Refresh active-camera state without sharing the consumer DB connection."""
     while True:
@@ -248,6 +267,7 @@ async def _camera_refresh_loop(
                 cam_owners.pop(camera_id, None)
                 aggregators.pop(camera_id, None)
                 correlator.remove_camera(camera_id)
+                recent_frames.remove_camera(camera_id)
             for camera_id, (name, location, owner_id) in active.items():
                 cam_names[camera_id] = name
                 cam_locations[camera_id] = location

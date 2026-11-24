@@ -69,8 +69,8 @@ services:
       KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
-      # Fresh topics get enough partitions for horizontally scaled vision
-      # and event-processor replicas. Existing topics can be expanded with
+      # Fresh topics get enough partitions for horizontally scaled vision.
+      # Existing topics can be expanded with
       # kafka-topics.sh; Kafka never shrinks a topic.
       KAFKA_CFG_NUM_PARTITIONS: ${KAFKA_TOPIC_PARTITIONS:-4}
     volumes:
@@ -89,25 +89,26 @@ services:
     environment:
       KAFKA_TOPIC_PARTITIONS: ${KAFKA_TOPIC_PARTITIONS:-4}
     entrypoint: ["/bin/bash", "-ec"]
-    command: >-
-      case "$$KAFKA_TOPIC_PARTITIONS" in
-        ''|*[!0-9]*|0) echo "KAFKA_TOPIC_PARTITIONS must be a positive integer" >&2; exit 1 ;;
-      esac;
-      for topic in omniscient.frames omniscient.detections omniscient.events omniscient.alerts; do
-        kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists
-          --topic "$$topic" --partitions "$$KAFKA_TOPIC_PARTITIONS"
-          --replication-factor 1;
-        current=$$(kafka-topics.sh --bootstrap-server kafka:9092 --describe
-          --topic "$$topic" | sed -n 's/.*PartitionCount:\([0-9]*\).*/\1/p' | head -n 1);
-        if [ -z "$$current" ]; then
-          echo "could not determine partition count for $$topic" >&2;
-          exit 1;
-        fi;
-        if [ "$$current" -lt "$$KAFKA_TOPIC_PARTITIONS" ]; then
-          kafka-topics.sh --bootstrap-server kafka:9092 --alter --topic "$$topic"
-            --partitions "$$KAFKA_TOPIC_PARTITIONS";
-        fi;
-      done
+    command:
+      - |
+        case "$$KAFKA_TOPIC_PARTITIONS" in
+          ''|*[!0-9]*|0) echo "KAFKA_TOPIC_PARTITIONS must be a positive integer" >&2; exit 1 ;;
+        esac;
+        for topic in omniscient.frames omniscient.detections omniscient.events omniscient.alerts; do
+          kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists \
+            --topic "$$topic" --partitions "$$KAFKA_TOPIC_PARTITIONS" \
+            --replication-factor 1;
+          current=$$(kafka-topics.sh --bootstrap-server kafka:9092 --describe \
+            --topic "$$topic" | sed -n 's/.*PartitionCount:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n 1);
+          if [ -z "$$current" ]; then
+            echo "could not determine partition count for $$topic" >&2;
+            exit 1;
+          fi;
+          if [ "$$current" -lt "$$KAFKA_TOPIC_PARTITIONS" ]; then
+            kafka-topics.sh --bootstrap-server kafka:9092 --alter --topic "$$topic" \
+              --partitions "$$KAFKA_TOPIC_PARTITIONS";
+          fi;
+        done
     depends_on:
       kafka:
         condition: service_healthy

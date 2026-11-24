@@ -4,6 +4,7 @@ import asyncio
 from datetime import UTC, datetime
 
 import llm
+import pytest
 
 
 def test_evidence_formatter_names_person_item_and_time():
@@ -169,3 +170,20 @@ def test_synthesis_delimits_untrusted_context_and_evidence(monkeypatch):
     assert "<conversation>" in captured["user"]
     assert "<event-evidence>" in captured["user"]
     assert "untrusted data" in captured["system"]
+
+
+def test_last_sighting_does_not_synthesize_a_pickup(monkeypatch):
+    async def unexpected_model_call(*_args):
+        pytest.fail("inferred or last-seen evidence must be formatted directly")
+
+    monkeypatch.setattr(llm, "_complete", unexpected_model_call)
+    answer = asyncio.run(llm.synthesize_response(
+        "Who picked up the keys?",
+        [{
+            "event_type": "object_last_seen",
+            "object_label": "Keys",
+            "location_label": "kitchen",
+            "timestamp": datetime(2026, 11, 11, 16, 30, tzinfo=UTC),
+        }],
+    ))
+    assert answer == "At 04:30 PM, the system last saw Keys at kitchen."

@@ -29,6 +29,19 @@ modifying live camera credentials. The movement event includes the source and
 destination camera names so the handoff answer can be verified without
 physical hardware.
 
+The CI event-pipeline smoke test runs the real processor, TimescaleDB, Kafka,
+object storage, and API with a scripted detection sequence. It checks a signed
+JPEG through the API, restarts the processor, and verifies an inferred handoff
+across two Kafka partitions. Run it from a clean checkout with the development
+ports free. These commands create and then remove a disposable stack and data:
+
+```bash
+export COMPOSE_PROJECT_NAME=timekeeper-smoke
+docker compose --env-file .env.example up -d --build event-processor api
+python3 scripts/smoke_event_pipeline.py
+docker compose --env-file .env.example down --volumes
+```
+
 The default compose setup is local-only: infrastructure ports bind to
 `127.0.0.1`; the query service is internal to the Compose network and is
 reached through the authenticated API proxy. The query service can use its structured fallback without an LLM,

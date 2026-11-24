@@ -372,7 +372,10 @@ def _public_camera(row: asyncpg.Record | dict) -> CameraOut:
     data = dict(row)
     data["status"] = _camera_status(data)
     data["stream_url"] = _redact_url(str(data["stream_url"]))
-    data["provider_config"] = _redact_provider_config(data["provider_config"] or {})
+    config = data["provider_config"]
+    if isinstance(config, str):
+        config = json.loads(config)
+    data["provider_config"] = _redact_provider_config(config or {})
     return CameraOut(**data)
 
 
@@ -425,7 +428,7 @@ async def add_camera(
             req.protocol,
             req.location_label,
             req.is_edge_only,
-            req.provider_config,
+            json.dumps(req.provider_config),
             req.retention_days or _DEFAULT_RETENTION_DAYS,
         )
     return _public_camera(row)
@@ -445,6 +448,8 @@ async def update_camera(
     }
     if not updates:
         raise HTTPException(status_code=422, detail="no fields to update")
+    if "provider_config" in updates:
+        updates["provider_config"] = json.dumps(updates["provider_config"])
     sets = ", ".join(f"{col} = ${i + 3}" for i, col in enumerate(updates))
     row = await db.fetchrow(
         f"UPDATE cameras SET {sets} "
